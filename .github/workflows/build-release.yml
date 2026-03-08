@@ -1,25 +1,19 @@
 name: Build & Release
-
 on:
   push:
-    tags:
-      - 'v*'
-
+    tags: ['v*']
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             output: SistemaHotelSantos-Windows.exe
           - os: ubuntu-latest
             output: SistemaHotelSantos-Ubuntu
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,7 +29,6 @@ jobs:
         with:
           name: ${{ matrix.output }}
           path: app/dist/${{ matrix.output }}
-
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -47,4 +40,3 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/SistemaHotelSantos*
-          body: Release ${{ github.ref_name }}
