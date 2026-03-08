@@ -1,4 +1,4 @@
-name: Build & Release - Hotel Santos
+name: Build & Release
 
 on:
   push:
@@ -16,31 +16,25 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            nome_saida: SistemaHotelSantos-Windows.exe
+            output: SistemaHotelSantos-Windows.exe
           - os: ubuntu-latest
-            nome_saida: SistemaHotelSantos-Ubuntu
+            output: SistemaHotelSantos-Ubuntu
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
-      - run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller
-          pip install -r app/requirements.txt
-      - run: |
-          cd app
-          pyinstaller --name="SistemaHotelSantos" --onefile --windowed --clean --noconfirm app_gui.py
+      - run: pip install pyinstaller && pip install -r app/requirements.txt
+      - run: cd app && pyinstaller --onefile --windowed --noconfirm app_gui.py
       - if: runner.os == 'Windows'
         run: cd app\dist && ren SistemaHotelSantos.exe SistemaHotelSantos-Windows.exe
       - if: runner.os == 'Linux'
         run: cd app/dist && mv SistemaHotelSantos SistemaHotelSantos-Ubuntu && chmod +x SistemaHotelSantos-Ubuntu
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.nome_saida }}
-          path: app/dist/${{ matrix.nome_saida }}
+          name: ${{ matrix.output }}
+          path: app/dist/${{ matrix.output }}
 
   release:
     needs: build
@@ -53,3 +47,4 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/SistemaHotelSantos*
+          body: Release ${{ github.ref_name }}
