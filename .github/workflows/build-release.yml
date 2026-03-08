@@ -5,40 +5,46 @@ on:
 permissions:
   contents: write
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-          - os: ubuntu-latest
+  build-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pyinstaller && pip install -r app/requirements.txt
-      - run: cd app && pyinstaller --onefile --windowed app_gui.py
-      - run: |
-          cd app/dist
-          ls -la
-      - if: runner.os == 'Windows'
-        run: cd app\dist && ren SistemaHotelSantos.exe SistemaHotelSantos-Windows.exe
-      - if: runner.os == 'Linux'
-        run: cd app/dist && mv SistemaHotelSantos SistemaHotelSantos-Ubuntu && chmod +x SistemaHotelSantos-Ubuntu
+      - run: pip install -r app/requirements.txt pyinstaller
+      - run: cd app && pyinstaller --onefile app_gui.py
+      - run: dir app\dist\
+      - run: cd app\dist && ren SistemaHotelSantos.exe SistemaHotelSantos-Windows.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: exe-${{ runner.os }}
-          path: app/dist/*
-  release:
-    needs: build
+          name: windows-build
+          path: app/dist/SistemaHotelSantos-Windows.exe
+
+  build-linux:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r app/requirements.txt pyinstaller
+      - run: cd app && pyinstaller --onefile app_gui.py
+      - run: ls -la app/dist/
+      - run: cd app/dist && mv SistemaHotelSantos SistemaHotelSantos-Ubuntu && chmod +x SistemaHotelSantos-Ubuntu
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: app/dist/SistemaHotelSantos-Ubuntu
+
+  release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - run: find artifacts -type f
       - uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*.exe
-          body: Release ${{ github.ref_name }}
+          files: artifacts/**/*
