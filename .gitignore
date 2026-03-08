@@ -1,0 +1,92 @@
+# Ambiente Virtual
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+bin/
+lib/
+lib64/
+
+# IDE e Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-workspace
+*.sublime-project
+
+# Dependências e Build
+dist/
+build/
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+hotel.db
+
+# Logs
+logs/
+*.log
+debug.log
+error.log
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Configurações locais
+.env
+.env.local
+.env.*.local
+.shs_config.json
+config.local.ini
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Desenvolvimento
+*.tmp
+*.bak
+.vscode/launch.json
+.vscode/settings.json
+
+# PyInstaller (gerado automaticamente)
+*.exe
+*.app
+
+# Arquivos temporários do Git
+.git/COMMIT_EDITMSG
+
+# Node (se usar em futuro)
+node_modules/
+npm-debug.log
+
+# Arquivos de sistema
+*.swp
+*.swo
+*~
+.#*
+
+# Backup
+*.backup
+*.bk
+
+# Relatórios
+test-results.xml
+coverage.xml
