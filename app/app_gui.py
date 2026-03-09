@@ -1041,19 +1041,7 @@ class AppHotelLTS(ctk.CTk):
         ctk.CTkButton(left_frame, text="Remover Tarefa Selecionada", fg_color=self.colors["perigo"], command=self.remover_agendamento_selecionado).pack(pady=10)
 
         # --- Conteúdo do Painel Direito ---
-        is_dark = ctk.get_appearance_mode() == "Dark"
-        cal_bg = "#1f2937" if is_dark else "#ffffff"
-        cal_fg = "#f3f4f6" if is_dark else "#1f2937"
-        
-                                   background=cal_bg, foreground=cal_fg,
-                                   headersbackground=cal_bg, headersforeground=cal_fg,
-                                   normalbackground=cal_bg, normalforeground=cal_fg,
-                                   weekendbackground=cal_bg, weekendforeground=cal_fg,
-                                   othermonthbackground="#374151" if is_dark else "#e5e7eb",
-                                   othermonthwebackground="#374151" if is_dark else "#e5e7eb",
-                                   selectbackground=cal_sel_bg,
-                                   font=("Arial", 12),
-                                   locale='pt_BR')
+
         
 
         # Inicialização
