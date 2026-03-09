@@ -71,8 +71,6 @@ class AppHotelLTS(ctk.CTk):
         self.lista_selecionada_id: int | None = None
         self.lista_selecionada_status: str | None = None
 
-        # Widgets da tela de Calendário
-        self.calendario: Calendar | None = None
         self.combo_funcionarios: ctk.CTkComboBox | None = None
         self.e_obs_agenda: ctk.CTkEntry | None = None
         self.tree_tarefas_dia: ttk.Treeview | None = None
@@ -115,8 +113,6 @@ class AppHotelLTS(ctk.CTk):
             "financeiro_hover": "#15803d", # Green 700
             "compras": "#ea580c",        # Orange 600 (Laranja Vibrante)
             "compras_hover": "#c2410c",  # Orange 700
-            "calendario": "#db2777",     # Pink 600 (Rosa Vibrante)
-            "calendario_hover": "#be185d", # Pink 700
             "dashboard": "#2563eb",      # Blue 600 (Azul Vibrante)
             "dashboard_hover": "#1d4ed8", # Blue 700
             "ajustes": "#0d9488",        # Teal 600 (Turquesa Vibrante)
@@ -151,7 +147,6 @@ class AppHotelLTS(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="👥 Hóspedes", command=self.tela_hospedes, hover_color=self.colors["hospedes_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         ctk.CTkButton(self.sidebar, text="💰 Financeiro", command=self.tela_financeiro, hover_color=self.colors["financeiro_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         ctk.CTkButton(self.sidebar, text="🛒 Compras", command=self.tela_compras, hover_color=self.colors["compras_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
-        # Calendário removido temporariamente
         ctk.CTkButton(self.sidebar, text="📊 Dashboard", command=self.tela_dash, hover_color=self.colors["dashboard_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         ctk.CTkButton(self.sidebar, text="⚙️ Ajustes", command=self.tela_config, hover_color=self.colors["ajustes_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         
@@ -418,7 +413,6 @@ class AppHotelLTS(ctk.CTk):
         btns = [("👥 HÓSPEDES", self.tela_hospedes, (self.colors["hospedes"], self.colors["hospedes_hover"])),
                 ("💰 FINANCEIRO", self.tela_financeiro, (self.colors["financeiro"], self.colors["financeiro_hover"])),
                 ("🛒 COMPRAS", self.tela_compras, (self.colors["compras"], self.colors["compras_hover"])),
-                ("📅 CALENDÁRIO", self.tela_calendario, (self.colors["calendario"], self.colors["calendario_hover"])),
                 ("📊 DASHBOARD", self.tela_dash, (self.colors["dashboard"], self.colors["dashboard_hover"])),
                 ("⚙️ AJUSTES", self.tela_config, (self.colors["ajustes"], self.colors["ajustes_hover"]))]
 
@@ -528,7 +522,6 @@ class AppHotelLTS(ctk.CTk):
         self.configurar_tags_tabela(self.tree_z)
         
         # RESTAURADO: Clique direito para editar data
-        self.tree_z.bind("<Button-3>", lambda e: self.janela_calendario_vencimento(e, doc, nome))
         
         hist = self.core.get_historico_detalhado(doc)
         for i, m in enumerate(hist):
@@ -983,14 +976,11 @@ class AppHotelLTS(ctk.CTk):
         threading.Thread(target=_task, daemon=True).start()
 
     # =========================================================================
-    # MÓDULO CALENDÁRIO
     # =========================================================================
-    def tela_calendario(self) -> None:
         if not Calendar:
             messagebox.showerror("Erro de Dependência", "A biblioteca 'tkcalendar' é necessária para este módulo.\n\nInstale com: pip install tkcalendar")
             return
 
-        self.current_screen_function = self.tela_calendario
         self.current_screen_args = ()
         self.current_screen_kwargs = {}
         self.limpar_tela()
@@ -1009,7 +999,6 @@ class AppHotelLTS(ctk.CTk):
         left_frame.pack(side="left", fill="y", padx=(0, 10))
         left_frame.pack_propagate(False)
 
-        # --- PAINEL DIREITO (Calendário) ---
         right_frame = ctk.CTkFrame(main_paned)
         right_frame.pack(side="right", fill="both", expand=True)
 
@@ -1055,9 +1044,7 @@ class AppHotelLTS(ctk.CTk):
         is_dark = ctk.get_appearance_mode() == "Dark"
         cal_bg = "#1f2937" if is_dark else "#ffffff"
         cal_fg = "#f3f4f6" if is_dark else "#1f2937"
-        cal_sel_bg = self.colors["calendario"]
         
-        self.calendario = Calendar(right_frame, selectmode='day', date_pattern='dd/mm/yyyy',
                                    background=cal_bg, foreground=cal_fg,
                                    headersbackground=cal_bg, headersforeground=cal_fg,
                                    normalbackground=cal_bg, normalforeground=cal_fg,
@@ -1068,13 +1055,9 @@ class AppHotelLTS(ctk.CTk):
                                    font=("Arial", 12),
                                    locale='pt_BR')
         
-        self.calendario.bind("<<CalendarSelected>>", self.atualizar_data_selecionada_calendario)
-        self.calendario.bind("<<CalendarMonthChanged>>", lambda e: self.refresh_eventos_calendario())
 
         # Inicialização
         self.refresh_lista_funcionarios()
-        self.refresh_eventos_calendario()
-        self.atualizar_data_selecionada_calendario(None) # Seta a data inicial
 
     def refresh_lista_funcionarios(self):
         if not self.combo_funcionarios: return
@@ -1086,14 +1069,10 @@ class AppHotelLTS(ctk.CTk):
         self.combo_funcionarios.configure(values=["Nenhum"] + nomes_funcionarios)
         self.combo_funcionarios.set("Nenhum")
 
-    def refresh_eventos_calendario(self):
-        if not self.calendario: return
         
         # Limpa eventos antigos
-        self.calendario.calevent_remove('all')
         
         # Busca novos eventos
-        cal_date = self.calendario.get_date() # '2/3/2026'
         dt_obj = datetime.strptime(cal_date, '%d/%m/%Y')
         
         eventos = self.core.get_agenda_mes(dt_obj.year, dt_obj.month)
@@ -1112,14 +1091,9 @@ class AppHotelLTS(ctk.CTk):
                 cor = self._obter_cor_funcionario(nome)
                 
                 # Criar evento com tag do funcionário
-                self.calendario.calevent_create(event_dt, "●", tag_name)
                 
                 # Configurar cor da tag (bolinha discreta)
-                self.calendario.tag_config(tag_name, background=cor, foreground=cor)
 
-    def atualizar_data_selecionada_calendario(self, event):
-        if not self.calendario or not self.lbl_data_selecionada or not self.tree_tarefas_dia: return
-        data_selecionada = self.calendario.get_date()
         self.lbl_data_selecionada.configure(text=f"Data: {data_selecionada}")
         
         # Limpa lista lateral
@@ -1135,7 +1109,6 @@ class AppHotelLTS(ctk.CTk):
             print(f"Erro ao buscar agendamento: {e}")
 
     def agendar_funcionario_selecionado(self):
-        if not self.calendario or not self.combo_funcionarios or not self.e_obs_agenda or not self.current_user: return
         
         nome_func = self.combo_funcionarios.get()
         if nome_func == "Nenhum":
@@ -1153,14 +1126,11 @@ class AppHotelLTS(ctk.CTk):
             messagebox.showerror("Erro", "Funcionário não encontrado no cache.")
             return
             
-        data_str = self.calendario.get_date()
         data_iso = datetime.strptime(data_str, '%d/%m/%Y').strftime('%Y-%m-%d')
         obs = self.e_obs_agenda.get()
         
         try:
             self.core.salvar_agendamento(data_iso, func_id, obs, self.current_user['username'])
-            self.refresh_eventos_calendario()
-            self.atualizar_data_selecionada_calendario(None) # Atualiza lista lateral
             self.e_obs_agenda.delete(0, 'end')
         except Exception as e:
             messagebox.showerror("Erro ao Agendar", str(e))
@@ -1177,8 +1147,6 @@ class AppHotelLTS(ctk.CTk):
         if messagebox.askyesno("Confirmar", "Deseja remover esta tarefa?"):
             try:
                 self.core.remover_agendamento_id(agenda_id, self.current_user['username'])
-                self.refresh_eventos_calendario()
-                self.atualizar_data_selecionada_calendario(None)
             except Exception as e:
                 messagebox.showerror("Erro ao Remover", str(e))
 
@@ -1632,7 +1600,6 @@ class AppHotelLTS(ctk.CTk):
         e_valor.bind("<Return>", confirmar)
         ctk.CTkButton(f_detalhes, text="CONFIRMAR LANÇAMENTO", fg_color=self.colors["financeiro"], height=40, command=confirmar).pack(pady=10, fill="x", padx=20)
 
-    def janela_calendario_vencimento(self, event: object, doc: str, nome: str) -> None:
         # Verificação de permissão melhorada: permite se for admin ou tiver a permissão específica
         if not self.current_user or \
            (not self.current_user.get('is_admin') and not self.current_user.get('can_change_dates')):
@@ -1642,7 +1609,6 @@ class AppHotelLTS(ctk.CTk):
         try:
             from tkcalendar import DateEntry
         except ImportError:
-            messagebox.showerror("Erro", "Biblioteca 'tkcalendar' não instalada.\nImpossível abrir calendário.")
             return
 
         item = self.tree_z.identify_row(event.y)
