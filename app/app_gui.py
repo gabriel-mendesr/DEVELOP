@@ -999,7 +999,6 @@ class AppHotelLTS(ctk.CTk):
         nav = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         nav.pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(nav, text="← Início", width=80, command=self.tela_home).pack(side="left")
-        ctk.CTkLabel(nav, text="CALENDÁRIO DE FUNCIONÁRIOS", font=("Arial", 18, "bold"), text_color=self.colors["calendario"]).pack(side="left", padx=20)
 
         # Layout principal
         main_paned = ctk.CTkFrame(self.main_frame, fg_color="transparent")
@@ -1029,7 +1028,6 @@ class AppHotelLTS(ctk.CTk):
                 except Exception as e:
                     messagebox.showerror("Erro", str(e))
 
-        ctk.CTkButton(add_frame, text="+ Novo Funcionário", command=adicionar_func_action, fg_color=self.colors["calendario"]).pack(fill="x")
 
         # Área de Tarefas do Dia
         ctk.CTkLabel(left_frame, text="Tarefas do Dia", font=("Arial", 14, "bold")).pack(pady=(15, 5))
@@ -1069,7 +1067,6 @@ class AppHotelLTS(ctk.CTk):
                                    selectbackground=cal_sel_bg,
                                    font=("Arial", 12),
                                    locale='pt_BR')
-        self.calendario.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.calendario.bind("<<CalendarSelected>>", self.atualizar_data_selecionada_calendario)
         self.calendario.bind("<<CalendarMonthChanged>>", lambda e: self.refresh_eventos_calendario())
