@@ -24,9 +24,26 @@ class UpdateManager:
     GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     
     def __init__(self):
-        self.versao_atual = "6.0.9"  # Sincronizar com git tag
+        self.versao_atual = self._obter_versao_git()
         self.arquivo_versao = Path.home() / ".shs_version"
         self.carregar_versao()
+    
+    def _obter_versao_git(self):
+        """Obtém versão do último git tag"""
+        try:
+            import subprocess
+            resultado = subprocess.run(
+                ['git', 'describe', '--tags', '--abbrev=0'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if resultado.returncode == 0:
+                versao = resultado.stdout.strip().lstrip('v')
+                return versao if versao else "1.0.0"
+        except:
+            pass
+        return "1.0.0"
     
     def carregar_versao(self):
         """Carrega versão salva ou usa padrão"""

@@ -92,8 +92,12 @@ class AppHotelLTS(ctk.CTk):
         self.minsize(1024, 768) # Garante um tamanho mínimo para não quebrar o layout
         
         # Tenta iniciar maximizado (funciona no Windows, ignora se falhar em outros OS)
-        try: self.after(0, lambda: self.state('zoomed'))
-        except: pass
+        try:
+            import platform
+            if platform.system() == 'Windows':
+                self.state('zoomed')
+        except:
+            pass
 
         # --- PALETA DE CORES FOSCAS (MATTE) & SINGULARES ---
         self.colors = {
@@ -147,7 +151,7 @@ class AppHotelLTS(ctk.CTk):
         ctk.CTkButton(self.sidebar, text="👥 Hóspedes", command=self.tela_hospedes, hover_color=self.colors["hospedes_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         ctk.CTkButton(self.sidebar, text="💰 Financeiro", command=self.tela_financeiro, hover_color=self.colors["financeiro_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         ctk.CTkButton(self.sidebar, text="🛒 Compras", command=self.tela_compras, hover_color=self.colors["compras_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(self.sidebar, text="📅 Calendário", command=self.tela_calendario, hover_color=self.colors["calendario_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
+        # Calendário removido temporariamente
         ctk.CTkButton(self.sidebar, text="📊 Dashboard", command=self.tela_dash, hover_color=self.colors["dashboard_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         ctk.CTkButton(self.sidebar, text="⚙️ Ajustes", command=self.tela_config, hover_color=self.colors["ajustes_hover"], **btn_opts).pack(pady=5, fill="x", padx=10)
         
@@ -400,6 +404,7 @@ class AppHotelLTS(ctk.CTk):
     # =========================================================================
     # 3. NAVEGAÇÃO PRINCIPAL
     # =========================================================================
+
     def tela_home(self) -> None:
         self.current_screen_function = self.tela_home
         self.current_screen_args = ()
