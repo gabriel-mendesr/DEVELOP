@@ -228,6 +228,35 @@ class AppHotelLTS(ctk.CTk):
         self.destroy()
         sys.exit()
 
+
+    def _gerar_cores_funcionarios(self):
+        """Gera paleta de cores para funcionários"""
+        cores = [
+            "#FF6B6B",  # Vermelho
+            "#4ECDC4",  # Teal
+            "#45B7D1",  # Azul
+            "#FFA07A",  # Salmão
+            "#98D8C8",  # Verde claro
+            "#F7DC6F",  # Amarelo
+            "#BB8FCE",  # Roxo
+            "#85C1E2",  # Azul claro
+            "#F8B739",  # Laranja
+            "#52C9C0",  # Turquesa
+        ]
+        return cores
+    
+    def _obter_cor_funcionario(self, nome_func: str) -> str:
+        """Obtém ou cria cor para um funcionário"""
+        if not hasattr(self, 'cores_funcionarios'):
+            self.cores_funcionarios = {}
+        
+        if nome_func not in self.cores_funcionarios:
+            cores = self._gerar_cores_funcionarios()
+            idx = len(self.cores_funcionarios) % len(cores)
+            self.cores_funcionarios[nome_func] = cores[idx]
+        
+        return self.cores_funcionarios[nome_func]
+
     def limpar_tela(self) -> None:
         for w in self.main_frame.winfo_children(): w.destroy()
         # Reseta configurações de grid (importante pois a tela de histórico altera isso)
@@ -1068,11 +1097,23 @@ class AppHotelLTS(ctk.CTk):
         eventos = self.core.get_agenda_mes(dt_obj.year, dt_obj.month)
         # eventos é dict {data_iso: "Func1, Func2"}
         
-        for data_iso, nomes in eventos.items():
-            event_dt = datetime.strptime(data_iso, '%Y-%m-%d')
-            self.calendario.calevent_create(event_dt, "Tarefas", 'func_agenda')
+        for data_iso, nomes_str in eventos.items():
+            if not nomes_str:
+                continue
             
-        self.calendario.tag_config('func_agenda', background=self.colors["calendario"], foreground='white')
+            event_dt = datetime.strptime(data_iso, '%Y-%m-%d')
+            nomes = [n.strip() for n in nomes_str.split(',')]
+            
+            # Criar evento para cada funcionário com sua cor
+            for idx, nome in enumerate(nomes):
+                tag_name = f'func_{nome.replace(" ", "_")}'
+                cor = self._obter_cor_funcionario(nome)
+                
+                # Criar evento com tag do funcionário
+                self.calendario.calevent_create(event_dt, "●", tag_name)
+                
+                # Configurar cor da tag (bolinha discreta)
+                self.calendario.tag_config(tag_name, background=cor, foreground=cor)
 
     def atualizar_data_selecionada_calendario(self, event):
         if not self.calendario or not self.lbl_data_selecionada or not self.tree_tarefas_dia: return
