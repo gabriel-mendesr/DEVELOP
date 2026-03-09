@@ -1634,18 +1634,20 @@ class AppHotelLTS(ctk.CTk):
             tv.insert("", "end", values=(log['data_hora'], log['usuario'], log['acao'], log['detalhes'], log['maquina']))
 
     def janela_cadastro_hospede(self, doc_to_edit: str | None = None) -> None:
-        jan = ctk.CTkToplevel(self); jan.geometry("400x400")
+        jan = ctk.CTkToplevel(self); jan.geometry("450x350")
         jan.transient(self); jan.lift(); jan.focus_force()
         jan.after(100, lambda: [jan.grab_set(), jan.focus_force()])
-
         title = "Editar Hóspede" if doc_to_edit else "Novo Hóspede"
         jan.title(title)
         ctk.CTkLabel(jan, text=title, font=("Arial", 16, "bold")).pack(pady=15)
-
-        en = ctk.CTkEntry(jan, placeholder_text="Nome Completo", width=350); en.pack(pady=10)
-        ed = ctk.CTkEntry(jan, placeholder_text="CPF ou CNPJ", width=300); ed.pack(pady=10)
-        etel = ctk.CTkEntry(jan, placeholder_text="Telefone (WhatsApp)", width=300); etel.pack(pady=10)
-        eemail = ctk.CTkEntry(jan, placeholder_text="E-mail", width=300); eemail.pack(pady=10)
+    
+        # Largura padrão para todos os campos
+        campo_width = 380
+    
+        en = ctk.CTkEntry(jan, placeholder_text="Nome Completo", width=campo_width); en.pack(pady=8)
+        ed = ctk.CTkEntry(jan, placeholder_text="CPF ou CNPJ", width=campo_width); ed.pack(pady=8)
+        etel = ctk.CTkEntry(jan, placeholder_text="Telefone (WhatsApp)", width=campo_width); etel.pack(pady=8)
+        eemail = ctk.CTkEntry(jan, placeholder_text="E-mail", width=campo_width); eemail.pack(pady=8)
 
         if doc_to_edit:
             hospede = self.core.get_hospede(doc_to_edit)
