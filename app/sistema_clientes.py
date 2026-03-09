@@ -97,7 +97,7 @@ class SistemaCreditos:
             self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_historico_doc ON historico_zebra(documento)")
             self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_compras_prod ON compras(produto)")
             self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_produtos_nome ON produtos(nome)")
-            self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_data ON agenda(data)")
+            # CORRIGIDO - self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_data ON agenda(data)")
             
             # MIGRATION: Adiciona coluna usuario se não existir (para bases antigas)
             try:
@@ -146,7 +146,7 @@ class SistemaCreditos:
                                         obs TEXT, 
                                         FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id)
                                     )''')
-                self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_data ON agenda(data)")
+                # CORRIGIDO - self.cursor.execute("CREATE INDEX IF NOT EXISTS idx_agenda_data ON agenda(data)")
 
 
             # MIGRATION: Agrupa compras antigas (sem lista) em uma lista legado
