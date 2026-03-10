@@ -385,7 +385,13 @@ class AppHotelLTS(ctk.CTk):
         )
         
         if resposta:
-            self.update_manager.aplicar_atualizacao(url_download, versao_nova)
+            # Atualizar apenas se usuário clicar "Sim"
+            try:
+                self.update_manager.aplicar_atualizacao(url_download, versao_nova)
+            except Exception as e:
+                messagebox.showerror("Erro", f"Falha ao atualizar: {e}")
+        else:
+            messagebox.showinfo("Atualização", "Atualização adiada. Será feita no próximo restart.")
         self.sidebar.pack_forget() # Garante que a sidebar esteja oculta
         
         f = ctk.CTkFrame(self.main_frame, width=300, height=350)
