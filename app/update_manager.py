@@ -177,6 +177,19 @@ class UpdateManager:
             traceback.print_exc()
             raise Exception(f"Não foi possível verificar atualizações: {e}")
     
+    
+    def verificar_atualizacao_background(self, callback=None):
+        """Verifica atualização em background e notifica usuário"""
+        def _task():
+            try:
+                tem_atualizacao, versao_nova, url = self.verificar_atualizacao()
+                if tem_atualizacao and callback:
+                    callback(versao_nova, url)
+            except Exception as e:
+                print(f"[INFO] Verificação de update falhou: {e}")
+        
+        threading.Thread(target=_task, daemon=True).start()
+
     def aplicar_atualizacao(self, url_download: str, versao_nova: str, 
                            progress_callback: Optional[Callable] = None) -> None:
         """

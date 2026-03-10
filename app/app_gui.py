@@ -369,6 +369,23 @@ class AppHotelLTS(ctk.CTk):
 
     def tela_login(self) -> None:
         self.limpar_tela()
+        # Verificar atualizações em background
+        self.update_manager = UpdateManager()
+        self.update_manager.verificar_atualizacao_background(
+            callback=self._notificar_atualizacao
+        )
+    
+    def _notificar_atualizacao(self, versao_nova, url_download):
+        """Mostra notificação de atualização disponível"""
+        from tkinter import messagebox
+        
+        resposta = messagebox.askyesno(
+            "Atualização Disponível",
+            f"Versão {versao_nova} está disponível!\n\nDeseja atualizar agora?"
+        )
+        
+        if resposta:
+            self.update_manager.aplicar_atualizacao(url_download, versao_nova)
         self.sidebar.pack_forget() # Garante que a sidebar esteja oculta
         
         f = ctk.CTkFrame(self.main_frame, width=300, height=350)
