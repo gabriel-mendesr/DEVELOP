@@ -10,6 +10,7 @@ from urllib.parse import quote
 import threading
 import traceback
 
+from logger_system import LoggerSystem
 from update_manager import UpdateManager
 try:
     from tkcalendar import Calendar
