@@ -264,4 +264,4 @@ class UpdateManager:
                     os.remove(temp_path)
                 raise Exception(f"Falha ao atualizar: {e}")
         
-        # threading.Thread(target=_task, daemon=True).start()  # AUTO-UPDATE DESABILITAR
+        threading.Thread(target=_task, daemon=True).start()

@@ -389,7 +389,7 @@ class AppHotelLTS(ctk.CTk):
                 self.main_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
                 self.tela_home()
                 # Verifica atualizações 2 segundos após o login bem-sucedido
-                #                 self.after(2000, self.verificar_e_notificar_update)
+                self.after(2000, self.verificar_e_notificar_update)
             else:
                 messagebox.showerror("Erro", "Credenciais inválidas")
                 
