@@ -24,9 +24,27 @@ class UpdateManager:
     GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     
     def __init__(self):
-        self.versao_atual = self._obter_versao_arquivo()
+        self.versao_atual = self._obter_versao_github()
+        print(f"[DEBUG] Versão obtida: {self.versao_atual}")
         self.arquivo_versao = Path.home() / ".shs_version"
         self.carregar_versao()
+    
+    def _obter_versao_github(self) -> str:
+        """Obtém versão do GitHub release"""
+        try:
+            print(f"[DEBUG] Tentando GitHub API: {self.GITHUB_API}")
+            response = requests.get(self.GITHUB_API, timeout=5)
+            print(f"[DEBUG] Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                versao = data.get('tag_name', '').lstrip('v')
+                print(f"[DEBUG] Versão GitHub: {versao}")
+                return versao if versao else "1.0.0"
+        except Exception as e:
+            print(f"[DEBUG] Erro ao obter GitHub: {e}")
+        
+        return "1.0.0"
     
     def _obter_versao_arquivo(self) -> str:
         """Obtém versão do GitHub release mais recente"""
