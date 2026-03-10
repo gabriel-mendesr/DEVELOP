@@ -119,7 +119,7 @@ class UpdateManager:
                 assets = data.get('assets', [])
                 url_download = None
                 
-                os_identifier = "Windows" if platform.system() == "Windows" else "Linux"
+                os_identifier = "Windows" if platform.system() == "Windows" else "Ubuntu"
                 for asset in assets:
                     if os_identifier in asset['name']:
                         url_download = asset['browser_download_url']
