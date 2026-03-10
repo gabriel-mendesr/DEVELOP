@@ -78,7 +78,7 @@ class UpdateManager:
             if self.arquivo_versao.exists():
                 with open(self.arquivo_versao, 'r') as f:
                     data = json.load(f)
-                    self.versao_atual = data.get('versao', '1.1.6')
+                    # Versão já foi obtida no __init__, não sobrescrever aqui
         except Exception as e:
             print(f"⚠️ Erro ao carregar versão: {e}")
     
