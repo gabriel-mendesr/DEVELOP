@@ -86,7 +86,7 @@ class AppHotelLTS(ctk.CTk):
         ctk.set_appearance_mode("Dark" if saved_theme == 1 else "Light")
         ctk.set_default_color_theme("green")
 
-        self.title(f"Hotel Santos - Gestao de Creditos v{self.core.versao_atual}")
+        self.title(f"🏨 Hotel Santos - Gestão de Créditos v{self.core.versao_atual}")
         self.geometry("1200x850")
         self.minsize(1024, 768) # Garante um tamanho mínimo para não quebrar o layout
         
