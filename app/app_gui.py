@@ -371,9 +371,8 @@ class AppHotelLTS(ctk.CTk):
         self.limpar_tela()
         # Verificar atualizações em background
         self.update_manager = UpdateManager()
-        self.update_manager.verificar_atualizacao_background(
-            callback=self._notificar_atualizacao
-        )
+        # Auto-update desabilitar por enquanto
+        # self.update_manager.verificar_atualizacao_background()
     
     def _notificar_atualizacao(self, versao_nova, url_download):
         """Mostra notificação de atualização disponível"""
