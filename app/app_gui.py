@@ -610,7 +610,7 @@ class AppHotelLTS(ctk.CTk):
         def _task():
             try:
                 f = self.core.gerar_pdf_multas(nome, doc)
-                self.after(0, lambda: messagebox.showinfo("Sucesso", f"Ticket de Multas gerado: {f}"))
+                self.after(0, lambda: messagebox.showinfo("Sucesso", f" Ticket de Multas gerado: {f}"))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Erro", str(e)))
             finally:
