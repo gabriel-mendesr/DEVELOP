@@ -20,7 +20,7 @@ class UpdateManager:
     """Gerencia atualizações do aplicativo"""
     
     # Configuração - ALTERE CONFORME SEU REPOSITÓRIO
-    GITHUB_REPO = "gabriel-mendesr/develop"
+    GITHUB_REPO = "gabriel-mendesr/DEVELOP"
     GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     
     def __init__(self):
