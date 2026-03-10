@@ -24,9 +24,36 @@ class UpdateManager:
     GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
     
     def __init__(self):
-        self.versao_atual = "1.1.6"  # Versão fixa - ATUALIZAR AQUI PARA NOVAS VERSÕES
+        self.versao_atual = self._obter_versao_arquivo()
         self.arquivo_versao = Path.home() / ".shs_version"
         self.carregar_versao()
+    
+    def _obter_versao_arquivo(self) -> str:
+        """Lê versão do arquivo VERSION.txt (ou git tag como fallback)"""
+        try:
+            # Tentar ler VERSION.txt na pasta do app
+            version_file = Path(__file__).parent.parent / "VERSION.txt"
+            if version_file.exists():
+                return version_file.read_text().strip()
+        except:
+            pass
+        
+        try:
+            # Fallback: tentar git tag
+            import subprocess
+            resultado = subprocess.run(
+                ['git', 'describe', '--tags', '--abbrev=0'],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                cwd=Path(__file__).parent.parent
+            )
+            if resultado.returncode == 0:
+                return resultado.stdout.strip().lstrip('v')
+        except:
+            pass
+        
+        return "1.0.0"  # Fallback final
     
     def _obter_versao_git(self):
         """Obtém versão do último git tag"""
@@ -140,8 +167,10 @@ class UpdateManager:
         except requests.exceptions.RequestException as e:
             raise Exception(f"Erro de rede: {e}")
         except Exception as e:
-            print(f"❌ Erro: {e}")
-            raise e
+            print(f"❌ Erro ao verificar atualização: {e}")
+            import traceback
+            traceback.print_exc()
+            raise Exception(f"Não foi possível verificar atualizações: {e}")
     
     def aplicar_atualizacao(self, url_download: str, versao_nova: str, 
                            progress_callback: Optional[Callable] = None) -> None:
