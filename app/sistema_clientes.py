@@ -37,7 +37,9 @@ class SistemaCreditos:
                 os.makedirs(self.base_dir)
             self.db_name = os.path.join(self.base_dir, db_name)
 
-        self.versao_atual = "5.0.1"  # Placeholder, será substituído pelo CI/CD
+        # Versão agora é lida automaticamente do update_manager
+        from update_manager import UpdateManager
+        self.versao_atual = UpdateManager()._obter_versao_arquivo()
         self.empresa = {
             "nome": "HOTEL SANTOS",
             "razao": "Hotel e Restaurante Santos Ana Lucia C. dos Santos",
