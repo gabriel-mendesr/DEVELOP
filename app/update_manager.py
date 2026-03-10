@@ -29,27 +29,14 @@ class UpdateManager:
         self.carregar_versao()
     
     def _obter_versao_arquivo(self) -> str:
-        """Lê versão do arquivo VERSION.txt (ou git tag como fallback)"""
+        """Obtém versão do GitHub release mais recente"""
         try:
-            # Tentar ler VERSION.txt na pasta do app
-            version_file = Path(__file__).parent.parent / "VERSION.txt"
-            if version_file.exists():
-                return version_file.read_text().strip()
-        except:
-            pass
-        
-        try:
-            # Fallback: tentar git tag
-            import subprocess
-            resultado = subprocess.run(
-                ['git', 'describe', '--tags', '--abbrev=0'],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                cwd=Path(__file__).parent.parent
-            )
-            if resultado.returncode == 0:
-                return resultado.stdout.strip().lstrip('v')
+            # Tentar ler do GitHub diretamente
+            response = requests.get(self.GITHUB_API, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                versao = data.get('tag_name', '1.0.0').lstrip('v')
+                return versao if versao else "1.0.0"
         except:
             pass
         
