@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚙️ Configurações — Escala Hotel 24/7</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#05080f;--bg2:#0a1020;--bg3:#101828;--card:#131f30;
+  --border:rgba(99,160,255,.12);--border2:rgba(99,160,255,.22);
+  --blue:#4f8fe0;--blue2:#7ab0f0;--blue3:#b0d0ff;
+  --gold:#d4a84b;--gold2:#f0c96a;
+  --text:#dce8ff;--muted:#4a6080;--muted2:#7a96b8;
+  --gio:#e07a7a;--and:#5090e0;--gab:#4ec894;--free:#d4a84b;--new:#9060d0;--folg:#c9943a;
+  --green:#4ec894;--red:#e07070;--orange:#e09050;
+  --warn-bg:rgba(224,144,80,.08);--warn-border:rgba(224,144,80,.3);
+  --info-bg:rgba(79,143,224,.08);--info-border:rgba(79,143,224,.3);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+h1,h2{font-family:'Syne',sans-serif}
+.mono{font-family:'DM Mono',monospace}
+
+/* ── HEADER ── */
+.header{
+  background:var(--bg2);border-bottom:1px solid var(--border2);
+  padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);
+}
+.header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:10px}
+.header h1 span{font-size:.85rem;font-weight:400;color:var(--muted2);font-family:'DM Sans',sans-serif}
+.header-btns{display:flex;gap:8px}
+.btn{
+  padding:7px 16px;border-radius:7px;border:1px solid var(--border2);
+  font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s;
+}
+.btn-back{background:transparent;color:var(--muted2)}
+.btn-back:hover{border-color:var(--blue2);color:var(--blue2)}
+.btn-save{background:var(--gold);border-color:var(--gold);color:#07111d}
+.btn-save:hover{background:var(--gold2);border-color:var(--gold2)}
+.btn-reset{background:transparent;color:var(--red);border-color:rgba(224,112,112,.3)}
+.btn-reset:hover{background:rgba(224,112,112,.1)}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  background:rgba(78,200,148,.15);border:1px solid rgba(78,200,148,.4);
+  color:var(--green);padding:10px 18px;border-radius:8px;font-size:.85rem;font-weight:500;
+  transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* ── LAYOUT ── */
+.page{max-width:900px;margin:0 auto;padding:28px 20px 80px;display:flex;flex-direction:column;gap:22px}
+
+/* ── SECTION CARD ── */
+.card{background:var(--card);border:1px solid var(--border2);border-radius:12px;overflow:hidden}
+.card-head{
+  background:linear-gradient(135deg,var(--bg3),var(--bg2));
+  padding:14px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.card-head .icon{font-size:1.1rem}
+.card-head h2{font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--blue2)}
+.card-head .note{font-size:.75rem;color:var(--muted2);margin-left:auto}
+.card-body{padding:20px}
+
+/* ── FIELD GRID ── */
+.field-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:.76rem;color:var(--muted2);font-weight:500;display:flex;align-items:center;gap:6px}
+.field label .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.field input[type=number], .field input[type=text], .field select{
+  padding:8px 11px;border-radius:7px;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text);font-family:'DM Mono',monospace;font-size:.88rem;
+  transition:border-color .15s;width:100%;
+}
+.field input:focus, .field select:focus{outline:none;border-color:var(--blue);background:var(--bg2)}
+.field .hint{font-size:.69rem;color:var(--muted);line-height:1.4;margin-top:1px}
+
+/* ── SHIFT TIME VISUAL ── */
+.shift-visual{
+  background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;margin-top:14px;
+}
+.shift-visual-title{font-size:.72rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;font-weight:600}
+.shift-bar{position:relative;height:36px;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.shift-seg{
+  position:absolute;top:0;height:100%;display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:700;color:rgba(255,255,255,.92);font-family:'DM Mono',monospace;
+  text-shadow:0 1px 3px rgba(0,0,0,.5);letter-spacing:.02em;overflow:hidden;white-space:nowrap;
+}
+.shift-labels{display:flex;justify-content:space-between;margin-top:6px;font-size:.62rem;font-family:'DM Mono',monospace;color:var(--muted2)}
+.shift-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.sl-item{display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--muted2)}
+.sl-dot{width:10px;height:10px;border-radius:3px}
+
+/* ── CLT STATUS PILL ── */
+.clt-row{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:600;border:1px solid}
+.pill-ok{background:rgba(78,200,148,.12);color:var(--green);border-color:rgba(78,200,148,.3)}
+.pill-warn{background:rgba(224,144,80,.12);color:var(--orange);border-color:rgba(224,144,80,.3)}
+.pill-bad{background:rgba(224,112,112,.12);color:var(--red);border-color:rgba(224,112,112,.3)}
+
+/* ── ALERT ── */
+.alert{border-radius:7px;padding:10px 14px;font-size:.81rem;display:flex;gap:9px;align-items:flex-start;margin-top:10px;line-height:1.6;border:1px solid}
+.alert-info{background:var(--info-bg);border-color:var(--info-border);color:#90c0f0}
+.alert-warn{background:var(--warn-bg);border-color:var(--warn-border);color:#e8b870}
+.alert-green{background:rgba(78,200,148,.07);border-color:rgba(78,200,148,.25);color:#80e0b0}
+
+/* ── INTERMEDIÁRIO CARDS ── */
+.int-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:600px){.int-grid{grid-template-columns:1fr}}
+.int-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:9px;overflow:hidden;
+}
+.int-card.valid{border-color:rgba(78,200,148,.3)}
+.int-card .ic-head{
+  padding:11px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.int-card .ic-body{padding:12px 14px}
+.ic-row{display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:.78rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.ic-row:last-child{border:none}
+.ic-row .lbl{color:var(--muted2);font-size:.73rem}
+.ic-row .val{color:var(--text)}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:var(--border);margin:16px 0}
+
+/* ── FOOTER NOTE ── */
+.footer-note{text-align:center;color:var(--muted);font-size:.74rem;padding:16px;font-style:italic}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚙️ Configurações <span>Hotel 24/7 · Gestão de Escalas</span></h1>
+  <div class="header-btns">
+    <button class="btn btn-reset" onclick="resetAll()">↺ Restaurar padrões</button>
+    <a href="escala-hotel.html" class="btn btn-back">← Voltar ao relatório</a>
+    <button class="btn btn-save" onclick="saveAll()">💾 Salvar configurações</button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── TURNOS ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="icon">🕐</span>
+      <h2>Horários de Início dos Turnos</h2>
+      <span class="note">Cada turno tem duração fixa: Manhã 8h · Tarde 8h · Noite 12h</span>
+    </div>
+    <div class="card-body">
+      <div class="field-grid">
+        <div class="field">
+          <label>☀️ Início do turno Manhã (h)</label>
+          <input type="number" id="morningStart" min="0" max="12" step="1" value="7" onchange="updateShiftVisual()">
+          <span class="hint">Ex: 7 → turno 07h–15h</span>
+        </div>
+        <div class="field">
+          <label>🌆 Início do turno Tarde (h)</label>
+          <input type="number" id="afternoonStart" min="8" max="20" step="1" value="15" onchange="updateShiftVisual()">
+          <span class="hint">Ex: 15 → turno 15h–23h · Deve ser ≥ manhã+4</span>
+        </div>
+        <div class="field">
+          <label>🌙 Início do turno Noite (h)</label>
+          <input type="number" id="nightStart" min="14" max="23" step="1" value="19" onchange="updateShiftVisual()">
+          <span class="hint">Ex: 19 → turno 19h–07h (+1) · 12h de duração</span>
+        </div>
+      </div>
+
+      <div class="shift-visual">
+        <div class="shift-visual-title">Visualização do dia (24h)</div>
+        <div class="shift-bar" id="shift-bar"></div>
+        <div class="shift-labels" id="shift-labels"></div>
+        <div class="shift-legend">
+          <div class="sl-item"><div class="sl-dot" style="background:var(--gio)"></div>Manhã (Giovanna)</div>
+          <div class="sl-item"><div class="sl-dot" style="background:var(--and)"></div>Tarde (Anderson)</div>
+          <div class="sl-item"><div class="sl-dot" style="background:var(--gab)"></div>Noite (Gabriel)</div>
+          <div class="sl-item"><div class="sl-dot" style="background:rgba(100,100,120,.5);border:1px dashed rgba(150,150,180,.4)"></div>Gap (sem cobertura)</div>
+        </div>
+      </div>
+
+      <div id="shift-clt-status" class="clt-row"></div>
+    </div>
+  </div>
+
+  <!-- ── SALÁRIOS ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="icon">💰</span>
+      <h2>Salários Base dos Funcionários</h2>
+      <span class="note">Usados para todos os cálculos de custo do relatório</span>
+    </div>
+    <div class="card-body">
+      <div class="field-grid">
+        <div class="field">
+          <label><div class="dot" style="background:var(--gio)"></div>Giovanna (R$/mês)</label>
+          <input type="number" id="sal-giovanna" value="1700" min="0" step="50">
+          <span class="hint">Turno manhã · 6×1 ou 5×2</span>
+        </div>
+        <div class="field">
+          <label><div class="dot" style="background:var(--and)"></div>Anderson (R$/mês)</label>
+          <input type="number" id="sal-anderson" value="2100" min="0" step="50">
+          <span class="hint">Turno tarde · 6×1 ou 5×2</span>
+        </div>
+        <div class="field">
+          <label><div class="dot" style="background:var(--gab)"></div>Gabriel (R$/mês)</label>
+          <input type="number" id="sal-gabriel" value="1800" min="0" step="50">
+          <span class="hint">Turno noite · 12×36 + adicional noturno</span>
+        </div>
+        <div class="field">
+          <label><div class="dot" style="background:var(--folg)"></div>Folguista/Coringa (R$/mês)</label>
+          <input type="number" id="sal-folguista" value="1500" min="0" step="50">
+          <span class="hint">Aux. Recepção · 6×1 com banco horas</span>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:.76rem;color:var(--gold2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">Intermediários / Extras</div>
+      <div class="field-grid">
+        <div class="field">
+          <label><div class="dot" style="background:var(--free)"></div>Diária Freelancer (R$)</label>
+          <input type="number" id="sal-freelancer" value="250" min="0" step="10">
+          <span class="hint">Valor por diária de ~8h · PJ/MEI</span>
+        </div>
+        <div class="field">
+          <label><div class="dot" style="background:var(--free)"></div>Diária Intermitente (R$)</label>
+          <input type="number" id="sal-intermitente" value="220" min="0" step="10">
+          <span class="hint">Art. 452-A CLT · por convocação</span>
+        </div>
+        <div class="field">
+          <label><div class="dot" style="background:var(--new)"></div>FDS Diurno Sáb 12h (R$/mês) <span id="fds-day-calc" class="mono" style="color:var(--gold2);font-size:.7rem"></span></label>
+          <input type="number" id="sal-fds-day" value="491" min="0" step="25" onchange="updateIntCalcs()">
+          <span class="hint">T. Parcial 12h/sem · Sábado 12h</span>
+        </div>
+        <div class="field">
+          <label><div class="dot" style="background:var(--new)"></div>FDS Noturno Sáb+Dom 12h (R$/mês) <span id="fds-night-calc" class="mono" style="color:var(--gold2);font-size:.7rem"></span></label>
+          <input type="number" id="sal-fds-night" value="982" min="0" step="25" onchange="updateIntCalcs()">
+          <span class="hint">T. Parcial 24h/sem · Sáb+Dom noite</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ENCARGOS ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="icon">📊</span>
+      <h2>Encargos Patronais</h2>
+      <span class="note">Aplicados sobre salário bruto para custo total empregador</span>
+    </div>
+    <div class="card-body">
+      <div class="field-grid">
+        <div class="field">
+          <label>INSS Patronal (%)</label>
+          <input type="number" id="enc-inss" value="20" min="0" max="50" step="0.1">
+        </div>
+        <div class="field">
+          <label>RAT — Risco de Acidente (%)</label>
+          <input type="number" id="enc-rat" value="2" min="0" max="6" step="0.1">
+        </div>
+        <div class="field">
+          <label>Terceiros (SESC/SESI/SENAI…) (%)</label>
+          <input type="number" id="enc-terceiros" value="5.8" min="0" max="15" step="0.1">
+        </div>
+        <div class="field">
+          <label>FGTS (%)</label>
+          <input type="number" id="enc-fgts" value="8" min="0" max="12" step="0.1">
+        </div>
+        <div class="field">
+          <label>Provisão Férias + 1/3 (%)</label>
+          <input type="number" id="enc-ferias" value="11.11" min="0" max="20" step="0.01">
+        </div>
+        <div class="field">
+          <label>Provisão 13° Salário (%)</label>
+          <input type="number" id="enc-decimo" value="8.33" min="0" max="12" step="0.01">
+        </div>
+        <div class="field">
+          <label>FGTS s/ provisões (%)</label>
+          <input type="number" id="enc-fgts-prov" value="1.92" min="0" max="5" step="0.01">
+        </div>
+        <div class="field">
+          <label>Adicional Noturno (%)</label>
+          <input type="number" id="enc-noturno" value="20" min="0" max="50" step="0.1">
+          <span class="hint">Art. 73 CLT · horas 22h–05h</span>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding:10px 14px;background:rgba(212,168,75,.06);border-radius:7px;border:1px solid rgba(212,168,75,.2);display:flex;justify-content:space-between;font-size:.83rem">
+        <span style="color:var(--muted2)">Total encargos sobre salário bruto (empregador):</span>
+        <span class="mono" style="color:var(--gold2);font-weight:600" id="enc-total">—%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANÁLISE INTERMEDIÁRIOS 12H ── -->
+  <div class="card">
+    <div class="card-head">
+      <span class="icon">📋</span>
+      <h2>Análise Legal — Intermediários 12h FDS</h2>
+      <span class="note">Verificação CLT em tempo real conforme turnos configurados</span>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info">
+        <span>ℹ️</span>
+        <div>Para que turnos de 12h sejam legais para qualquer funcionário — inclusive intermediários — é necessário o <strong>regime 12×36</strong> formalizado por <strong>acordo individual escrito</strong> (Art. 59-A CLT). Sem esse acordo, o limite diário é 8h + 2h extra = 10h (Art. 58 + 59 CLT).</div>
+      </div>
+
+      <div class="int-grid" id="int-analysis"></div>
+
+      <div class="divider"></div>
+      <div style="font-size:.8rem;font-weight:600;color:var(--gold2);margin-bottom:10px">⚖️ Base Legal Completa para Intermediários 12h FDS</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;font-size:.79rem">
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:12px">
+          <div style="color:var(--blue2);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:5px">Art. 59-A CLT</div>
+          <div style="color:var(--muted2);line-height:1.6">Jornada 12×36 permitida por acordo individual escrito. Inclui compensação de DSR e feriados. <strong style="color:var(--text)">Obrigatório para jornada de 12h.</strong></div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:12px">
+          <div style="color:var(--blue2);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:5px">Art. 58-A CLT</div>
+          <div style="color:var(--muted2);line-height:1.6">Tempo parcial ≤ 30h/semana, sem horas extras. FDS Diurno = 12h/sem ✅. FDS Noturno = 24h/sem ✅. Ambos dentro do limite.</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:12px">
+          <div style="color:var(--blue2);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:5px">Art. 66 CLT</div>
+          <div style="color:var(--muted2);line-height:1.6">Mínimo 11h entre jornadas. FDS Noturno: fim Sáb noite → início Dom noite = <span id="interjornada-val" style="color:var(--text);font-weight:600">—</span>h ≥ 11h.</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:12px">
+          <div style="color:var(--blue2);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:5px">Art. 73 CLT</div>
+          <div style="color:var(--muted2);line-height:1.6">Adicional noturno de 20% para horas 22h–5h. FDS Noturno tem <span id="night-hours-val" style="color:var(--orange);font-weight:600">—</span>h noturnas por turno = adicional obrigatório.</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:12px">
+          <div style="color:var(--blue2);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:5px">Art. 67 CLT (DSR)</div>
+          <div style="color:var(--muted2);line-height:1.6">DSR mínimo 24h consecutivas/semana. Trabalhadores FDS têm >100h de descanso entre o fim do turno Dom noite (7h Seg) e o próximo Sáb (19h) — amplamente cumprido.</div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:12px">
+          <div style="color:var(--blue2);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:5px">Requisito Formal</div>
+          <div style="color:var(--muted2);line-height:1.6"><strong style="color:var(--text)">Contrato escrito</strong> especificando: regime 12×36, dias (Sáb/Dom), horários, salário proporcional, adicional noturno, FGTS, férias, 13° proporcionais.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end page -->
+
+<div class="footer-note">Configurações salvas em localStorage do navegador · Cada computador/navegador mantém suas próprias configurações</div>
+<div class="toast" id="toast">✅ Configurações salvas com sucesso!</div>
+
+<script>
+const STORAGE_KEY = 'hotel_escala_config';
+const pad = h => { h = ((h%24)+24)%24; return h<10?'0'+h:''+h; };
+
+// ── DEFAULTS ──────────────────────────────────────────────────
+const DEFAULTS = {
+  morningStart: 7, afternoonStart: 15, nightStart: 19,
+  salaries: {
+    giovanna:1700, anderson:2100, gabriel:1800, folguista:1500,
+    freelancer:250, intermitente:220, fdsDay:491, fdsNight:982,
+  },
+  charges: {
+    inss:20, rat:2, terceiros:5.8, fgts:8,
+    ferias:11.11, decimo:8.33, fgtsProv:1.92, noturno:20,
+  }
+};
+
+// ── LOAD / SAVE ───────────────────────────────────────────────
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : { ...DEFAULTS };
+  } catch { return { ...DEFAULTS }; }
+}
+
+function saveAll() {
+  const cfg = readForm();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+    showToast('✅ Configurações salvas!');
+  } catch(e) {
+    showToast('❌ Erro ao salvar: ' + e.message, true);
+  }
+}
+
+function resetAll() {
+  if (!confirm('Restaurar todos os valores padrão?')) return;
+  fillForm(DEFAULTS);
+  updateShiftVisual();
+  updateEncTotal();
+  updateIntCalcs();
+  showToast('↺ Valores padrão restaurados');
+}
+
+function readForm() {
+  return {
+    morningStart:   +document.getElementById('morningStart').value || 7,
+    afternoonStart: +document.getElementById('afternoonStart').value || 15,
+    nightStart:     +document.getElementById('nightStart').value || 19,
+    salaries: {
+      giovanna:    +document.getElementById('sal-giovanna').value || 1700,
+      anderson:    +document.getElementById('sal-anderson').value || 2100,
+      gabriel:     +document.getElementById('sal-gabriel').value || 1800,
+      folguista:   +document.getElementById('sal-folguista').value || 1500,
+      freelancer:  +document.getElementById('sal-freelancer').value || 250,
+      intermitente:+document.getElementById('sal-intermitente').value || 220,
+      fdsDay:      +document.getElementById('sal-fds-day').value || 491,
+      fdsNight:    +document.getElementById('sal-fds-night').value || 982,
+    },
+    charges: {
+      inss:     +document.getElementById('enc-inss').value || 20,
+      rat:      +document.getElementById('enc-rat').value || 2,
+      terceiros:+document.getElementById('enc-terceiros').value || 5.8,
+      fgts:     +document.getElementById('enc-fgts').value || 8,
+      ferias:   +document.getElementById('enc-ferias').value || 11.11,
+      decimo:   +document.getElementById('enc-decimo').value || 8.33,
+      fgtsProv: +document.getElementById('enc-fgts-prov').value || 1.92,
+      noturno:  +document.getElementById('enc-noturno').value || 20,
+    }
+  };
+}
+
+function fillForm(cfg) {
+  const set = (id, v) => { const el=document.getElementById(id); if(el) el.value=v; };
+  set('morningStart',   cfg.morningStart ?? 7);
+  set('afternoonStart', cfg.afternoonStart ?? 15);
+  set('nightStart',     cfg.nightStart ?? 19);
+  const s = cfg.salaries || {};
+  set('sal-giovanna',   s.giovanna   ?? 1700);
+  set('sal-anderson',   s.anderson   ?? 2100);
+  set('sal-gabriel',    s.gabriel    ?? 1800);
+  set('sal-folguista',  s.folguista  ?? 1500);
+  set('sal-freelancer', s.freelancer ?? 250);
+  set('sal-intermitente', s.intermitente ?? 220);
+  set('sal-fds-day',    s.fdsDay     ?? 491);
+  set('sal-fds-night',  s.fdsNight   ?? 982);
+  const c = cfg.charges || {};
+  set('enc-inss',     c.inss     ?? 20);
+  set('enc-rat',      c.rat      ?? 2);
+  set('enc-terceiros',c.terceiros?? 5.8);
+  set('enc-fgts',     c.fgts     ?? 8);
+  set('enc-ferias',   c.ferias   ?? 11.11);
+  set('enc-decimo',   c.decimo   ?? 8.33);
+  set('enc-fgts-prov',c.fgtsProv ?? 1.92);
+  set('enc-noturno',  c.noturno  ?? 20);
+}
+
+// ── SHIFT VISUAL ──────────────────────────────────────────────
+function updateShiftVisual() {
+  const ms = +document.getElementById('morningStart').value || 7;
+  const as = +document.getElementById('afternoonStart').value || 15;
+  const ns = +document.getElementById('nightStart').value || 19;
+  const me = as;      // morning ends when afternoon begins
+  const ae = ns;      // afternoon ends when night begins
+  const ne = ms + 24; // night ends next day at morning start
+
+  const bar = document.getElementById('shift-bar');
+  const lbls = document.getElementById('shift-labels');
+  if (!bar) return;
+
+  // Segments (all in 0-24 space, night wraps)
+  const toLeft  = h => (h / 24 * 100).toFixed(2) + '%';
+  const toWidth = (s, e) => ((e - s) / 24 * 100).toFixed(2) + '%';
+
+  bar.innerHTML = '';
+
+  // Background (gap)
+  bar.style.background = 'rgba(180,50,50,.15)';
+
+  function addSeg(start, end, color, label) {
+    // handle overnight wrap
+    const segs = end <= 24
+      ? [[start, end]]
+      : [[start, 24], [0, end - 24]];
+    segs.forEach(([s, e]) => {
+      if (e <= 0 || s >= 24) return;
+      const el = document.createElement('div');
+      el.className = 'shift-seg';
+      el.style.left  = toLeft(Math.max(0, s));
+      el.style.width = toWidth(Math.max(0, s), Math.min(24, e));
+      el.style.background = color;
+      const dur = Math.min(24, e) - Math.max(0, s);
+      el.textContent = dur >= 2 ? label : '';
+      bar.appendChild(el);
+    });
+  }
+
+  addSeg(ms, me, 'rgba(224,122,122,.82)', `☀ ${pad(ms)}–${pad(me)}`);
+  addSeg(as, ae, 'rgba(80,144,224,.82)',  `🌆 ${pad(as)}–${pad(ae)}`);
+  addSeg(ns, ne, 'rgba(78,200,148,.82)',  `🌙 ${pad(ns)}–${pad(ms)}+1`);
+
+  // Hour labels
+  lbls.innerHTML = [0,6,12,18,24].map(h => `<span>${pad(h)}h</span>`).join('');
+
+  // CLT status
+  updateShiftCLT(ms, as, ns, me, ae);
+  updateIntCalcs();
+}
+
+function updateShiftCLT(ms, as, ns, me, ae) {
+  const statusEl = document.getElementById('shift-clt-status');
+  if (!statusEl) return;
+  const pills = [];
+  const mDur = me - ms; // morning duration
+  const aDur = ae - as; // afternoon duration
+  const nDur = (ms + 24) - ns; // night duration (overnight)
+  const gap1 = as - me; // gap between morning end and afternoon start
+  const gap2 = ns - ae; // gap between afternoon end and night start
+
+  if (mDur === 8) pills.push({ok:true, txt:`Manhã: ${mDur}h ✅`});
+  else if (mDur < 8) pills.push({ok:true, txt:`Manhã: ${mDur}h (< 8h)`});
+  else pills.push({ok:false, txt:`Manhã: ${mDur}h — excede 8h diárias ⚠`});
+
+  if (aDur === 8) pills.push({ok:true, txt:`Tarde: ${aDur}h ✅`});
+  else if (aDur < 8) pills.push({ok:true, txt:`Tarde: ${aDur}h (< 8h)`});
+  else pills.push({ok:false, txt:`Tarde: ${aDur}h — excede 8h ⚠`});
+
+  if (nDur === 12) pills.push({ok:true, txt:`Noite: ${nDur}h (12×36) ✅`});
+  else if (nDur < 12) pills.push({warn:true, txt:`Noite: ${nDur}h ⚠`});
+  else pills.push({ok:false, txt:`Noite: ${nDur}h — excede 12h ⚠`});
+
+  if (gap1 > 0) pills.push({warn:true, txt:`Gap manhã→tarde: ${gap1}h`});
+  if (gap2 > 0) pills.push({warn:true, txt:`Gap tarde→noite: ${gap2}h`});
+
+  statusEl.innerHTML = pills.map(p =>
+    `<span class="pill ${p.ok?'pill-ok':p.warn?'pill-warn':'pill-bad'}">${p.txt}</span>`
+  ).join('');
+}
+
+// ── ENCARGOS TOTAL ────────────────────────────────────────────
+function updateEncTotal() {
+  const get = id => parseFloat(document.getElementById(id)?.value) || 0;
+  const total = get('enc-inss') + get('enc-rat') + get('enc-terceiros') + get('enc-fgts')
+              + get('enc-ferias') + get('enc-decimo') + get('enc-fgts-prov');
+  const el = document.getElementById('enc-total');
+  if (el) el.textContent = total.toFixed(2) + '%';
+}
+
+// ── INTERMEDIÁRIO CALCS ───────────────────────────────────────
+function updateIntCalcs() {
+  const ms = +document.getElementById('morningStart').value || 7;
+  const ns = +document.getElementById('nightStart').value || 19;
+  const nightDur = (ms + 24) - ns; // e.g. 19→7 = 12h
+  // FDS Day: Sáb 12h diurno (morningStart → nightStart)
+  const dayDur = ns - ms; // e.g. 7→19 = 12h
+  // FDS Night: Sáb+Dom 12h noturno each
+  const interjornada = (ms + 24) - (ns + nightDur); // end of Sat night → start of Sun night
+  // interjornada = ms (Sun morning) - ns (Sun night start from next day perspective)
+  // Actually: Sat night ends at ms (next day). Sun night starts at ns. Gap = ns - ms (in same Sun day)
+  const interj = ns - ms; // e.g. 19-7 = 12h
+
+  // Night hours (22h-5h) per shift
+  const nStart = ns, nEnd = ms + 24;
+  const nightNoctHours = Math.max(0, Math.min(nEnd, 29) - Math.max(nStart, 22)); // 29 = 5+24
+
+  const el = id => document.getElementById(id);
+  if (el('interjornada-val')) el('interjornada-val').textContent = interj;
+  if (el('night-hours-val'))  el('night-hours-val').textContent  = nightNoctHours + 'h';
+
+  // Reference salary for proportional calc
+  const refSal = +document.getElementById('sal-gabriel')?.value || 1800;
+  const fdsDaySal  = Math.round(refSal * dayDur / 220);  // 12h/220h monthly
+  const fdsNightSal = Math.round(refSal * (nightDur * 2) / 220 * 1.2); // 24h/week + noturno
+
+  if (el('fds-day-calc'))   el('fds-day-calc').textContent   = `≈ R$${fdsDaySal}`;
+  if (el('fds-night-calc')) el('fds-night-calc').textContent = `≈ R$${fdsNightSal}`;
+
+  // Analysis cards
+  const intEl = document.getElementById('int-analysis');
+  if (!intEl) return;
+
+  const ok   = interj >= 11;
+  const okDayDur   = dayDur <= 12 && dayDur >= 1;
+  const okNightDur = nightDur === 12;
+
+  intEl.innerHTML = `
+  <!-- FDS Diurno -->
+  <div class="int-card ${okDayDur?'valid':''}">
+    <div class="ic-head">
+      <span style="font-size:1rem">☀️</span>
+      <div>
+        <div style="font-weight:700;font-size:.88rem">FDS Diurno — Sábado 12h</div>
+        <div style="font-size:.72rem;color:var(--muted2)">${pad(ms)}h–${pad(ns)}h · ${dayDur}h de duração</div>
+      </div>
+      <span class="pill ${dayDur<=30?'pill-ok':'pill-bad'}" style="margin-left:auto">${dayDur<=30?'✅ LEGAL':'❌ INVÁLIDO'}</span>
+    </div>
+    <div class="ic-body">
+      <div class="ic-row"><span class="lbl">Regime</span><span class="val">T. Parcial (Art. 58-A) + 12×36 (Art. 59-A)</span></div>
+      <div class="ic-row"><span class="lbl">Horas/semana</span><span class="val mono">${dayDur}h ≤ 30h → ✅ dentro do limite</span></div>
+      <div class="ic-row"><span class="lbl">Jornada diária</span><span class="val mono">${dayDur}h ${dayDur>10?'— requer acordo 12×36':'— dentro do limite 12×36'}</span></div>
+      <div class="ic-row"><span class="lbl">Salário prop.</span><span class="val mono">≈ R$ ${fdsDaySal}/mês (${dayDur}h/220h × ref.)</span></div>
+      <div class="ic-row"><span class="lbl">Noturno</span><span class="val">Não — turno diurno</span></div>
+      <div class="ic-row"><span class="lbl">DSR</span><span class="val">Compensado no 12×36 (Art. 59-A § único)</span></div>
+      <div class="ic-row"><span class="lbl">Contrato</span><span class="val">Escrito obrigatório + acordo 12×36 individual</span></div>
+    </div>
+  </div>
+
+  <!-- FDS Noturno -->
+  <div class="int-card ${ok&&okNightDur?'valid':''}">
+    <div class="ic-head">
+      <span style="font-size:1rem">🌙</span>
+      <div>
+        <div style="font-weight:700;font-size:.88rem">FDS Noturno — Sáb+Dom 12h/noite</div>
+        <div style="font-size:.72rem;color:var(--muted2)">${pad(ns)}h–${pad(ms)}h(+1) · ${nightDur*2}h/semana</div>
+      </div>
+      <span class="pill ${ok&&okNightDur?'pill-ok':'pill-warn'}" style="margin-left:auto">${ok&&okNightDur?'✅ LEGAL':'⚠ ATENÇÃO'}</span>
+    </div>
+    <div class="ic-body">
+      <div class="ic-row"><span class="lbl">Regime</span><span class="val">T. Parcial (Art. 58-A) + 12×36 (Art. 59-A)</span></div>
+      <div class="ic-row"><span class="lbl">Horas/semana</span><span class="val mono">${nightDur*2}h ≤ 30h → ✅ dentro do limite</span></div>
+      <div class="ic-row"><span class="lbl">Interjornada</span><span class="val mono${ok?'':' ' + (interj>=11?'':' " style="color:var(--red)'")}">${interj}h ${ok?'≥ 11h ✅':'⚠ <11h ILEGAL'}</span></div>
+      <div class="ic-row"><span class="lbl">Adic. noturno</span><span class="val mono" style="color:var(--orange)">${nightNoctHours}h/turno × 20% obrigatório</span></div>
+      <div class="ic-row"><span class="lbl">Salário prop.</span><span class="val mono">≈ R$ ${fdsNightSal}/mês (+noturno)</span></div>
+      <div class="ic-row"><span class="lbl">DSR</span><span class="val">Compensado no 12×36 + 131h descanso/semana ✅</span></div>
+      <div class="ic-row"><span class="lbl">Contrato</span><span class="val">Escrito obrigatório + acordo 12×36 + adic. noturno</span></div>
+    </div>
+    ${!ok?`<div class="alert alert-warn" style="margin:0 14px 12px;font-size:.76rem"><span>⚠️</span><div>Interjornada de ${interj}h está abaixo do mínimo de 11h (Art. 66). Ajuste o horário de início da noite.</div></div>`:''}
+  </div>`;
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── LIVE UPDATES ──────────────────────────────────────────────
+document.addEventListener('input', e => {
+  if (e.target.id.startsWith('enc-')) updateEncTotal();
+});
+
+// ── INIT ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const cfg = loadConfig();
+  fillForm(cfg);
+  updateShiftVisual();
+  updateEncTotal();
+  updateIntCalcs();
+});
+</script>
+</body>
+</html>

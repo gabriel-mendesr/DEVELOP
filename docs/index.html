@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestão de Escalas — Hotel 24/7</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#05080f;--bg2:#0a1020;--bg3:#101828;--card:#131f30;
+  --border:rgba(99,160,255,.12);--border2:rgba(99,160,255,.22);
+  --blue:#4f8fe0;--blue2:#7ab0f0;--blue3:#b0d0ff;
+  --gold:#d4a84b;--gold2:#f0c96a;
+  --text:#dce8ff;--muted:#4a6080;--muted2:#7a96b8;
+  --gio:#e07a7a;--and:#5090e0;--gab:#4ec894;--free:#d4a84b;--new:#9060d0;
+  --gio-bg:rgba(224,122,122,.16);--and-bg:rgba(80,144,224,.16);
+  --gab-bg:rgba(78,200,148,.16);--free-bg:rgba(212,168,75,.16);--new-bg:rgba(144,96,208,.16);
+  --uncov:rgba(200,80,80,.12);
+  --green:#4ec894;--red:#e07070;--orange:#e09050;
+  --warn-bg:rgba(224,144,80,.08);--warn-border:rgba(224,144,80,.3);
+  --crit-bg:rgba(224,80,80,.08);--crit-border:rgba(224,80,80,.3);
+  --info-bg:rgba(79,143,224,.08);--info-border:rgba(79,143,224,.3);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+
+/* === TYPO === */
+h1,h2{font-family:'Syne',sans-serif}
+h1{font-size:2rem;font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.25rem;font-weight:700;letter-spacing:-.01em;color:var(--blue3)}
+h3{font-size:.9rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--blue2)}
+.mono{font-family:'DM Mono',monospace}
+
+/* === LAYOUT === */
+.page{max-width:1560px;margin:0 auto;padding:0 20px 80px}
+
+/* === HEADER === */
+.header{
+  background:linear-gradient(180deg,rgba(15,25,50,.9) 0%,transparent 100%);
+  border-bottom:1px solid var(--border2);
+  padding:24px 20px;position:relative;overflow:hidden;
+}
+.header::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse 600px 120px at 30% 0%,rgba(79,143,224,.07) 0%,transparent 70%);
+  pointer-events:none;
+}
+.header-inner{max-width:1560px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;z-index:1}
+.subtitle{color:var(--muted2);font-size:.88rem;margin-top:3px}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:.74rem;font-weight:500;border:1px solid}
+.badge-blue{background:rgba(79,143,224,.1);border-color:rgba(79,143,224,.3);color:var(--blue2)}
+.badge-green{background:rgba(78,200,148,.1);border-color:rgba(78,200,148,.3);color:var(--green)}
+.badge-red{background:rgba(224,112,112,.1);border-color:rgba(224,112,112,.3);color:var(--red)}
+.badge-gold{background:rgba(212,168,75,.1);border-color:rgba(212,168,75,.3);color:var(--gold2)}
+
+/* === STICKY CONFIG === */
+.config-bar{
+  position:sticky;top:0;z-index:200;
+  background:rgba(5,8,15,.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);padding:10px 20px;
+}
+.config-inner{max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.cfg-lbl{font-size:.75rem;color:var(--muted2);font-weight:500;white-space:nowrap}
+.cfg-btn{
+  padding:5px 13px;border-radius:6px;border:1px solid var(--border2);
+  background:transparent;color:var(--muted2);font-size:.8rem;cursor:pointer;
+  transition:all .18s;font-family:'DM Sans',sans-serif;font-weight:500;
+}
+.cfg-btn.active{background:rgba(79,143,224,.2);border-color:var(--blue);color:var(--blue3);font-weight:600}
+.cfg-btn:hover:not(.active){border-color:var(--blue2);color:var(--blue2)}
+.cfg-sep{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.sal-group{display:flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sal-group label{font-size:.76rem;color:var(--muted2)}
+.sal-group input{
+  width:82px;padding:3px 7px;border-radius:5px;
+  background:var(--bg3);border:1px solid var(--border);color:var(--text);
+  font-size:.8rem;font-family:'DM Mono',monospace;
+}
+.sal-group input:focus{outline:none;border-color:var(--blue)}
+
+/* === SECTIONS === */
+.section{padding:28px 0 0}
+.sec-header{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.sec-num{
+  width:28px;height:28px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:.8rem;flex-shrink:0;font-family:'DM Mono',monospace;
+}
+.sec-num-blue{background:rgba(79,143,224,.2);color:var(--blue2);border:1px solid rgba(79,143,224,.3)}
+.sec-num-gold{background:rgba(212,168,75,.2);color:var(--gold2);border:1px solid rgba(212,168,75,.3)}
+.sec-num-green{background:rgba(78,200,148,.2);color:var(--green);border:1px solid rgba(78,200,148,.3)}
+.sec-num-red{background:rgba(224,112,112,.2);color:var(--red);border:1px solid rgba(224,112,112,.3)}
+
+/* === SCENARIO TABS === */
+.tab-row{display:flex;gap:3px;flex-wrap:wrap;padding-top:22px}
+.tab-btn{
+  padding:8px 16px;border-radius:8px 8px 0 0;
+  border:1px solid var(--border);border-bottom:none;
+  background:var(--bg2);color:var(--muted2);cursor:pointer;
+  font-size:.8rem;font-weight:500;transition:all .15s;
+  font-family:'DM Sans',sans-serif;position:relative;
+}
+.tab-btn.active{background:var(--card);color:var(--text);border-color:var(--border2)}
+.tab-btn:hover:not(.active){color:var(--blue2)}
+.warn-pip{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.best-pip{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+/* === PANEL === */
+.panel{background:var(--card);border:1px solid var(--border2);border-radius:0 12px 12px 12px;display:none}
+.panel.active{display:block}
+
+/* === TWO COL === */
+.two-col{display:grid;grid-template-columns:420px 1fr;min-height:480px}
+@media(max-width:1024px){.two-col{grid-template-columns:1fr}}
+.col-l{padding:24px;border-right:1px solid var(--border)}
+.col-r{padding:24px;background:rgba(0,0,0,.12)}
+
+/* === GRADE DE TURNOS (Y=turno, X=dias dom→sáb) === */
+.gantt-title{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--blue2);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.gantt-legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.leg{display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--muted2)}
+.leg-box{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.sched-wrap{border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.sched{width:100%;border-collapse:collapse;table-layout:fixed}
+.sched .day-h{padding:9px 4px;text-align:center;font-weight:700;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase;background:var(--bg3);border:1px solid var(--border);color:var(--muted2)}
+.sched .day-h.sun{color:var(--orange);background:rgba(224,144,80,.07)}
+.sched .shift-lbl{background:var(--bg3);border:1px solid var(--border);padding:8px 10px;white-space:nowrap;vertical-align:middle;width:86px;min-width:86px}
+.shift-lbl .sl-name{font-size:.8rem;font-weight:700;color:var(--text);display:block}
+.shift-lbl .sl-hours{font-size:.67rem;color:var(--muted2);font-family:'DM Mono',monospace;display:block;margin-top:2px}
+.sched .sc{border:1px solid var(--border);padding:0;height:66px;vertical-align:middle;text-align:center;position:relative;cursor:default;transition:filter .15s}
+.sched .sc.sc-tall{height:136px}
+.sched .sc:hover{filter:brightness(1.12);z-index:2}
+.sched .sc.sc-empty{background:var(--uncov)}
+.sched .sc.sc-warn{box-shadow:inset 0 0 0 2px rgba(224,80,80,.75)}
+.sc-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:5px 4px;gap:2px}
+.sc-name{font-size:.82rem;font-weight:700;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.5);letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:94%}
+.sc-sub{font-size:.65rem;color:rgba(255,255,255,.72);font-family:'DM Mono',monospace}
+.sc-badge{font-size:.6rem;padding:1px 5px;border-radius:3px;margin-top:1px;background:rgba(0,0,0,.28);color:rgba(255,255,255,.88);white-space:nowrap}
+.sc-badge.warn{background:rgba(200,50,50,.5);color:#ffcece}
+.sc-empty-lbl{font-size:.72rem;font-weight:600;color:rgba(200,80,80,.65);text-transform:uppercase;letter-spacing:.04em}
+
+/* === INFO BLOCKS === */
+.info-block{margin-bottom:18px}
+.info-block h3{margin-bottom:8px}
+.desc{color:var(--muted2);font-size:.86rem;line-height:1.7;margin-bottom:10px}
+
+/* === ALERTS === */
+.alert{border-radius:7px;padding:10px 14px;font-size:.82rem;display:flex;gap:9px;align-items:flex-start;margin-bottom:8px;line-height:1.6;border:1px solid}
+.alert-warn{background:var(--warn-bg);border-color:var(--warn-border);color:#e8b870}
+.alert-crit{background:var(--crit-bg);border-color:var(--crit-border);color:#e09090}
+.alert-info{background:var(--info-bg);border-color:var(--info-border);color:#90c0f0}
+.alert-green{background:rgba(78,200,148,.07);border-color:rgba(78,200,148,.25);color:#80e0b0}
+.alert-icon{flex-shrink:0;margin-top:.05rem}
+
+/* === TABLE === */
+.tbl{width:100%;border-collapse:collapse;font-size:.8rem;margin-bottom:8px}
+.tbl th{
+  padding:7px 10px;background:var(--bg3);border:1px solid var(--border);
+  color:var(--muted2);font-size:.71rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:left;
+}
+.tbl td{padding:7px 10px;border:1px solid var(--border);vertical-align:middle}
+.tbl tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.cell-gio{color:var(--gio);font-weight:600}
+.cell-and{color:var(--and);font-weight:600}
+.cell-gab{color:var(--gab);font-weight:600}
+.cell-free{color:var(--gold2);font-weight:600}
+.cell-new{color:var(--new);font-weight:600}
+
+/* === COST CARDS === */
+.cost-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px}
+.cost-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.cost-card .cv{font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;color:var(--gold2)}
+.cost-card .cl{font-size:.68rem;color:var(--muted2);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.cost-total{
+  background:rgba(212,168,75,.06);border:1px solid rgba(212,168,75,.2);
+  border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.cost-total .cv{font-family:'DM Mono',monospace;font-size:1.15rem;font-weight:600;color:var(--gold2)}
+.cost-total .cl{font-size:.8rem;color:var(--muted2)}
+
+/* === TAGS === */
+.tag{display:inline-block;padding:2px 9px;border-radius:12px;font-size:.71rem;font-weight:500;margin:2px;border:1px solid}
+.tag-g{background:rgba(78,200,148,.12);color:var(--green);border-color:rgba(78,200,148,.25)}
+.tag-r{background:rgba(224,112,112,.12);color:var(--red);border-color:rgba(224,112,112,.25)}
+.tag-o{background:rgba(224,144,80,.12);color:var(--orange);border-color:rgba(224,144,80,.25)}
+.tag-b{background:rgba(79,143,224,.12);color:var(--blue2);border-color:rgba(79,143,224,.25)}
+
+/* === SALARY SECTION === */
+.salary-section{background:var(--card);border:1px solid var(--border2);border-radius:12px;margin-top:28px;overflow:hidden}
+.sal-header{background:linear-gradient(135deg,var(--bg3),var(--bg2));padding:18px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.sal-body{padding:24px}
+.emp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:20px}
+.emp-card{background:var(--bg2);border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.emp-card-head{padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.emp-card-body{padding:13px 15px}
+.calc-row{display:flex;justify-content:space-between;padding:4px 0;font-size:.81rem;border-bottom:1px solid rgba(255,255,255,.03)}
+.calc-row:last-child{border:none}
+.calc-row .lbl{color:var(--muted2)}
+.calc-row .val{font-family:'DM Mono',monospace}
+.calc-row.total{border-top:1px solid var(--border);padding-top:7px;margin-top:3px}
+.calc-row.total .lbl{color:var(--gold2);font-weight:600}
+.calc-row.total .val{color:var(--gold2);font-weight:600;font-size:.9rem}
+.calc-row.emp-cost .lbl{color:var(--orange)}
+.calc-row.emp-cost .val{color:var(--orange)}
+
+/* === ENCARGOS === */
+.encargos-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:16px;margin-bottom:20px}
+.encargos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
+.enc-field{display:flex;flex-direction:column;gap:3px}
+.enc-field label{font-size:.72rem;color:var(--muted2)}
+.enc-field input{padding:5px 9px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.82rem}
+.enc-field input:focus{outline:none;border-color:var(--blue)}
+.enc-total-row{margin-top:10px;padding:9px 12px;background:rgba(212,168,75,.05);border-radius:6px;display:flex;justify-content:space-between;font-size:.82rem}
+
+/* === COMPARISON TABLE === */
+.cmp-section{background:var(--card);border:1px solid var(--border2);border-radius:12px;margin-top:22px;overflow:hidden}
+.cmp-table{width:100%;border-collapse:collapse;font-size:.79rem}
+.cmp-table th{background:var(--bg3);padding:10px 12px;border:1px solid var(--border);color:var(--muted2);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;text-align:left}
+.cmp-table td{padding:9px 12px;border:1px solid var(--border);vertical-align:middle}
+.cmp-table tr:hover td{background:rgba(79,143,224,.03)}
+.cmp-table .best{color:var(--green);font-weight:600}
+.cmp-table .worst{color:var(--red)}
+.cmp-table .rec td{background:rgba(212,168,75,.04)!important;border-color:rgba(212,168,75,.15)!important}
+
+/* === CONTRACTS SECTION (NEW) === */
+.contracts-section{background:var(--card);border:1px solid var(--border2);border-radius:12px;margin-top:22px;overflow:hidden}
+.contracts-header{
+  background:linear-gradient(135deg,rgba(78,200,148,.06) 0%,transparent 100%);
+  padding:20px 24px;border-bottom:1px solid var(--border);
+}
+.contracts-body{padding:24px}
+.contract-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin:20px 0}
+.contract-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;
+  transition:border-color .2s;
+}
+.contract-card:hover{border-color:var(--border2)}
+.contract-card.recommended{border-color:rgba(78,200,148,.3)}
+.contract-card .cc-head{
+  padding:14px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;gap:10px;
+}
+.contract-card .cc-icon{
+  width:36px;height:36px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+}
+.contract-card .cc-title{font-weight:600;font-size:.9rem;margin-bottom:2px}
+.contract-card .cc-subtitle{font-size:.74rem;color:var(--muted2)}
+.contract-card .cc-body{padding:14px 16px}
+.cc-rows{display:flex;flex-direction:column;gap:7px}
+.cc-row{display:grid;grid-template-columns:130px 1fr;gap:8px;font-size:.79rem;align-items:start;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+.cc-row:last-child{border:none}
+.cc-row .r-lbl{color:var(--muted2);font-size:.74rem}
+.cc-row .r-val{color:var(--text);line-height:1.5}
+.risk-pill{
+  display:inline-block;padding:1px 8px;border-radius:10px;font-size:.7rem;font-weight:600;
+}
+.risk-low{background:rgba(78,200,148,.15);color:var(--green)}
+.risk-med{background:rgba(212,168,75,.15);color:var(--gold2)}
+.risk-high{background:rgba(224,112,112,.15);color:var(--red)}
+.rec-badge{display:inline-block;padding:2px 9px;border-radius:4px;font-size:.68rem;font-weight:600;background:rgba(78,200,148,.15);color:var(--green);margin-left:6px}
+
+/* Intermitente risk callout */
+.intm-risk{
+  background:rgba(224,144,80,.06);border:1px solid rgba(224,144,80,.25);
+  border-radius:8px;padding:14px 16px;margin-top:16px;font-size:.82rem;color:#e8b870;line-height:1.6;
+}
+
+/* === CLT CARDS === */
+.clt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.clt-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.clt-art{font-size:.67rem;color:var(--blue);font-family:'DM Mono',monospace;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.clt-card h4{font-size:.84rem;font-weight:600;margin-bottom:5px}
+.clt-card p{font-size:.77rem;color:var(--muted2);line-height:1.6}
+
+/* === FOOTER === */
+.footer{border-top:1px solid var(--border);padding:18px 20px;text-align:center;color:var(--muted);font-size:.75rem;background:var(--bg2);font-style:italic}
+
+/* === UTIL === */
+.divider{height:1px;background:var(--border);margin:16px 0}
+.flex{display:flex}.gap8{gap:8px}.gap12{gap:12px}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}
+.w100{width:100%}.text-muted{color:var(--muted2)}.text-green{color:var(--green)}.text-red{color:var(--red)}.text-orange{color:var(--orange)}.text-gold{color:var(--gold2)}.text-blue{color:var(--blue2)}
+.bold{font-weight:600}.center{text-align:center}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:rgba(79,143,224,.25);border-radius:3px}
+@media print{.config-bar{display:none}.panel{display:block!important}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>Hotel 24/7 — Gestão de Escalas</h1>
+      <p class="subtitle">Análise Completa · CLT 2026 · Contratos Intermediários · Painel Salarial</p>
+    </div>
+    <div class="badges">
+      <span class="badge badge-blue">📅 <span id="gen-date"></span></span>
+      <span class="badge badge-green">3 Funcionários Ativos</span>
+      <span class="badge badge-red">Func. X saindo</span>
+      <a href="config.html" class="badge badge-gold" style="text-decoration:none;cursor:pointer">⚙️ Configurações</a>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG BAR -->
+<div class="config-bar">
+  <div class="config-inner">
+    <span class="cfg-lbl">🕐 Turnos ativos:</span>
+    <span class="cfg-btn active" style="cursor:default" id="active-shift-label">07h / 19h</span>
+    <a href="config.html" class="cfg-btn" style="text-decoration:none">⚙️ Alterar turnos</a>
+    <div class="cfg-sep"></div>
+    <span class="cfg-lbl">💰 Salários:</span>
+    <div class="sal-group"><div class="dot" style="background:var(--gio)"></div><label>Giovanna</label><input type="number" id="s-gio" value="1700" step="50" onchange="recalcAll()"></div>
+    <div class="sal-group"><div class="dot" style="background:var(--and)"></div><label>Anderson</label><input type="number" id="s-and" value="2100" step="50" onchange="recalcAll()"></div>
+    <div class="sal-group"><div class="dot" style="background:var(--gab)"></div><label>Gabriel</label><input type="number" id="s-gab" value="1800" step="50" onchange="recalcAll()"></div>
+    <div class="sal-group"><div class="dot" style="background:var(--free)"></div><label>Diária free.</label><input type="number" id="s-free" value="250" step="10" onchange="recalcAll()"></div>
+    <div class="sal-group"><div class="dot" style="background:var(--new)"></div><label>Intermit./diária</label><input type="number" id="s-int" value="220" step="10" onchange="recalcAll()"></div>
+    <div class="cfg-sep"></div>
+    <span class="cfg-lbl">🗓️ Intermediários:</span>
+    <div class="sal-group"><div class="dot" style="background:var(--new)"></div><label>T. Parcial FDS/mês</label><input type="number" id="s-fds" value="655" step="25" onchange="recalcAll()" title="Salário mensal do funcionário tempo parcial FDS (16h/sem). Valor padrão proporcional a R$1.800."></div>
+    <div class="sal-group"><div class="dot" style="background:var(--new)"></div><label>12×36 FDS/mês</label><input type="number" id="s-fds2" value="982" step="25" onchange="recalcAll()" title="Salário mensal do funcionário 12×36 FDS (24h/sem). Valor padrão proporcional a R$1.800."></div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ============= SITUAÇÃO ATUAL ============= -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-num sec-num-blue">0</div>
+    <div><h2>Situação Atual — Referência</h2><p class="text-muted" style="font-size:.83rem">Mapa do modelo vigente antes da mudança de escala</p></div>
+  </div>
+
+  <div class="panel active" style="border-radius:12px">
+    <div class="two-col">
+      <div class="col-l">
+        <div class="info-block">
+          <h3>Modelo em Uso</h3>
+          <p class="desc">Giovanna e Anderson cobrem turnos diurnos em 6×1. Gabriel e Func. X (saindo) operam 12×36 noturno alternado. Com a saída de X, surgem lacunas noturnas graves.</p>
+        </div>
+        <div class="info-block">
+          <h3>Escala Atual</h3>
+          <table class="tbl">
+            <thead><tr><th>Funcionário</th><th>Regime</th><th>Turno</th><th>Dias/sem.</th><th>H/sem.</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-gio">Giovanna</td><td>6×1 CLT</td><td class="mono" id="lbl-gio-a">07h–15h</td><td>Seg–Sáb</td><td class="mono text-orange">48h ⚠</td></tr>
+              <tr><td class="cell-and">Anderson</td><td>6×1 CLT</td><td class="mono" id="lbl-and-a">15h–23h</td><td>Seg–Sáb</td><td class="mono text-orange">48h ⚠</td></tr>
+              <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="lbl-gab-a">19h–07h</td><td>Alternado</td><td class="mono">~42h</td></tr>
+              <tr><td class="text-muted">Func. X</td><td>12×36</td><td class="mono">19h–07h</td><td>Alternado</td><td class="mono">~42h</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="info-block">
+          <h3>Problemas Identificados</h3>
+          <div class="alert alert-crit"><span class="alert-icon">🚨</span><div><strong>Saída de X:</strong> Gabriel sozinho no 12×36 → ~15 noites/mês descobertas.</div></div>
+          <div class="alert alert-warn"><span class="alert-icon">⚠️</span><div><strong>Domingos sem cobertura diurna:</strong> Giovanna e Anderson folgam no domingo.</div></div>
+          <div class="alert alert-warn"><span class="alert-icon">⚠️</span><div><strong>48h/sem. (6×1):</strong> Sábado gera ~17h extras/mês. Devem ser pagas com 50% ou banco de horas.</div></div>
+        </div>
+        <div class="info-block">
+          <h3>Custo Estimado Atual (4 func.)</h3>
+          <div class="cost-grid">
+            <div class="cost-card"><div class="cv" id="c0-gio">—</div><div class="cl">Giovanna</div></div>
+            <div class="cost-card"><div class="cv" id="c0-and">—</div><div class="cl">Anderson</div></div>
+            <div class="cost-card"><div class="cv" id="c0-gab">—</div><div class="cl">Gabriel</div></div>
+            <div class="cost-card"><div class="cv" id="c0-x">—</div><div class="cl">Func. X</div></div>
+          </div>
+          <div class="cost-total"><span class="cl">Total/mês c/ encargos</span><span class="cv" id="c0-tot">—</span></div>
+        </div>
+      </div>
+      <div class="col-r">
+        <div class="gantt-title">📊 COBERTURA 24H POR DIA — SITUAÇÃO ATUAL
+          <span style="font-size:.65rem;color:var(--muted);font-weight:400;text-transform:none">cada barra = turno ativo</span>
+        </div>
+        <div class="gantt-legend" id="leg-atual"></div>
+        <div class="sched-wrap"><table id="gantt-atual"></table></div>
+        <div class="mt12" style="font-size:.75rem;color:var(--muted2)">
+          ⤷ 12×36 exibido em ciclo: <span style="color:var(--gab)">semana A (Gabriel)</span> / <span style="color:var(--muted)">semana B (X — saindo)</span>. Sem X, linha B fica vermelha (vago).
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============= SCENARIOS ============= -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-num sec-num-blue">A</div>
+    <div><h2>Cenários Propostos — Comparativo de Escalas</h2><p class="text-muted" style="font-size:.83rem">Visualização 24h por dia + custo estimado. Configurações aplicam em tempo real.</p></div>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-btn active" id="t-s1" onclick="showTab('s1')">A · 5×2 + Freelancer</button>
+    <button class="tab-btn" id="t-s2" onclick="showTab('s2')">B · 12×36 Universal</button>
+    <button class="tab-btn" id="t-s3" onclick="showTab('s3')">C · Revezamento 6×1</button>
+    <button class="tab-btn" id="t-s4" onclick="showTab('s4')">D · Gab Seg–Sex Noite <span class="warn-pip"></span></button>
+    <button class="tab-btn" id="t-s5" onclick="showTab('s5')">⭐ E · Misto Recomendado <span class="best-pip"></span></button>
+    <button class="tab-btn" id="t-s6" onclick="showTab('s6')">F · Intermitente FDS <span class="best-pip"></span></button>
+  </div>
+
+  <!-- PANEL S1 -->
+  <div class="panel active" id="panel-s1"><div class="two-col">
+    <div class="col-l">
+      <div class="info-block"><h3>Proposta A — 5×2 + Freelancer</h3>
+        <p class="desc">Giovanna e Anderson em 5×2 (seg–sex), eliminando horas extras. Gabriel mantém 12×36 noturno. Fins de semana e gaps noturnos cobertos por freelancers PJ/MEI.</p>
+      </div>
+      <table class="tbl mb12">
+        <thead><tr><th>Quem</th><th>Regime</th><th>Turno</th><th>H/sem.</th><th>CLT</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-gio">Giovanna</td><td>5×2</td><td class="mono" id="la-gio-s1"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-and">Anderson</td><td>5×2</td><td class="mono" id="la-and-s1"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="la-gab-s1"></td><td class="mono">~42h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-free">Freelancer</td><td>PJ/MEI</td><td>Variável</td><td>—</td><td class="text-orange">⚠ PJ</td></tr>
+        </tbody>
+      </table>
+      <div class="info-block">
+        <div class="alert alert-warn"><span class="alert-icon">🔧</span><div>Sáb + Dom (4 turnos/FDS) + ~15 noites gap Gabriel = ~32 diárias freelancer/mês</div></div>
+        <div class="alert alert-info"><span class="alert-icon">💡</span><div>Banco de horas pode reduzir custo: Gio ou Anderson cobrem um dia do FDS por mês sem custo extra</div></div>
+      </div>
+      <div class="info-block"><h3>Custo Mensal</h3>
+        <div class="cost-grid">
+          <div class="cost-card"><div class="cv" id="c1-gio">—</div><div class="cl">Giovanna</div></div>
+          <div class="cost-card"><div class="cv" id="c1-and">—</div><div class="cl">Anderson</div></div>
+          <div class="cost-card"><div class="cv" id="c1-gab">—</div><div class="cl">Gabriel</div></div>
+          <div class="cost-card"><div class="cv" id="c1-free">—</div><div class="cl">Freelancer</div></div>
+        </div>
+        <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="c1-tot">—</span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag tag-g">Sem H. Extra</span><span class="tag tag-g">Dom coberto</span><span class="tag tag-g">CLT limpo</span>
+        <span class="tag tag-r">Custo variável</span><span class="tag tag-r">Confiabilidade</span><span class="tag tag-o">32 diárias/mês</span>
+      </div>
+    </div>
+    <div class="col-r">
+      <div class="gantt-title">📊 COBERTURA 24H — PROPOSTA A</div>
+      <div class="gantt-legend" id="leg-s1"></div>
+      <div class="sched-wrap"><table id="gantt-s1"></table></div>
+    </div>
+  </div></div>
+
+  <!-- PANEL S2 -->
+  <div class="panel" id="panel-s2"><div class="two-col">
+    <div class="col-l">
+      <div class="info-block"><h3>Proposta B — 12×36 Universal (4 funcionários)</h3>
+        <p class="desc">Todos em 12×36. Giovanna + Anderson no diurno alternado, Gabriel + novo funcionário no noturno alternado. Cobertura 100%, sem freelancer, sem hora extra. Exige contratar 4° pessoa.</p>
+      </div>
+      <table class="tbl mb12">
+        <thead><tr><th>Quem</th><th>Regime</th><th>Turno</th><th>H/mês</th><th>CLT</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-gio">Giovanna</td><td>12×36</td><td class="mono" id="la-gio-s2"></td><td class="mono">~180h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-and">Anderson</td><td>12×36</td><td class="mono" id="la-and-s2"></td><td class="mono">~180h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="la-gab-s2"></td><td class="mono">~180h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-new">Novo (noturno)</td><td>12×36</td><td class="mono" id="la-new-s2"></td><td class="mono">~180h</td><td class="text-green">✅</td></tr>
+        </tbody>
+      </table>
+      <div class="alert alert-green"><span class="alert-icon">✅</span><div>Art. 59-A CLT (Reforma 2017): 12×36 por acordo individual escrito. Feriados cobertos sem extra. O modelo mais robusto para 24/7.</div></div>
+      <div class="info-block mt12"><h3>Custo Mensal</h3>
+        <div class="cost-grid">
+          <div class="cost-card"><div class="cv" id="c2-gio">—</div><div class="cl">Giovanna</div></div>
+          <div class="cost-card"><div class="cv" id="c2-and">—</div><div class="cl">Anderson</div></div>
+          <div class="cost-card"><div class="cv" id="c2-gab">—</div><div class="cl">Gabriel</div></div>
+          <div class="cost-card"><div class="cv" id="c2-new">—</div><div class="cl">Novo Noturno</div></div>
+        </div>
+        <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="c2-tot">—</span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag tag-g">100% coberto</span><span class="tag tag-g">Sem freelancer</span><span class="tag tag-g">CLT perfeito</span>
+        <span class="tag tag-r">Precisa 4° func.</span><span class="tag tag-r">Maior folha fixa</span><span class="tag tag-o">Adicional noturno</span>
+      </div>
+    </div>
+    <div class="col-r">
+      <div class="gantt-title">📊 COBERTURA 24H — PROPOSTA B</div>
+      <div class="gantt-legend" id="leg-s2"></div>
+      <div class="sched-wrap"><table id="gantt-s2"></table></div>
+    </div>
+  </div></div>
+
+  <!-- PANEL S3 -->
+  <div class="panel" id="panel-s3"><div class="two-col">
+    <div class="col-l">
+      <div class="info-block"><h3>Proposta C — Revezamento 6×1</h3>
+        <p class="desc">Giovanna e Anderson em 6×1 com folgas alternadas: uma semana Gio folga domingo (And cobre), semana seguinte Anderson folga sábado (Gio cobre). Gabriel 12×36. Freelancer só para gaps noturnos.</p>
+      </div>
+      <table class="tbl mb12">
+        <thead><tr><th>Quem</th><th>Regime</th><th>Turno</th><th>H/sem.</th><th>CLT</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-gio">Giovanna</td><td>6×1 revez.</td><td class="mono" id="la-gio-s3"></td><td class="mono text-orange">48h</td><td class="text-orange">⚠ BH</td></tr>
+          <tr><td class="cell-and">Anderson</td><td>6×1 revez.</td><td class="mono" id="la-and-s3"></td><td class="mono text-orange">48h</td><td class="text-orange">⚠ BH</td></tr>
+          <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="la-gab-s3"></td><td class="mono">~42h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-free">Freelancer</td><td>PJ</td><td>19h–7h</td><td>—</td><td class="text-orange">⚠</td></tr>
+        </tbody>
+      </table>
+      <div class="alert alert-warn"><span class="alert-icon">⚠️</span><div>6×1 gera ~4h extra/sem. Com banco de horas (CCT hotelaria, até 6 meses), não há custo financeiro imediato mas o passivo se acumula.</div></div>
+      <div class="info-block mt12"><h3>Custo Mensal</h3>
+        <div class="cost-grid">
+          <div class="cost-card"><div class="cv" id="c3-gio">—</div><div class="cl">Giovanna</div></div>
+          <div class="cost-card"><div class="cv" id="c3-and">—</div><div class="cl">Anderson</div></div>
+          <div class="cost-card"><div class="cv" id="c3-gab">—</div><div class="cl">Gabriel</div></div>
+          <div class="cost-card"><div class="cv" id="c3-free">—</div><div class="cl">Freelancer</div></div>
+        </div>
+        <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="c3-tot">—</span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag tag-g">Dom coberto</span><span class="tag tag-g">3 fixos</span><span class="tag tag-g">Menor custo</span>
+        <span class="tag tag-r">HE não eliminada</span><span class="tag tag-o">Banco de horas</span>
+      </div>
+    </div>
+    <div class="col-r">
+      <div class="gantt-title">📊 COBERTURA 24H — PROPOSTA C (semana ímpar)</div>
+      <div class="gantt-legend" id="leg-s3"></div>
+      <div class="sched-wrap"><table id="gantt-s3"></table></div>
+    </div>
+  </div></div>
+
+  <!-- PANEL S4 -->
+  <div class="panel" id="panel-s4"><div class="two-col">
+    <div class="col-l">
+      <div class="info-block"><h3>⚠️ Proposta D — Gabriel Seg–Sex Noite (IRREGULAR)</h3>
+        <p class="desc">Cenário solicitado: Gabriel trabalhando de segunda a sexta no turno noturno de 12h. <strong>Gera múltiplas violações CLT</strong> detalhadas abaixo.</p>
+      </div>
+      <div class="alert alert-crit"><span class="alert-icon">🚨</span><div>
+        <strong>Violações CLT:</strong><br>
+        ① <strong>Art. 59:</strong> 12h/dia excede o máximo de 10h (8h + 2h extra)<br>
+        ② <strong>Art. 58+59:</strong> 5×12h = 60h/sem. (máximo legal = ~54h)<br>
+        ③ <strong>Art. 67:</strong> Turno sex. termina no <em>sábado</em> às 7h — não é realmente seg–sex<br>
+        ④ Risco de ação trabalhista com pagamento retroativo de HE (50–100%)
+      </div></div>
+      <div class="alert alert-green mt8"><span class="alert-icon">✅</span><div><strong>Alternativa legal:</strong> Gabriel seg–sex com turno de 8h/noite (ex: 22h–6h). 40h/sem. Adicional noturno integral. Sem violação.</div></div>
+      <div class="info-block mt12"><h3>Custo Mensal (c/ horas extras irregulares)</h3>
+        <div class="cost-grid">
+          <div class="cost-card"><div class="cv" id="c4-gio">—</div><div class="cl">Giovanna</div></div>
+          <div class="cost-card"><div class="cv" id="c4-and">—</div><div class="cl">Anderson</div></div>
+          <div class="cost-card"><div class="cv" id="c4-gab">—</div><div class="cl">Gabriel (c/HE)</div></div>
+          <div class="cost-card"><div class="cv" id="c4-free">—</div><div class="cl">Freelancer FDS</div></div>
+        </div>
+        <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="c4-tot">—</span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag tag-r">ILEGAL (12h×5d)</span><span class="tag tag-r">Risco alto</span><span class="tag tag-r">60h/sem.</span>
+        <span class="tag tag-o">Custo alto HE</span>
+      </div>
+    </div>
+    <div class="col-r">
+      <div class="gantt-title">📊 COBERTURA 24H — PROPOSTA D <span style="color:var(--red)">(MARCAÇÕES CLT EM VERMELHO)</span></div>
+      <div class="gantt-legend" id="leg-s4"></div>
+      <div class="sched-wrap"><table id="gantt-s4"></table></div>
+    </div>
+  </div></div>
+
+  <!-- PANEL S5 -->
+  <div class="panel" id="panel-s5"><div class="two-col">
+    <div class="col-l">
+      <div class="info-block"><h3>⭐ Proposta E — Modelo Misto Recomendado</h3>
+        <p class="desc">Giovanna 5×2 (sem HE), Anderson 6×1 rotativo (banco de horas), Gabriel 12×36 noturno. Freelancer cobre domingos + gaps noturnos residuais. Equilibrio máximo entre custo, CLT e cobertura com apenas 3 fixos.</p>
+      </div>
+      <table class="tbl mb12">
+        <thead><tr><th>Quem</th><th>Regime</th><th>Turno</th><th>H/sem.</th><th>CLT</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-gio">Giovanna</td><td>5×2</td><td class="mono" id="la-gio-s5"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-and">Anderson</td><td>6×1 + BH</td><td class="mono" id="la-and-s5"></td><td class="mono">48h</td><td class="text-orange">⚠ BH</td></tr>
+          <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="la-gab-s5"></td><td class="mono">~42h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-free">Freelancer</td><td>PJ/Intermit.</td><td>Variável</td><td>—</td><td class="text-orange">⚠</td></tr>
+        </tbody>
+      </table>
+      <div class="alert alert-green"><span class="alert-icon">⭐</span><div>Menor custo total com cobertura 7 dias. Giovanna tem o contrato mais limpo. Anderson cobre sábados/gaps com banco de horas. Freelancer residual apenas para domingos e noites.</div></div>
+      <div class="info-block mt12"><h3>Custo Mensal</h3>
+        <div class="cost-grid">
+          <div class="cost-card"><div class="cv" id="c5-gio">—</div><div class="cl">Giovanna</div></div>
+          <div class="cost-card"><div class="cv" id="c5-and">—</div><div class="cl">Anderson</div></div>
+          <div class="cost-card"><div class="cv" id="c5-gab">—</div><div class="cl">Gabriel</div></div>
+          <div class="cost-card"><div class="cv" id="c5-free">—</div><div class="cl">Freelancer</div></div>
+        </div>
+        <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="c5-tot">—</span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag tag-g">3 fixos</span><span class="tag tag-g">Dom coberto</span><span class="tag tag-g">Custo mínimo</span>
+        <span class="tag tag-o">And banco horas</span><span class="tag tag-o">Free. residual</span>
+      </div>
+    </div>
+    <div class="col-r">
+      <div class="gantt-title">📊 COBERTURA 24H — PROPOSTA E ⭐</div>
+      <div class="gantt-legend" id="leg-s5"></div>
+      <div class="sched-wrap"><table id="gantt-s5"></table></div>
+    </div>
+  </div></div>
+
+  <!-- PANEL S6 — Intermediários 12h FDS -->
+  <div class="panel" id="panel-s6"><div class="two-col">
+    <div class="col-l">
+      <div class="info-block"><h3>⭐ Proposta F — Intermediários 12h FDS (Tempo Parcial)</h3>
+        <p class="desc">Giovanna e Anderson em 5×2. Dois intermediários CLT em Tempo Parcial (Art.58-A + 59-A): <strong>FDS Diurno</strong> cobre Sábado inteiro (12h), <strong>FDS Noturno</strong> cobre Sábado e Domingo à noite (12h/noite). Gabriel mantém 12×36.</p>
+        <div id="s6-clt-analysis" style="margin-top:8px"></div>
+      </div>
+      <div class="alert alert-info mb12"><span class="alert-icon">ℹ️</span><div>Ambos os contratos exigem <strong>acordo individual escrito + regime 12×36 (Art.59-A)</strong>. Configure os horários de turno em <a href="config.html" style="color:var(--gold2)">⚙️ Configurações</a> — a análise de legalidade atualiza automaticamente.</div></div>
+      <table class="tbl mb12">
+        <thead><tr><th>Quem</th><th>Regime</th><th>Turno</th><th>H/sem.</th><th>CLT</th></tr></thead>
+        <tbody>
+          <tr><td class="cell-gio">Giovanna</td><td>5×2</td><td class="mono" id="la-gio-s6"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-and">Anderson</td><td>5×2</td><td class="mono" id="la-and-s6"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="la-gab-s6"></td><td class="mono">~42h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-new">FDS Diurno</td><td>T.Parc. + 12×36</td><td>Sáb (12h)</td><td class="mono">12h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-new">FDS Noturno</td><td>T.Parc. + 12×36</td><td>Sáb+Dom noite (12h)</td><td class="mono">24h</td><td class="text-green">✅</td></tr>
+          <tr><td class="cell-free">Freelancer</td><td>PJ/Intermit.</td><td>Gaps noturnos Gabriel</td><td>—</td><td class="text-orange">⚠</td></tr>
+        </tbody>
+      </table>
+      <div class="alert alert-green mb8"><span class="alert-icon">✅</span><div>Ambos têm CTPS, FGTS, férias e 13° proporcionais. Salário calculado proporcionalmente: <span id="int-tp-sal">—</span>/mês (ref.). Sem risco de vínculo irregular.</div></div>
+      <div class="info-block mt12"><h3>Custo Mensal</h3>
+        <div class="cost-grid">
+          <div class="cost-card"><div class="cv" id="c6-gio">—</div><div class="cl">Giovanna</div></div>
+          <div class="cost-card"><div class="cv" id="c6-and">—</div><div class="cl">Anderson</div></div>
+          <div class="cost-card"><div class="cv" id="c6-gab">—</div><div class="cl">Gabriel</div></div>
+          <div class="cost-card"><div class="cv" id="c6-fds">—</div><div class="cl">FDS Diurno+Noturno</div></div>
+          <div class="cost-card"><div class="cv" id="c6-free">—</div><div class="cl">Free. gaps Gab.</div></div>
+        </div>
+        <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="c6-tot">—</span></div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="tag tag-g">CLT 100%</span><span class="tag tag-g">12h/turno legal</span><span class="tag tag-g">FDS coberto</span>
+        <span class="tag tag-g">Adic. noturno correto</span><span class="tag tag-o">2 contratações novas</span>
+      </div>
+    </div>
+    <div class="col-r">
+      <div class="gantt-title">📊 COBERTURA 24H — PROPOSTA F ⭐</div>
+      <div class="gantt-legend" id="leg-s6"></div>
+      <div class="sched-wrap"><table id="gantt-s6"></table></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ============= CONTRACTS INTERMEDIÁRIOS (NOVA SEÇÃO) ============= -->
+<div class="contracts-section">
+  <div class="contracts-header">
+    <div class="sec-header" style="border:none;margin:0;padding:0">
+      <div class="sec-num sec-num-green">📋</div>
+      <div>
+        <h2>Contratos Intermediários — Cobertura de Fins de Semana</h2>
+        <p class="text-muted" style="font-size:.83rem">Pesquisa baseada na CLT 2026 e jurisprudência trabalhista recente</p>
+      </div>
+    </div>
+  </div>
+  <div class="contracts-body">
+
+    <div class="alert alert-info mb12"><span class="alert-icon">ℹ️</span>
+      <div>Para cobrir <strong>sábados e domingos</strong> em hotel 24/7, existem 4 modalidades legais distintas. Cada uma tem implicações diferentes de custo, segurança jurídica e direitos do trabalhador. A escolha correta evita riscos trabalhistas significativos.</div>
+    </div>
+
+    <div class="contract-grid">
+
+      <!-- 1. Tempo Parcial -->
+      <div class="contract-card recommended">
+        <div class="cc-head">
+          <div class="cc-icon" style="background:rgba(78,200,148,.15)">📄</div>
+          <div>
+            <div class="cc-title">Tempo Parcial FDS <span class="rec-badge">RECOMENDADO</span></div>
+            <div class="cc-subtitle">Art. 58-A CLT · Contrato fixo com jornada reduzida</div>
+          </div>
+        </div>
+        <div class="cc-body">
+          <div class="cc-rows">
+            <div class="cc-row"><span class="r-lbl">Como funciona</span><span class="r-val">Contrato CLT com jornada máx. 30h/sem. (sem HE) ou 26h/sem. (com até 6h extras). Para FDS: 2 dias × 8h = 16h/sem.</span></div>
+            <div class="cc-row"><span class="r-lbl">Salário</span><span class="r-val">Proporcional: 16h/44h × salário integral da função. Ex: 16/44 × R$1.800 ≈ <strong class="mono" id="int-tp-sal">R$ 655</strong>/mês</span></div>
+            <div class="cc-row"><span class="r-lbl">Direitos</span><span class="r-val">FGTS, INSS, férias proporcionais, 13° proporcional, DSR, adicional noturno se aplicável</span></div>
+            <div class="cc-row"><span class="r-lbl">Horas extras</span><span class="r-val">Proibido se jornada ≥ 30h/sem. Permitido até 6h/sem. se jornada ≤ 26h/sem.</span></div>
+            <div class="cc-row"><span class="r-lbl">Risco jurídico</span><span class="r-val"><span class="risk-pill risk-low">BAIXO</span> — Modalidade expressa na CLT, pode trabalhar todos os FDS sem descaracterização</span></div>
+            <div class="cc-row"><span class="r-lbl">Custo/mês hotel</span><span class="r-val">Salário proporcional + encargos (~63% overhead). Custo previsível e fixo.</span></div>
+            <div class="cc-row"><span class="r-lbl">Ideal para</span><span class="r-val">Estudantes, aposentados, quem tem emprego fixo em semana. Perfil facilmente encontrado.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Trabalho Intermitente -->
+      <div class="contract-card">
+        <div class="cc-head">
+          <div class="cc-icon" style="background:rgba(212,168,75,.15)">🔄</div>
+          <div>
+            <div class="cc-title">Trabalho Intermitente</div>
+            <div class="cc-subtitle">Art. 452-A CLT · Convocação por demanda</div>
+          </div>
+        </div>
+        <div class="cc-body">
+          <div class="cc-rows">
+            <div class="cc-row"><span class="r-lbl">Como funciona</span><span class="r-val">Contrato CLT não-contínuo. Empresa convoca com ≥3 dias de antecedência; trabalhador aceita ou recusa sem penalidade.</span></div>
+            <div class="cc-row"><span class="r-lbl">Pagamento</span><span class="r-val">Ao final de cada convocação: valor/hora + DSR + férias proporcionais + 13° proporcional. Mín. R$7,37/h (2026).</span></div>
+            <div class="cc-row"><span class="r-lbl">Direitos</span><span class="r-val">FGTS, INSS, férias, 13°, DSR — pagos proporcionalmente em cada convocação</span></div>
+            <div class="cc-row"><span class="r-lbl">⚠ ATENÇÃO</span><span class="r-val text-orange"><strong>Se SEMPRE convocado nos FDS → descaracteriza como CLT padrão</strong> (Art. 3° CLT + jurisprudência TST). Use com pool de trabalhadores rodando.</span></div>
+            <div class="cc-row"><span class="r-lbl">Risco jurídico</span><span class="r-val"><span class="risk-pill risk-med">MÉDIO</span> — Risco aumenta com habitualidade. Mitigar com pool ≥3 pessoas alternando.</span></div>
+            <div class="cc-row"><span class="r-lbl">Custo/diária</span><span class="r-val">Valor/hora × 8h × (1 + 1/6 DSR + 1/11 férias + 1/12 13°) ≈ valor/hora × 9,8h</span></div>
+            <div class="cc-row"><span class="r-lbl">Ideal para</span><span class="r-val">Cobertura imprevisível, picos esporádicos, substituições de última hora</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Tempo Parcial 12x36 FDS -->
+      <div class="contract-card recommended">
+        <div class="cc-head">
+          <div class="cc-icon" style="background:rgba(79,143,224,.15)">🌙</div>
+          <div>
+            <div class="cc-title">12×36 FDS (Sáb+Dom) <span class="rec-badge">INOVADOR</span></div>
+            <div class="cc-subtitle">Art. 59-A + 58-A CLT · Hybrid FDS-only 12×36</div>
+          </div>
+        </div>
+        <div class="cc-body">
+          <div class="cc-rows">
+            <div class="cc-row"><span class="r-lbl">Como funciona</span><span class="r-val">Contrato 12×36 restrito ao fim de semana: 12h Sábado + 36h folga + 12h Domingo = 24h/sem. Jornada dentro dos limites do tempo parcial (≤30h).</span></div>
+            <div class="cc-row"><span class="r-lbl">Salário</span><span class="r-val">Proporcional: 24h/44h × piso da função. Sem adicional de FDS se previsto em ACT/CCT.</span></div>
+            <div class="cc-row"><span class="r-lbl">Combinação legal</span><span class="r-val">12×36 (Art. 59-A) + Tempo Parcial (Art. 58-A) + acordo individual escrito</span></div>
+            <div class="cc-row"><span class="r-lbl">Risco jurídico</span><span class="r-val"><span class="risk-pill risk-low">BAIXO</span> — Estrutura clara, direitos proporcionais, jornada dentro do limite legal</span></div>
+            <div class="cc-row"><span class="r-lbl">Cobertura</span><span class="r-val">1 pessoa cobre 1 turno de 12h no FDS. Para cobrir manhã+tarde+noite do FDS → 3 pessoas com esta modalidade.</span></div>
+            <div class="cc-row"><span class="r-lbl">Ideal para</span><span class="r-val">Hotéis com turnos de 12h que precisam de FDS coberto sem custo de semana cheia</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Trabalho Temporário -->
+      <div class="contract-card">
+        <div class="cc-head">
+          <div class="cc-icon" style="background:rgba(224,144,80,.15)">⏳</div>
+          <div>
+            <div class="cc-title">Trabalho Temporário</div>
+            <div class="cc-subtitle">Lei 6.019/74 · Via agência de emprego temporário</div>
+          </div>
+        </div>
+        <div class="cc-body">
+          <div class="cc-rows">
+            <div class="cc-row"><span class="r-lbl">Como funciona</span><span class="r-val">Contratado via agência por prazo determinado (até 180 dias + 90 dias prorrogação). Para substituição de efetivos ou demanda transitória.</span></div>
+            <div class="cc-row"><span class="r-lbl">Vínculo</span><span class="r-val">Com a agência, não com o hotel. Hotel paga taxa de serviço. Menor burocracia administrativa para o hotel.</span></div>
+            <div class="cc-row"><span class="r-lbl">Direitos do temp.</span><span class="r-val">Salário equivalente ao efetivo, jornada regulada, FGTS 8%, repouso semanal, adicional noturno</span></div>
+            <div class="cc-row"><span class="r-lbl">⚠ Limitação</span><span class="r-val">Prazo máximo 270 dias. Após isso, automaticamente vira vínculo CLT. Não resolve necessidade permanente de FDS.</span></div>
+            <div class="cc-row"><span class="r-lbl">Risco jurídico</span><span class="r-val"><span class="risk-pill risk-low">BAIXO</span> durante vigência. Risco de vínculo após 270 dias.</span></div>
+            <div class="cc-row"><span class="r-lbl">Ideal para</span><span class="r-val">Período de transição enquanto define modelo definitivo. Cobre enquanto contrata Tempo Parcial.</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end contract-grid -->
+
+    <div class="intm-risk">
+      <strong>⚠️ Alerta sobre Trabalho Intermitente para FDS fixo:</strong><br>
+      A existência de trabalho habitual em todos os finais de semana ou em dias fixos da semana torna nulo o contrato intermitente e gera vínculo empregatício (Art. 3° CLT). <strong>Solução:</strong> se quiser usar intermitente, mantenha um pool de pelo menos 3 trabalhadores e faça rodízio entre eles, garantindo que nenhum trabalhe todos os FDS do mês. Caso precise de presença garantida todo sábado e domingo → use <strong>Tempo Parcial 16h/sem.</strong> (Art. 58-A), que é a modalidade correta para este caso.
+    </div>
+
+    <div class="divider"></div>
+    <h3 class="mb12">COMPARATIVO RÁPIDO — Modalidades para FDS</h3>
+    <div style="overflow-x:auto">
+      <table class="tbl w100">
+        <thead>
+          <tr>
+            <th>Modalidade</th><th>Art. CLT</th><th>Pode todo FDS?</th><th>Custo/FDS</th><th>FGTS/13°/Férias</th><th>Rescisão</th><th>Risco Jurídico</th>
+          </tr>
+        </thead>
+        <tbody id="contracts-table"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============= SALARY PANEL ============= -->
+<div class="salary-section">
+  <div class="sal-header">
+    <div><h2 style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;color:var(--gold2)">💰 Calculadora Salarial Detalhada</h2>
+      <p class="text-muted" style="font-size:.78rem">Encargos editáveis · atualiza em tempo real</p>
+    </div>
+    <div style="font-size:.74rem;color:var(--muted)">Salário mínimo hora 2026: R$ 7,37</div>
+  </div>
+  <div class="sal-body">
+    <div class="encargos-wrap">
+      <h3>⚙️ Encargos Patronais</h3>
+      <div class="encargos-grid">
+        <div class="enc-field"><label>INSS Patronal (%)</label><input type="number" id="enc-inss" value="20" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>RAT (%)</label><input type="number" id="enc-rat" value="2" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>Terceiros (%)</label><input type="number" id="enc-terc" value="5.8" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>FGTS (%)</label><input type="number" id="enc-fgts" value="8" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>Provisão Férias+1/3 (%)</label><input type="number" id="enc-fer" value="11.11" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>Provisão 13° (%)</label><input type="number" id="enc-13" value="8.33" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>FGTS s/ provisões (%)</label><input type="number" id="enc-fp" value="1.92" step=".1" onchange="recalcAll()"></div>
+        <div class="enc-field"><label>Adicional noturno (%)</label><input type="number" id="enc-not" value="20" step=".1" onchange="recalcAll()"></div>
+      </div>
+      <div class="enc-total-row">
+        <span class="text-muted">Total encargos sobre salário bruto:</span>
+        <span class="mono text-gold bold" id="enc-total-pct">—%</span>
+      </div>
+    </div>
+    <div class="emp-cards" id="emp-cards"></div>
+    <div style="overflow-x:auto">
+      <table class="tbl w100">
+        <thead><tr><th>Funcionário</th><th>Regime</th><th>Sal. Base</th><th>Adicionais</th><th>Encargos</th><th>Provisões</th><th>Custo Total/mês</th></tr></thead>
+        <tbody id="sal-summary"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============= COMPARISON TABLE ============= -->
+<div class="cmp-section">
+  <div class="sal-header">
+    <div><h2 style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;color:var(--gold2)">📊 Tabela Comparativa de Todos os Cenários</h2></div>
+  </div>
+  <div style="padding:20px;overflow-x:auto">
+    <table class="cmp-table w100">
+      <thead><tr>
+        <th>Cenário</th><th>Fixos</th><th>FDS/Extra</th><th>Dom ✓?</th><th>H. Extra</th>
+        <th>Custo Fixo/mês</th><th>Custo Variável</th><th>Total/mês</th><th>CLT</th><th>Risco</th>
+      </tr></thead>
+      <tbody id="cmp-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============= CLT REFERENCE ============= -->
+<div class="salary-section" style="margin-top:22px">
+  <div class="sal-header">
+    <div><h2 style="font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:700;color:var(--blue2)">§ Artigos CLT Relevantes para Hotelaria 24/7</h2></div>
+  </div>
+  <div class="sal-body">
+    <div class="clt-grid">
+      <div class="clt-card"><div class="clt-art">Art. 58 CLT</div><h4>Jornada Padrão</h4><p>Máximo 8h/dia e 44h/sem. 6×1 gera 4h extras/sem. (~17h/mês).</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 58-A CLT</div><h4>Tempo Parcial ⭐</h4><p>Até 30h/sem. (sem HE) ou 26h/sem. (com 6h HE). Ideal para contratos FDS-only. Salário proporcional.</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 59 CLT</div><h4>Horas Extras</h4><p>Máx. 2h/dia. +50% dias úteis; +100% domingos/feriados. 12h/dia ilegal sem 12×36.</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 59-A CLT</div><h4>Regime 12×36</h4><p>Permitido por acordo individual escrito. Feriados sem HE. Ideal para 24/7. Adicional noturno mantido.</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 66 CLT</div><h4>Interjornada</h4><p>Mínimo 11h entre jornadas. Turno 19h–7h: próximo início às 18h no mínimo.</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 67 CLT</div><h4>DSR</h4><p>24h consecutivas/semana, preferencialmente domingo. 6×1 garante folga rotativa.</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 73 CLT</div><h4>Adicional Noturno</h4><p>+20% para horas entre 22h e 5h. Hora noturna = 52min30s. Calculado sobre hora base.</p></div>
+      <div class="clt-card"><div class="clt-art">Art. 452-A CLT</div><h4>Trabalho Intermitente</h4><p>Convocação c/ 3 dias antecedência. Pagamento proporcional ao final de cada chamada. Habitualidade fixa → vínculo!</p></div>
+      <div class="clt-card"><div class="clt-art">Lei 6.019/74</div><h4>Trabalho Temporário</h4><p>Via agência. Prazo máx. 270 dias (180+90). Substitui efetivos ou cobre demanda transitória.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============= ANÁLISE GEMINI — CONTRIBUIÇÕES LÍQUIDAS ============= -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-num sec-num-gold">✦</div>
+    <div>
+      <h2>Análise Cruzada com Sugestões Externas</h2>
+      <p class="text-muted" style="font-size:.83rem">O que já estava coberto neste relatório vs. o que agrega valor novo — com raciocínio e cálculo próprio</p>
+    </div>
+  </div>
+
+  <!-- Descartado -->
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px">
+    <h3 class="mb12" style="font-size:.82rem;color:var(--muted2)">🗑️ DESCARTADO — Já coberto neste relatório</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+      <div style="background:var(--bg3);border-radius:7px;padding:11px 14px;font-size:.8rem;color:var(--muted2);border:1px solid var(--border)">
+        <strong style="color:var(--text)">Freelancer com risco de vínculo</strong><br>
+        Coberto em detalhe nas Propostas A, E e na seção de Contratos Intermediários (Art. 3° CLT, habitualidade, pool ≥3).
+      </div>
+      <div style="background:var(--bg3);border-radius:7px;padding:11px 14px;font-size:.8rem;color:var(--muted2);border:1px solid var(--border)">
+        <strong style="color:var(--text)">12×36 Universal (Cenário 3 Gemini)</strong><br>
+        Idêntico à Proposta B deste relatório. Cálculo de custo e visualização já incluídos.
+      </div>
+      <div style="background:var(--bg3);border-radius:7px;padding:11px 14px;font-size:.8rem;color:var(--muted2);border:1px solid var(--border)">
+        <strong style="color:var(--text)">Custo fixo × encargos CLT</strong><br>
+        Calculadora salarial detalhada já cobre INSS, RAT, FGTS, provisões, adicional noturno.
+      </div>
+      <div style="background:var(--bg3);border-radius:7px;padding:11px 14px;font-size:.8rem;color:var(--muted2);border:1px solid var(--border)">
+        <strong style="color:var(--text)">Compliance e artigos CLT</strong><br>
+        Arts. 58, 59, 59-A, 66, 67, 73, 452-A já mapeados com análise de violações e alertas.
+      </div>
+    </div>
+  </div>
+
+  <!-- NET NEW -->
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:12px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,rgba(212,168,75,.07),transparent);padding:18px 22px;border-bottom:1px solid var(--border)">
+      <h3 style="font-size:.88rem;color:var(--gold2)">✦ CONTRIBUIÇÕES LÍQUIDAS — Adicionadas com raciocínio próprio</h3>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:18px">
+
+      <!-- 1. FOLGUISTA -->
+      <div style="background:var(--bg2);border:1px solid rgba(212,168,75,.25);border-radius:10px;padding:18px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="background:rgba(212,168,75,.2);color:var(--gold2);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0">1</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem">Modelo "Folguista Coringa" — 4° CLT Específico para Cobrir Folgas</div>
+            <div style="font-size:.76rem;color:var(--muted2)">Proposta G — nova no relatório, derivada do Cenário 2 Gemini com raciocínio próprio</div>
+          </div>
+        </div>
+        <p style="font-size:.84rem;color:var(--muted2);line-height:1.7;margin-bottom:12px">
+          O Gemini sugere um "4° CLT Folguista". <strong style="color:var(--text)">Esse modelo é distinto da Proposta B</strong> (que contrata um 4° noturno em 12×36). O folguista opera no diurno em regime <strong>5×2 ou 6×1 com banco de horas</strong>, sem fixar turno de manhã ou tarde — ele é polivalente e cobre ausências de ambos. Raciocínio adicional próprio:
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div class="alert alert-green" style="margin:0"><span class="alert-icon">✅</span><div><strong>Cobertura de ausências:</strong> é o único modelo onde o hotel nunca fica descoberto no diurno por doença ou férias. Os outros cenários não têm resposta para isso — qualquer falta de Gio ou Anderson deixa um turno vago.</div></div>
+          <div class="alert alert-info" style="margin:0"><span class="alert-icon">💡</span><div><strong>Custo real menor que parece:</strong> o folguista pode ser contratado como "Auxiliar de Recepção" (piso inferior ao de Recepcionista), reduzindo base salarial ~15–20% vs os demais. Exemplo: R$ 1.500/mês vs R$ 1.800 de Giovanna.</div></div>
+          <div class="alert alert-warn" style="margin:0"><span class="alert-icon">⚠️</span><div><strong>Ociosidade parcial:</strong> nas semanas sem falta, o folguista pode parecer subutilizado. Mitigar com tarefas de apoio: gestão de reservas, manutenção básica, check-in de fim de semana.</div></div>
+          <div class="alert alert-green" style="margin:0"><span class="alert-icon">🔄</span><div><strong>Elimina freelancer diurno:</strong> ao cobrir Sáb ou Dom com o folguista, não há custo variável para o fim de semana diurno. Reduz exposição ao risco de vínculo por uso recorrente de freelancer.</div></div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:14px;border:1px solid var(--border)">
+          <div style="font-size:.76rem;color:var(--gold2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Custo Mensal Estimado — Proposta G (Folguista)</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px">
+            <div class="cost-card"><div class="cv" id="cg-gio">—</div><div class="cl">Giovanna 5×2</div></div>
+            <div class="cost-card"><div class="cv" id="cg-and">—</div><div class="cl">Anderson 5×2</div></div>
+            <div class="cost-card"><div class="cv" id="cg-gab">—</div><div class="cl">Gabriel 12×36</div></div>
+            <div class="cost-card"><div class="cv" id="cg-folg">—</div><div class="cl">Folguista 6×1</div></div>
+            <div class="cost-card"><div class="cv" id="cg-free">—</div><div class="cl">Free. noturno</div></div>
+          </div>
+          <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="cg-tot">—</span></div>
+          <p style="font-size:.72rem;color:var(--muted2);margin-top:8px">* Folguista calculado com salário de R$ 1.500 (Auxiliar de Recepção). Altere no campo abaixo:</p>
+          <div class="sal-group mt8"><div class="dot" style="background:var(--gold)"></div><label style="font-size:.78rem;color:var(--muted2)">Folguista/mês:</label><input type="number" id="s-folg" value="1500" step="50" onchange="recalcAll()" style="width:88px;padding:4px 8px;border-radius:5px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:.8rem;font-family:'DM Mono',monospace"></div>
+        </div>
+      </div>
+
+      <!-- 2. ANÁLISE 168H -->
+      <div style="background:var(--bg2);border:1px solid rgba(79,143,224,.2);border-radius:10px;padding:18px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="background:rgba(79,143,224,.2);color:var(--blue2);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0">2</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem">Análise de Cobertura Real — 168h Semanais</div>
+            <div style="font-size:.76rem;color:var(--muted2)">O Gemini lembrou do número correto. Aplicado aqui com cálculo por cenário.</div>
+          </div>
+        </div>
+        <p style="font-size:.84rem;color:var(--muted2);line-height:1.7;margin-bottom:12px">
+          Um hotel 24/7 precisa cobrir <strong style="color:var(--text)">168 horas semanais × 3 turnos = 504 turnos-hora por semana</strong>. A pergunta certa não é "quantas horas cada um trabalha" mas <strong style="color:var(--text)">"quantas dessas 168h cada cenário deixa descobertas?"</strong>
+        </p>
+        <div style="overflow-x:auto">
+          <table class="tbl w100" id="coverage-table">
+            <thead><tr>
+              <th>Cenário</th><th>H. Cobertas Diurno/sem.</th><th>H. Cobertas Noturno/sem.</th><th>Total Coberto</th><th>Gap Semanal</th><th>Gap/mês</th><th>Custo do gap</th>
+            </tr></thead>
+            <tbody id="coverage-body"></tbody>
+          </table>
+        </div>
+        <div class="alert alert-info mt12"><span class="alert-icon">📌</span><div><strong>Raciocínio próprio:</strong> O gap noturno de 12×36 não é falha do modelo — é estrutural (folga de 36h). O ponto crítico é que sem um 2° noturno, ~15 noites/mês ficam descobertas. Nenhum modelo de 3 pessoas fecha as 168h sem freelancer ou 4° funcionário.</div></div>
+      </div>
+
+      <!-- 3. RISCO DE AUSÊNCIA -->
+      <div style="background:var(--bg2);border:1px solid rgba(78,200,148,.2);border-radius:10px;padding:18px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="background:rgba(78,200,148,.2);color:var(--green);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0">3</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem">Resiliência a Ausências — Modelagem de Risco</div>
+            <div style="font-size:.76rem;color:var(--muted2)">Não coberto anteriormente. Ponto levantado indiretamente pelo Gemini.</div>
+          </div>
+        </div>
+        <p style="font-size:.84rem;color:var(--muted2);line-height:1.7;margin-bottom:12px">
+          Nenhum dos cenários anteriores modelava o que acontece com <strong style="color:var(--text)">1 dia de falta imprevista</strong>. Para um hotel de pequeno porte com equipe enxuta, cada ausência é um evento crítico.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px">
+          <div style="background:var(--bg3);border-radius:8px;padding:13px;border:1px solid var(--border)">
+            <div style="font-size:.76rem;color:var(--red);font-weight:600;margin-bottom:6px">❌ Cenários SEM folguista (A, C, E)</div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:5px">
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--red)">•</span>Giovanna falta → turno manhã descoberto. Única solução: Anderson dobra (hora extra) ou freelancer emergência.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--red)">•</span>Anderson falta → turno tarde descoberto. Mesmo problema.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--red)">•</span>Gabriel falta → noite totalmente descoberta. Sem backup treinado disponível.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--orange)">•</span>Férias: exige contratação temporária ou acúmulo de funções por 30 dias.</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:13px;border:1px solid var(--border)">
+            <div style="font-size:.76rem;color:var(--green);font-weight:600;margin-bottom:6px">✅ Cenários COM folguista (G)</div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:5px">
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--green)">•</span>Giovanna ou Anderson faltam → folguista assume o turno sem custo extra (está na escala).</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--green)">•</span>Férias de 30 dias de qualquer um → folguista cobre sem contratação temporária.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--green)">•</span>Treinamento cruzado natural: folguista aprende todos os processos, vira o funcionário mais versátil da equipe.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--orange)">•</span>Ainda não cobre falta de Gabriel (noturno).</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg3);border-radius:8px;padding:13px;border:1px solid var(--border)">
+            <div style="font-size:.76rem;color:var(--blue2);font-weight:600;margin-bottom:6px">📊 Custo de uma falta não coberta</div>
+            <ul style="list-style:none;display:flex;flex-direction:column;gap:5px">
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--blue)">•</span>Freelancer emergência: custo ~30–50% maior que diária programada (urgência).</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--blue)">•</span>Hora extra do colega: +50% sobre hora normal + desgaste e risco de acidente.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--blue)">•</span>Hotel sem atendimento: risco de reclamação, baixa avaliação e perda de receita que supera qualquer economia de folha.</li>
+              <li style="font-size:.78rem;color:var(--muted2);display:flex;gap:7px"><span style="color:var(--orange)">•</span>Com ~15–20 faltas/funcionário/ano (média nacional), equipe de 3 gera ~45–60 eventos de risco/ano.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. MULTITAREFA NOTURNA -->
+      <div style="background:var(--bg2);border:1px solid rgba(224,144,80,.2);border-radius:10px;padding:18px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="background:rgba(224,144,80,.2);color:var(--orange);border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0">4</span>
+          <div>
+            <div style="font-weight:700;font-size:.95rem">Multitarefa Noturna — Escopo Real da Função 12×36</div>
+            <div style="font-size:.76rem;color:var(--muted2)">Ponto operacional novo. O Gemini levantou, expandido com impacto contratual.</div>
+          </div>
+        </div>
+        <p style="font-size:.84rem;color:var(--muted2);line-height:1.7;margin-bottom:12px">
+          Em qualquer cenário com <strong style="color:var(--text)">1 pessoa por turno noturno</strong>, esse funcionário acumula funções que, em hotéis maiores, são de cargos distintos. Isso tem implicações diretas no contrato e no salário.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div>
+            <div style="font-size:.76rem;color:var(--orange);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Funções acumuladas na noite</div>
+            <table class="tbl w100">
+              <thead><tr><th>Função</th><th>CBO</th><th>Adicional típico</th></tr></thead>
+              <tbody>
+                <tr><td>Recepcionista</td><td class="mono">4221-05</td><td>Base</td></tr>
+                <tr><td>Segurança/Portaria</td><td class="mono">5173-20</td><td>+R$ 200–400/mês</td></tr>
+                <tr><td>Aux. Limpeza (básico)</td><td class="mono">5143-20</td><td>Desvio de função</td></tr>
+                <tr><td>Aux. Manutenção emergência</td><td class="mono">9112-05</td><td>Desvio de função</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="alert alert-warn" style="margin:0"><span class="alert-icon">⚠️</span><div><strong>Desvio de função (Art. 456 CLT):</strong> se Gabriel rotineiramente faz limpeza ou segurança sem que esteja previsto em contrato, pode demandar enquadramento e diferença salarial retroativa.</div></div>
+            <div class="alert alert-green" style="margin:0"><span class="alert-icon">✅</span><div><strong>Solução simples:</strong> descrever no contrato as funções acumuladas e ajustar o salário-base ou criar um adicional de polivalência. Elimina passivo trabalhista.</div></div>
+            <div class="alert alert-info" style="margin:0"><span class="alert-icon">💡</span><div><strong>Dica de gestão:</strong> para 12×36 noturno solo, um checklist de tarefas no sistema (como o que você está desenvolvendo) documenta o que foi feito, protege o hotel e guia o funcionário sem supervisão.</div></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end contribuições -->
+  </div><!-- end net new card -->
+</div><!-- end section -->
+
+<!-- ============= PROPOSTA G — FOLGUISTA ============= -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-num sec-num-gold">G</div>
+    <div>
+      <h2>Proposta G — Folguista Coringa (4° CLT Diurno)</h2>
+      <p class="text-muted" style="font-size:.83rem">Modelo derivado da análise cruzada · Gio + Anderson 5×2 · Gabriel 12×36 · Folguista cobre folgas + FDS</p>
+    </div>
+  </div>
+
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:12px">
+    <div class="two-col">
+      <div class="col-l">
+        <div class="info-block">
+          <h3>Como Funciona</h3>
+          <p class="desc">Giovanna e Anderson trabalham 5×2 (seg–sex) com jornada limpa. O Folguista trabalha 6 dias por semana cobrindo sábado e domingo alternados com um dos dois, além de suprir qualquer ausência durante a semana. Gabriel mantém 12×36 noturno. Freelancer só para gaps noturnos de Gabriel.</p>
+        </div>
+        <table class="tbl mb12">
+          <thead><tr><th>Quem</th><th>Regime</th><th>Turno</th><th>H/sem.</th><th>CLT</th></tr></thead>
+          <tbody>
+            <tr><td class="cell-gio">Giovanna</td><td>5×2</td><td class="mono" id="la-gio-sg"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+            <tr><td class="cell-and">Anderson</td><td>5×2</td><td class="mono" id="la-and-sg"></td><td class="mono">40h</td><td class="text-green">✅</td></tr>
+            <tr><td class="cell-gab">Gabriel</td><td>12×36</td><td class="mono" id="la-gab-sg"></td><td class="mono">~42h</td><td class="text-green">✅</td></tr>
+            <tr><td style="color:var(--gold2);font-weight:600">Folguista</td><td>6×1 + BH</td><td>Variável (manhã ou tarde)</td><td class="mono">48h</td><td class="text-orange">⚠ BH</td></tr>
+            <tr><td class="cell-free">Freelancer</td><td>PJ/Intermit.</td><td>Noturno gaps</td><td>—</td><td class="text-orange">⚠</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-green mb12"><span class="alert-icon">⭐</span><div><strong>Diferencial chave:</strong> o folguista cobre tanto sábado quanto domingo diurno (alternando manhã e tarde), elimina o custo de freelancer diurno e garante backup para qualquer falta durante a semana.</div></div>
+        <div class="alert alert-warn"><span class="alert-icon">⚠️</span><div>Folguista em 6×1 gera ~4h extras/semana. Utilizar banco de horas (CCT hotelaria) para compensar sem custo adicional. Incluir polivalência de funções no contrato para evitar desvio de função.</div></div>
+        <div class="info-block mt12"><h3>Custo Mensal</h3>
+          <div class="cost-grid">
+            <div class="cost-card"><div class="cv" id="cg2-gio">—</div><div class="cl">Giovanna</div></div>
+            <div class="cost-card"><div class="cv" id="cg2-and">—</div><div class="cl">Anderson</div></div>
+            <div class="cost-card"><div class="cv" id="cg2-gab">—</div><div class="cl">Gabriel</div></div>
+            <div class="cost-card"><div class="cv" id="cg2-folg">—</div><div class="cl">Folguista</div></div>
+            <div class="cost-card"><div class="cv" id="cg2-free">—</div><div class="cl">Free. noturno</div></div>
+          </div>
+          <div class="cost-total"><span class="cl">Total estimado/mês</span><span class="cv" id="cg2-tot">—</span></div>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <span class="tag tag-g">Falta coberta</span><span class="tag tag-g">FDS diurno coberto</span><span class="tag tag-g">CLT limpo</span>
+          <span class="tag tag-g">Sem free. diurno</span><span class="tag tag-o">4° func. necessário</span><span class="tag tag-o">BH folguista</span>
+        </div>
+      </div>
+      <div class="col-r">
+        <div class="gantt-title">📊 COBERTURA POR TURNO — PROPOSTA G (semana típica)</div>
+        <div class="gantt-legend" id="leg-sg"></div>
+        <div class="sched-wrap"><table id="gantt-sg"></table></div>
+        <div class="mt12 text-muted" style="font-size:.76rem">
+          ⤷ Folguista cobre Sáb manhã e Dom tarde na semana exibida. Na semana seguinte inverte. Semana com falta de Gio ou And: folguista assume o turno deles no dia faltante.
+        </div>
+        <div class="divider"></div>
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:.76rem;color:var(--gold2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Comparativo Folguista vs. Sem Folguista</div>
+          <table class="tbl w100">
+            <thead><tr><th>Situação</th><th>Sem Folguista</th><th>Com Folguista (G)</th></tr></thead>
+            <tbody>
+              <tr><td>Falta imprevista Gio/And</td><td class="text-red">Free. emergência (+50%)</td><td class="text-green">Folguista assume (R$0)</td></tr>
+              <tr><td>Férias 30 dias</td><td class="text-red">Temp. ou acúmulo</td><td class="text-green">Folguista cobre</td></tr>
+              <tr><td>Sábado diurno</td><td class="text-orange">Freelancer</td><td class="text-green">Folguista</td></tr>
+              <tr><td>Domingo diurno</td><td class="text-orange">Freelancer</td><td class="text-green">Folguista</td></tr>
+              <tr><td>Custo extra/evento falta</td><td class="mono text-red" id="cmp-no-folg">—</td><td class="text-green">R$ 0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end page -->
+<div class="footer">
+  Relatório de Gestão de Escalas · Hotel 24/7 · Gerado em <span id="footer-date"></span><br>
+  Valores são estimativas. Consulte contador/advogado trabalhista para cálculos precisos e convenções coletivas da categoria.
+</div>
+
+<script src="escala.js"></script>
+</body>
+</html>
