@@ -1,52 +1,134 @@
 name: Build & Release - Hotel Santos
+
 on:
   push:
     tags:
       - 'v*'
+
 permissions:
   contents: write
+
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            nome_saida: SistemaHotelSantos-Windows.exe
-          - os: ubuntu-latest
-            nome_saida: SistemaHotelSantos-Ubuntu
+  # ──────────────────────────────────────────────
+  # Job 1 — Build Windows + gera Setup.exe
+  # ──────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      - run: |
+
+      - name: Instalar dependências Python
+        run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install -r app/requirements.txt
-      - run: |
+
+      # PyInstaller em modo --onedir (mais rápido na execução)
+      - name: Build com PyInstaller (onedir)
+        run: |
           cd app
-          pyinstaller --name="SistemaHotelSantos" --onefile --windowed --clean --noconfirm app_gui.py
-      - if: runner.os == 'Windows'
-        run: cd app\dist && ren SistemaHotelSantos.exe SistemaHotelSantos-Windows.exe
-      - if: runner.os == 'Linux'
-        run: cd app/dist && mv SistemaHotelSantos SistemaHotelSantos-Ubuntu && chmod +x SistemaHotelSantos-Ubuntu
-      - uses: actions/upload-artifact@v4
+          pyinstaller `
+            --name="SistemaHotelSantos" `
+            --onedir `
+            --windowed `
+            --clean `
+            --noconfirm `
+            app_gui.py
+
+      # Inno Setup já vem instalado nos runners Windows do GitHub Actions
+      - name: Criar instalador com Inno Setup
+        shell: cmd
+        run: |
+          cd app
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss /DAppVersion=${{ github.ref_name }}
+
+      - name: Upload instalador Windows
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.nome_saida }}
-          path: app/dist/${{ matrix.nome_saida }}
+          name: SistemaHotelSantos-Setup-Windows.exe
+          path: app/installer_output/SistemaHotelSantos-Setup-Windows.exe
+
+  # ──────────────────────────────────────────────
+  # Job 2 — Build Ubuntu (binário único, sem mudança)
+  # ──────────────────────────────────────────────
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instalar dependências do sistema (Tkinter + libs gráficas)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y python3-tk libglib2.0-0 libsm6 libxrender1 libxext6
+
+      - name: Instalar dependências Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r app/requirements.txt
+
+      - name: Build com PyInstaller (onefile)
+        run: |
+          cd app
+          pyinstaller \
+            --name="SistemaHotelSantos" \
+            --onefile \
+            --windowed \
+            --clean \
+            --noconfirm \
+            app_gui.py
+          mv dist/SistemaHotelSantos dist/SistemaHotelSantos-Ubuntu
+          chmod +x dist/SistemaHotelSantos-Ubuntu
+
+      - name: Upload binário Ubuntu
+        uses: actions/upload-artifact@v4
+        with:
+          name: SistemaHotelSantos-Ubuntu
+          path: app/dist/SistemaHotelSantos-Ubuntu
+
+  # ──────────────────────────────────────────────
+  # Job 3 — Cria o Release com ambos os artefatos
+  # ──────────────────────────────────────────────
   release:
-    needs: build
+    needs: [build-windows, build-ubuntu]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Baixar todos os artefatos
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - run: find artifacts -type f
-      - uses: softprops/action-gh-release@v2
+
+      - name: Listar artefatos (debug)
+        run: find artifacts -type f
+
+      - name: Publicar Release no GitHub
+        uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/SistemaHotelSantos*
-          body: Release ${{ github.ref_name }}
+          files: |
+            artifacts/**/SistemaHotelSantos-Setup-Windows.exe
+            artifacts/**/SistemaHotelSantos-Ubuntu
+          body: |
+            ## 🏨 Sistema Hotel Santos — ${{ github.ref_name }}
+
+            ### Downloads
+            | Plataforma | Arquivo |
+            |------------|---------|
+            | 🪟 Windows | `SistemaHotelSantos-Setup-Windows.exe` — Instalador completo |
+            | 🐧 Ubuntu  | `SistemaHotelSantos-Ubuntu` — Binário portátil |
+
+            ### Windows — Como instalar
+            1. Baixe o arquivo `SistemaHotelSantos-Setup-Windows.exe`
+            2. Execute como Administrador
+            3. Siga o assistente: Avançar → Avançar → Concluir
+            4. Um atalho será criado na Área de Trabalho (opcional)
