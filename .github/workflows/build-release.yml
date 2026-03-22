@@ -31,6 +31,7 @@ jobs:
           pip install -r app/requirements.txt
 
       - name: Gerar app/__version__.py
+        shell: bash
         run: |
           python -c "
           import subprocess, pathlib
