@@ -16,6 +16,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # necessário para o setuptools-scm ler as tags
 
       - uses: actions/setup-python@v5
         with:
@@ -25,10 +27,21 @@ jobs:
       - name: Instalar dependências Python
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller setuptools-scm
           pip install -r app/requirements.txt
 
-      # PyInstaller em modo --onedir (mais rápido na execução)
+      - name: Gerar app/__version__.py
+        run: |
+          python -c "
+          import subprocess, pathlib
+          try:
+              v = subprocess.check_output(['python', '-m', 'setuptools_scm'], text=True).strip()
+          except Exception:
+              v = '${{ github.ref_name }}'.lstrip('v') or '0.0.0'
+          pathlib.Path('app/__version__.py').write_text(f'__version__ = \"{v}\"\n')
+          print(f'Versao: {v}')
+          "
+
       - name: Build com PyInstaller (onedir)
         run: |
           cd app
@@ -38,6 +51,8 @@ jobs:
             --windowed `
             --clean `
             --noconfirm `
+            --collect-all customtkinter `
+            --collect-all tkcalendar `
             app_gui.py
 
       # Inno Setup já vem instalado nos runners Windows do GitHub Actions
@@ -50,16 +65,18 @@ jobs:
       - name: Upload instalador Windows
         uses: actions/upload-artifact@v4
         with:
-          name: SistemaHotelSantos-Setup-Windows.exe
+          name: SistemaHotelSantos-Setup-Windows
           path: app/installer_output/SistemaHotelSantos-Setup-Windows.exe
 
   # ──────────────────────────────────────────────
-  # Job 2 — Build Ubuntu (binário único, sem mudança)
+  # Job 2 — Build Ubuntu (binário único)
   # ──────────────────────────────────────────────
   build-ubuntu:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # necessário para o setuptools-scm ler as tags
 
       - uses: actions/setup-python@v5
         with:
@@ -74,8 +91,20 @@ jobs:
       - name: Instalar dependências Python
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller setuptools-scm
           pip install -r app/requirements.txt
+
+      - name: Gerar app/__version__.py
+        run: |
+          python -c "
+          import subprocess, pathlib
+          try:
+              v = subprocess.check_output(['python', '-m', 'setuptools_scm'], text=True).strip()
+          except Exception:
+              v = '${{ github.ref_name }}'.lstrip('v') or '0.0.0'
+          pathlib.Path('app/__version__.py').write_text(f'__version__ = \"{v}\"\n')
+          print(f'Versao: {v}')
+          "
 
       - name: Build com PyInstaller (onefile)
         run: |
@@ -86,6 +115,8 @@ jobs:
             --windowed \
             --clean \
             --noconfirm \
+            --collect-all customtkinter \
+            --collect-all tkcalendar \
             app_gui.py
           mv dist/SistemaHotelSantos dist/SistemaHotelSantos-Ubuntu
           chmod +x dist/SistemaHotelSantos-Ubuntu
@@ -102,7 +133,6 @@ jobs:
   release:
     needs: [build-windows, build-ubuntu]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Baixar todos os artefatos
         uses: actions/download-artifact@v4
@@ -119,13 +149,13 @@ jobs:
             artifacts/**/SistemaHotelSantos-Setup-Windows.exe
             artifacts/**/SistemaHotelSantos-Ubuntu
           body: |
-            ## 🏨 Sistema Hotel Santos — ${{ github.ref_name }}
+            ## Sistema Hotel Santos — ${{ github.ref_name }}
 
             ### Downloads
             | Plataforma | Arquivo |
             |------------|---------|
-            | 🪟 Windows | `SistemaHotelSantos-Setup-Windows.exe` — Instalador completo |
-            | 🐧 Ubuntu  | `SistemaHotelSantos-Ubuntu` — Binário portátil |
+            | Windows | `SistemaHotelSantos-Setup-Windows.exe` — Instalador completo |
+            | Ubuntu  | `SistemaHotelSantos-Ubuntu` — Binário portátil |
 
             ### Windows — Como instalar
             1. Baixe o arquivo `SistemaHotelSantos-Setup-Windows.exe`
