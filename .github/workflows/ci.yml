@@ -23,6 +23,9 @@
 
 name: CI — Hotel Santos
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # Quando este pipeline roda:
 on:
   push:

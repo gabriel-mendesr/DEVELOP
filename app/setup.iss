@@ -24,9 +24,9 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 ; Visual moderno
 WizardStyle=modern
-WizardResizable=no
 ; Requer privilégio de admin para instalar em Program Files
 PrivilegesRequired=admin
+UsedUserAreasWarning=no
 ; Ícone do instalador (opcional - descomente se tiver um .ico)
 ; SetupIconFile=assets\icon.ico
 ; Imagem lateral do wizard (opcional)
@@ -64,7 +64,7 @@ Name: "{commondesktop}\{#AppName}"; \
   Filename: "{app}\{#AppExeName}"; \
   Tasks: desktopicon
 ; Inicialização automática (opcional, tarefa acima)
-Name: "{userstartup}\{#AppName}"; \
+Name: "{commonstartup}\{#AppName}"; \
   Filename: "{app}\{#AppExeName}"; \
   Tasks: startupicon
 
@@ -76,5 +76,5 @@ Filename: "{app}\{#AppExeName}"; \
 
 [UninstallDelete]
 ; Limpa arquivos criados pelo app durante uso
-Type: filesandordirs; Name: "{userappdata}\hotel_santos_logs"
-Type: files; Name: "{userdocs}\.shs_version"
+Type: filesandordirs; Name: "{commonappdata}\hotel_santos_logs"
+Type: files; Name: "{commonappdata}\.shs_version"
