@@ -76,7 +76,10 @@ class SistemaCreditos:
         try:
             from __version__ import __version__ as VERSION
         except ImportError:
-            from app.__version__ import __version__ as VERSION
+            try:
+                from app.__version__ import __version__ as VERSION
+            except ImportError:
+                VERSION = "0.0.0"  # fallback para CI sem setuptools-scm
         self.versao_atual = VERSION
 
         # Popula dados iniciais (categorias, admin) se necessário
@@ -262,7 +265,7 @@ class SistemaCreditos:
             Ex: (150.00, "25/12/2025", False)
         """
         self.cursor.execute(
-            "SELECT tipo, valor, data_vencimento FROM historico_zebra " "WHERE documento = ? ORDER BY id ASC", (doc,)
+            "SELECT tipo, valor, data_vencimento FROM historico_zebra WHERE documento = ? ORDER BY id ASC", (doc,)
         )
         movs = self.cursor.fetchall()
 
@@ -372,11 +375,11 @@ class SistemaCreditos:
 
     def get_divida_multas(self, doc: str) -> float:
         """Calcula total de multas pendentes (multas - pagamentos)."""
-        self.cursor.execute("SELECT SUM(valor) FROM historico_zebra " "WHERE documento = ? AND tipo = 'MULTA'", (doc,))
+        self.cursor.execute("SELECT SUM(valor) FROM historico_zebra WHERE documento = ? AND tipo = 'MULTA'", (doc,))
         total_multas = self.cursor.fetchone()[0] or 0.0
 
         self.cursor.execute(
-            "SELECT SUM(valor) FROM historico_zebra " "WHERE documento = ? AND tipo = 'PAGAMENTO_MULTA'", (doc,)
+            "SELECT SUM(valor) FROM historico_zebra WHERE documento = ? AND tipo = 'PAGAMENTO_MULTA'", (doc,)
         )
         total_pagamentos = self.cursor.fetchone()[0] or 0.0
 
@@ -485,7 +488,7 @@ class SistemaCreditos:
         data_hj = datetime.now().strftime("%Y-%m-%d")
         with self.conn:
             self.cursor.execute(
-                "INSERT INTO listas_compras (data_criacao, status, usuario, obs) " "VALUES (?, ?, ?, ?)",
+                "INSERT INTO listas_compras (data_criacao, status, usuario, obs) VALUES (?, ?, ?, ?)",
                 (data_hj, "ABERTA", usuario, obs),
             )
             return self.cursor.lastrowid or 0
@@ -632,7 +635,7 @@ class SistemaCreditos:
 
     def get_dados_grafico_categorias(self) -> list[tuple[str, float]]:
         self.cursor.execute(
-            "SELECT categoria, SUM(valor) as total " "FROM historico_zebra WHERE tipo='ENTRADA' GROUP BY categoria"
+            "SELECT categoria, SUM(valor) as total FROM historico_zebra WHERE tipo='ENTRADA' GROUP BY categoria"
         )
         return [(r["categoria"], r["total"]) for r in self.cursor.fetchall()]
 
@@ -723,7 +726,7 @@ class SistemaCreditos:
         dh = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.conn:
             self.cursor.execute(
-                "INSERT INTO logs_auditoria (data_hora, usuario, acao, detalhes, maquina) " "VALUES (?,?,?,?,?)",
+                "INSERT INTO logs_auditoria (data_hora, usuario, acao, detalhes, maquina) VALUES (?,?,?,?,?)",
                 (dh, usuario, acao, detalhes, maquina),
             )
 

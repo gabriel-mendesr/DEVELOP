@@ -127,7 +127,18 @@ jobs:
         run: |
           pip install --upgrade pip
           # Instala as dependências do projeto sem as de GUI (não disponíveis no CI)
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov setuptools-scm
+          # Gera app/__version__.py que está no .gitignore mas é necessário
+          # para os imports em models.py funcionarem
+          python -c "
+          import subprocess, pathlib
+          try:
+              v = subprocess.check_output(['python', '-m', 'setuptools_scm'], text=True).strip()
+          except Exception:
+              v = '0.0.0'
+          pathlib.Path('app/__version__.py').write_text(f'__version__ = \"{v}\"\n')
+          print(f'Gerado app/__version__.py com versão {v}')
+          "
 
       - name: Rodar testes com cobertura
         # --cov=app/core    → mede cobertura apenas do core (onde estão as regras)

@@ -16,6 +16,15 @@ import traceback
 
 # Garante que o script encontra o pacote 'core' de onde quer que seja rodado
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Funciona tanto rodando de app/ quanto de tests/ (CI)
+_app_candidato = os.path.join(SCRIPT_DIR, "..", "app")
+if os.path.isdir(_app_candidato) and os.path.isdir(os.path.join(_app_candidato, "core")):
+    SCRIPT_DIR = os.path.normpath(_app_candidato)
+elif not os.path.isdir(os.path.join(SCRIPT_DIR, "core")):
+    # Tenta subir mais um nível
+    _app_candidato2 = os.path.join(SCRIPT_DIR, "..", "..", "app")
+    if os.path.isdir(os.path.join(_app_candidato2, "core")):
+        SCRIPT_DIR = os.path.normpath(_app_candidato2)
 sys.path.insert(0, SCRIPT_DIR)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1062,4 +1071,5 @@ else:
     print(f"  ⚠️   Corrija os {_falhou} erro(s) acima antes de usar em produção.")
 print(f"{'═'*62}\n")
 
-sys.exit(0 if _falhou == 0 else 1)
+if __name__ == "__main__":
+    sys.exit(0 if _falhou == 0 else 1)
