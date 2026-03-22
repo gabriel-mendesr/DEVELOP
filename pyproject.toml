@@ -1,0 +1,140 @@
+# =============================================================================
+# pyproject.toml — Configuração Central do Projeto
+# =============================================================================
+#
+# MUDANÇAS DESTA VERSÃO
+# ─────────────────────
+# 1. build-backend corrigido:
+#    ANTES: "setuptools.backends._legacy:_Backend"  ← removido no setuptools moderno
+#    DEPOIS: "setuptools.build_meta"                 ← nome correto e estável
+#
+# 2. setuptools-scm configurado:
+#    A versão agora vem AUTOMATICAMENTE das tags do git.
+#    Você não precisa mais editar a versão em 2 lugares manualmente.
+#
+#    Como funciona:
+#      git tag v1.2.0       → versão do app vira "1.2.0"
+#      1 commit após a tag  → versão vira "1.2.1.dev1+gabc1234"
+#      sem tag nenhuma      → versão vira "0.1.0" (fallback)
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# [build-system]
+# -----------------------------------------------------------------------------
+[build-system]
+requires      = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+#                ^^^^^^^^^^^^^^^^^^^
+#                Nome correto e estável desde setuptools 68+.
+#                O "setuptools.backends._legacy" foi removido em versões recentes.
+
+# -----------------------------------------------------------------------------
+# [project]
+# -----------------------------------------------------------------------------
+[project]
+name            = "sistema-hotel-santos"
+description     = "Sistema de gestão de créditos e hóspedes do Hotel Santos"
+requires-python = ">=3.10"
+
+# "dynamic = ['version']" diz ao setuptools que a versão NÃO está aqui.
+# Ela será calculada pelo setuptools-scm lendo as tags do git.
+dynamic = ["version"]
+
+dependencies = [
+    "requests>=2.31.0",
+    "customtkinter",
+    "tkcalendar",
+    "fpdf2",
+    "matplotlib",
+    "Pillow",
+    "babel",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4.0",
+    "mypy>=1.8",
+    "pre-commit>=3.0",
+    "pyinstaller>=6.0",
+    "setuptools-scm>=8.0",
+]
+
+# -----------------------------------------------------------------------------
+# [tool.setuptools_scm] — Versionamento automático por git tag
+# -----------------------------------------------------------------------------
+#
+# FLUXO COMPLETO PARA LANÇAR UMA NOVA VERSÃO:
+#
+#   1. Termine as mudanças e faça commit de tudo
+#      git add .
+#      git commit -m "Prepara versão 1.1.0"
+#
+#   2. Crie a tag (sempre com "v" na frente)
+#      git tag v1.1.0
+#
+#   3. Faça push da tag para o GitHub
+#      git push origin v1.1.0
+#
+#   → O CI detecta a tag, roda os testes e pode gerar o executável.
+#   → app/__version__.py é atualizado automaticamente na próxima instalação.
+#
+# PARA VER A VERSÃO ATUAL SEM INSTALAR:
+#   python -c "from setuptools_scm import get_version; print(get_version())"
+#
+[tool.setuptools_scm]
+# Arquivo onde a versão calculada será gravada.
+# IMPORTANTE: este arquivo é GERADO automaticamente.
+# Não edite à mão. Adicione ao .gitignore (veja abaixo).
+version_file = "app/__version__.py"
+
+# Versão usada quando não há nenhuma tag git (ex: clone raso, CI sem histórico)
+fallback_version = "0.1.0"
+
+# -----------------------------------------------------------------------------
+# [tool.setuptools.packages]
+# -----------------------------------------------------------------------------
+[tool.setuptools.packages.find]
+where   = ["."]
+include = ["app*"]
+
+# -----------------------------------------------------------------------------
+# [tool.pytest]
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths    = ["tests"]
+addopts      = "-v --tb=short -p no:warnings"
+python_files = ["test_*.py", "verificar_sistema.py"]
+
+# -----------------------------------------------------------------------------
+# [tool.ruff]
+# -----------------------------------------------------------------------------
+[tool.ruff]
+line-length    = 120
+target-version = "py310"
+# Exclui o __version__.py porque ele é gerado — não faz sentido lintear
+exclude = [".git", "__pycache__", "dist", "build", "app/__version__.py", "fix_noqa.py", "fix_por_linha.py", "fix_final.py", "resolver_tudo.py", "corrigir_tipos2.py", "corrigir_lambda_except.py", "corrigir_version.py", "reparar_banco.py", "fix_final.py", "corrigir_lambda_except.py", "corrigir_tipos2.py", "corrigir_version.py", "resolver_tudo.py", "reparar_banco.py"]
+
+[tool.ruff.lint]
+select  = ["E", "F", "W", "I", "UP"]
+ignore  = ["E501", "E722", "UP007"]
+fixable = ["I", "UP"]
+
+# -----------------------------------------------------------------------------
+# [tool.mypy]
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version         = "3.10"
+ignore_missing_imports = true
+warn_unused_configs    = true
+warn_unused_ignores    = true
+no_implicit_optional   = true
+disallow_untyped_defs  = false
+files                  = ["app/core"]
+exclude                = ["app/__version__.py"]
+
+[[tool.mypy.overrides]]
+module = ["customtkinter.*", "tkcalendar.*", "fpdf.*", "matplotlib.*", "PIL.*", "babel.*"]
+ignore_missing_imports = true

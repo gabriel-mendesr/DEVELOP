@@ -1,0 +1,108 @@
+# =============================================================================
+# .pre-commit-config.yaml — Hooks automáticos antes de cada commit
+# =============================================================================
+#
+# O QUE É PRE-COMMIT?
+# --------------------
+# É um sistema de "porteiro" que roda verificações ANTES de qualquer commit
+# ser salvo no git. Se alguma verificação falhar, o commit é bloqueado até
+# você corrigir o problema.
+#
+# ANALOGIA:
+# É como uma revisão de código automática que roda em 2 segundos, antes
+# mesmo de você escrever a mensagem do commit.
+#
+# COMO INSTALAR (só precisa fazer uma vez por máquina/repositório):
+#   pip install pre-commit
+#   pre-commit install       ← instala os hooks no .git local
+#
+# COMO USAR:
+#   git add .
+#   git commit -m "minha mudança"   ← hooks rodam automaticamente aqui
+#
+# SE UM HOOK FALHAR:
+#   Alguns hooks (ruff format, end-of-file-fixer) CORRIGEM automaticamente.
+#   Quando isso acontece, o commit é bloqueado, os arquivos são corrigidos,
+#   e você precisa rodar "git add ." e tentar commitar de novo.
+#
+#   Exemplo típico:
+#     $ git commit -m "add feature"
+#     ruff format..................................................Failed
+#     - Files were modified by this hook. Review and stage the changes.
+#     $ git add .
+#     $ git commit -m "add feature"   ← agora passa
+#
+# RODAR MANUALMENTE (em todos os arquivos):
+#   pre-commit run --all-files
+#
+# PULAR UM HOOK EM CASO DE EMERGÊNCIA (não abuse):
+#   git commit -m "hotfix" --no-verify
+#
+# ATUALIZAR AS VERSÕES DOS HOOKS:
+#   pre-commit autoupdate    ← roda uma vez por mês é suficiente
+#
+# =============================================================================
+
+repos:
+
+  # ---------------------------------------------------------------------------
+  # HOOKS BÁSICOS — verificações simples de higiene do repositório
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+
+      # Garante que todo arquivo termina com uma linha em branco
+      # (padrão POSIX, evita diffs sujos)
+      - id: end-of-file-fixer
+        exclude: "^(app/requirements\\.txt|VERSION\\.txt)$"
+
+      # Remove espaços em branco no fim das linhas
+      - id: trailing-whitespace
+        exclude: "\\.md$"   # Markdown usa espaços finais para quebra de linha
+
+      # Impede commitar arquivos grandes por acidente (limite: 500kb)
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+      # Verifica se arquivos YAML e TOML têm sintaxe válida
+      - id: check-yaml
+      - id: check-toml
+
+      # Impede commitar diretamente credenciais ou chaves privadas
+      - id: detect-private-key
+
+      # Garante que não há conflitos de merge não resolvidos (<<<<<<< HEAD)
+      - id: check-merge-conflict
+
+
+  # ---------------------------------------------------------------------------
+  # RUFF — linter e formatador
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+
+      # 1. Linter: verifica erros e estilo, corrige o que for seguro
+      - id: ruff
+        args: ["--fix"]          # Corrige automaticamente
+        types_or: [python]
+
+      # 2. Formatador: aplica formatação consistente (como o black)
+      # Roda APÓS o linter para não desfazer as correções
+      - id: ruff-format
+        types_or: [python]
+
+
+  # ---------------------------------------------------------------------------
+  # MYPY — checagem de tipos (só em app/core/)
+  # ---------------------------------------------------------------------------
+  # Rodamos mypy como hook para pegar erros de tipo antes de commitar.
+  # Se ficar lento, pode comentar este bloco e deixar só para o CI.
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: "^app/core/"      # Só verifica o core, não a interface gráfica
+        additional_dependencies:
+          - "types-requests"     # Stubs de tipo para a lib requests

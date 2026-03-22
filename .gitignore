@@ -1,92 +1,74 @@
-# Ambiente Virtual
+# =============================================================================
+# .gitignore — Arquivos que o git deve ignorar
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# GERADO AUTOMATICAMENTE — nunca commitar
+# -----------------------------------------------------------------------------
+# setuptools-scm grava a versão aqui a cada "pip install -e ."
+# Commitar este arquivo causaria conflitos e derrotaria o propósito do scm.
+app/__version__.py
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# -----------------------------------------------------------------------------
+# Ambiente virtual
+# -----------------------------------------------------------------------------
 .venv/
 venv/
 env/
 ENV/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-bin/
-lib/
-lib64/
 
-# IDE e Editors
+# -----------------------------------------------------------------------------
+# Testes e cobertura
+# -----------------------------------------------------------------------------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+*.xml          # relatórios junit
+
+# -----------------------------------------------------------------------------
+# Ferramentas de desenvolvimento
+# -----------------------------------------------------------------------------
+.mypy_cache/
+.ruff_cache/
+.pre-commit-cache/
+
+# -----------------------------------------------------------------------------
+# Banco de dados local (gerado pelo app em produção)
+# -----------------------------------------------------------------------------
+*.db
+backups/
+
+# -----------------------------------------------------------------------------
+# Executável gerado pelo PyInstaller
+# -----------------------------------------------------------------------------
+*.spec
+app/dist/
+app/build/
+
+# -----------------------------------------------------------------------------
+# Logs do app
+# -----------------------------------------------------------------------------
+*.log
+logs/
+
+# -----------------------------------------------------------------------------
+# IDEs
+# -----------------------------------------------------------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-.DS_Store
-*.sublime-workspace
-*.sublime-project
-
-# Dependências e Build
-dist/
-build/
-*.egg-info/
-.eggs/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-
-# Banco de dados
-*.db
-*.sqlite
-*.sqlite3
-hotel.db
-
-# Logs
-logs/
-*.log
-debug.log
-error.log
-
-# Cache
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-
-# Configurações locais
-.env
-.env.local
-.env.*.local
-.shs_config.json
-config.local.ini
-
-# Sistema
-.DS_Store
-Thumbs.db
-
-# Desenvolvimento
-*.tmp
-*.bak
-.vscode/launch.json
-.vscode/settings.json
-
-# PyInstaller (gerado automaticamente)
-*.exe
-*.app
-
-# Arquivos temporários do Git
-.git/COMMIT_EDITMSG
-
-# Node (se usar em futuro)
-node_modules/
-npm-debug.log
-
-# Arquivos de sistema
-*.swp
-*.swo
-*~
-.#*
-
-# Backup
-*.backup
-*.bk
-
-# Relatórios
-test-results.xml
-coverage.xml

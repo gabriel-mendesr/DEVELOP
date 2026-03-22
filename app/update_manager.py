@@ -1,267 +1,256 @@
 """
-Módulo de Auto-Atualização
-Verifica novas versões no GitHub e permite atualizar o aplicativo
+Módulo de Auto-Atualização — Sistema Hotel Santos
+
+MUDANÇAS EM RELAÇÃO À VERSÃO ANTERIOR:
+---------------------------------------
+ANTES: A versão era buscada na API do GitHub no __init__().
+       Se a internet estivesse lenta, o app demorava pra abrir.
+
+AGORA: A versão vem do arquivo __version__.py (local, instantâneo).
+       A verificação de updates roda em BACKGROUND, sem travar.
+
+FLUXO:
+  1. App abre → lê versão de __version__.py (instantâneo)
+  2. App mostra a interface (já funcional!)
+  3. Em background, verifica se há versão nova no GitHub
+  4. Se houver, mostra botão "Atualizar" na sidebar
 """
 
-import sys
-import os
-import json
-import subprocess
+import os  # noqa: I001
 import platform
-from pathlib import Path
-from datetime import datetime
+import subprocess
+import sys
 import threading
+from collections.abc import Callable
+
+
 import requests
-from tkinter import messagebox
-from typing import Optional, Tuple, Callable
 
 
 class UpdateManager:
-    """Gerencia atualizações do aplicativo"""
-    
-    # Configuração - ALTERE CONFORME SEU REPOSITÓRIO
+    """Gerencia verificação e aplicação de atualizações."""
+
+    # CONFIGURAÇÃO — Repositório do GitHub
+    # Altere aqui se mudar o repositório
     GITHUB_REPO = "gabriel-mendesr/DEVELOP"
     GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-    
+
     def __init__(self):
-        self.versao_atual = self._obter_versao_github()
-        print(f"[DEBUG] Versão obtida: {self.versao_atual}")
-        self.arquivo_versao = Path.home() / ".shs_version"
-        self.carregar_versao()
-    
-    def _obter_versao_github(self) -> str:
-        """Obtém versão do GitHub release"""
-        try:
-            print(f"[DEBUG] Tentando GitHub API: {self.GITHUB_API}")
-            response = requests.get(self.GITHUB_API, timeout=5)
-            print(f"[DEBUG] Status: {response.status_code}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                versao = data.get('tag_name', '').lstrip('v')
-                print(f"[DEBUG] Versão GitHub: {versao}")
-                return versao if versao else "1.0.0"
-        except Exception as e:
-            print(f"[DEBUG] Erro ao obter GitHub: {e}")
-        
-        return "1.0.0"
-    
-    def _obter_versao_arquivo(self) -> str:
-        """Obtém versão do GitHub release mais recente"""
-        try:
-            # Tentar ler do GitHub diretamente
-            response = requests.get(self.GITHUB_API, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                versao = data.get('tag_name', '1.0.0').lstrip('v')
-                return versao if versao else "1.0.0"
-        except:
-            pass
-        
-        return "1.0.0"  # Fallback final
-    
-    def _obter_versao_git(self):
-        """Obtém versão do último git tag"""
-        try:
-            import subprocess
-            resultado = subprocess.run(
-                ['git', 'describe', '--tags', '--abbrev=0'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            if resultado.returncode == 0:
-                versao = resultado.stdout.strip().lstrip('v')
-                return versao if versao else "1.0.0"
-        except:
-            pass
-        return "1.0.0"
-    
-    def carregar_versao(self):
-        """Carrega versão salva ou usa padrão"""
-        try:
-            if self.arquivo_versao.exists():
-                with open(self.arquivo_versao, 'r') as f:
-                    data = json.load(f)
-                    # Versão já foi obtida no __init__, não sobrescrever aqui
-        except Exception as e:
-            print(f"⚠️ Erro ao carregar versão: {e}")
-    
-    def salvar_versao(self, versao):
-        """Salva versão atual"""
-        try:
-            with open(self.arquivo_versao, 'w') as f:
-                json.dump({
-                    'versao': versao,
-                    'data_atualizacao': datetime.now().isoformat()
-                }, f)
-        except Exception as e:
-            print(f"⚠️ Erro ao salvar versão: {e}")
-    
-    def comparar_versoes(self, v1, v2):
         """
-        Compara duas versões (v1.v2.v3)
+        Inicializa o gerenciador de updates.
+
+        NOTA: NÃO faz requisição HTTP aqui! A versão vem do arquivo local.
+        A verificação de updates é feita depois, em background.
+        """
+        # Versão LOCAL (sem internet — instantânea!)
+        try:
+            from __version__ import __version__ as VERSION
+        except ImportError:
+            from app.__version__ import __version__ as VERSION
+        self.versao_atual = VERSION
+
+    def comparar_versoes(self, v1: str, v2: str) -> int:
+        """
+        Compara duas versões no formato "X.Y.Z".
+
         Retorna:
-          -1 se v1 < v2
-           0 se v1 == v2
-           1 se v1 > v2
+          -1 se v1 < v2  (v1 é mais antiga)
+           0 se v1 == v2  (mesma versão)
+           1 se v1 > v2  (v1 é mais nova)
+
+        Exemplos:
+          comparar_versoes("1.0.0", "1.1.0") → -1
+          comparar_versoes("2.0.0", "1.9.9") → 1
+          comparar_versoes("1.0.0", "1.0.0") → 0
         """
         try:
-            v1_parts = [int(x) for x in v1.split('.')]
-            v2_parts = [int(x) for x in v2.split('.')]
-            
-            # Padronizar tamanho
+            v1_parts = [int(x) for x in v1.split(".")]
+            v2_parts = [int(x) for x in v2.split(".")]
+
+            # Padroniza tamanho (ex: "1.0" → "1.0.0")
             while len(v1_parts) < len(v2_parts):
                 v1_parts.append(0)
             while len(v2_parts) < len(v1_parts):
                 v2_parts.append(0)
-            
+
             if v1_parts < v2_parts:
                 return -1
             elif v1_parts > v2_parts:
                 return 1
-            else:
-                return 0
-        except:
             return 0
-    
-    def verificar_atualizacao(self) -> Tuple[bool, Optional[str], Optional[str]]:
+        except (ValueError, AttributeError):
+            return 0
+
+    def verificar_atualizacao(self) -> tuple[bool, str | None, str | None]:
         """
-        Verifica se há nova versão disponível de forma síncrona.
-        Retorna: (tem_atualizacao, versao_nova, url_download)
+        Verifica se há nova versão disponível no GitHub.
+
+        ESTA FUNÇÃO FAZ REQUISIÇÃO HTTP — deve ser chamada em background!
+
+        Retorna:
+            (tem_atualizacao, versao_nova, url_download)
+            Ex: (True, "1.2.0", "https://github.com/.../SistemaHotelSantos-Setup-Windows.exe")
+            Ou: (False, None, None)
         """
         try:
-            print(f"🔍 Verificando atualizações...")
+            print(f"🔍 Verificando atualizações... (versão atual: {self.versao_atual})")
             response = requests.get(self.GITHUB_API, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            versao_nova = data['tag_name'].lstrip('v')
-            
-            print(f"   Versão atual: {self.versao_atual}")
+            versao_nova = data["tag_name"].lstrip("v")
+
             print(f"   Versão remota: {versao_nova}")
-            
-            comparacao = self.comparar_versoes(self.versao_atual, versao_nova)
-            
-            if comparacao < 0:
-                # Encontrou versão mais nova
+
+            if self.comparar_versoes(self.versao_atual, versao_nova) < 0:
+                # Há versão mais nova!
                 print(f"✅ Nova versão disponível: {versao_nova}")
-                
-                # Procurar asset correto
-                assets = data.get('assets', [])
-                url_download = None
-                
+
+                # Procura o arquivo de download correto para o OS
+                assets = data.get("assets", [])
                 os_identifier = "Windows" if platform.system() == "Windows" else "Ubuntu"
+
                 for asset in assets:
-                    if os_identifier in asset['name']:
-                        url_download = asset['browser_download_url']
-                        break
-                
-                if url_download:
-                    print(f"📥 Download disponível: {url_download}")
-                    return True, versao_nova, url_download
-                else:
-                    print(f"⚠️ Nova versão {versao_nova} encontrada, mas sem build para {os_identifier}.")
-                    return False, None, None
+                    if os_identifier in asset["name"]:
+                        url = asset["browser_download_url"]
+                        print(f"📥 Download: {url}")
+                        return True, versao_nova, url
+
+                print(f"⚠️ Nova versão sem build para {os_identifier}")
+                return False, None, None
             else:
                 print("✅ Você está na versão mais recente.")
                 return False, None, None
-                    
+
         except requests.exceptions.Timeout:
-            raise Exception("Tempo esgotado ao verificar atualizações.")
+            raise ConnectionError("Tempo esgotado ao verificar atualizações.")
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Erro de rede: {e}")
+            raise ConnectionError(f"Erro de rede: {e}")
         except Exception as e:
-            print(f"❌ Erro ao verificar atualização: {e}")
-            import traceback
-            traceback.print_exc()
-            raise Exception(f"Não foi possível verificar atualizações: {e}")
-    
-    def aplicar_atualizacao(self, url_download: str, versao_nova: str, 
-                           progress_callback: Optional[Callable] = None) -> None:
+            raise RuntimeError(f"Não foi possível verificar atualizações: {e}")
+
+    def verificar_em_background(self, callback: Callable) -> None:
         """
-        Baixa o novo executável, cria um script para substituí-lo e reinicia o app.
+        Verifica atualizações em background (sem travar a interface).
+
+        Args:
+            callback: Função chamada com o resultado.
+                      Recebe: (tem_update, versao_nova, url_download)
+
+        Uso no app_gui.py:
+            def quando_verificar(tem_update, versao, url):
+                if tem_update:
+                    self.btn_update.configure(text=f"⬇️ v{versao}")
+                    self.btn_update.pack(...)
+
+            self.update_manager.verificar_em_background(quando_verificar)
         """
+
+        def _tarefa():
+            try:
+                resultado = self.verificar_atualizacao()
+                callback(*resultado)
+            except Exception as e:
+                print(f"⚠️ Verificação de update falhou: {e}")
+                callback(False, None, None)
+
+        thread = threading.Thread(target=_tarefa, daemon=True)
+        thread.start()
+
+    def aplicar_atualizacao(
+        self, url_download: str, versao_nova: str, progress_callback: Callable | None = None
+    ) -> None:
+        """
+        Baixa e aplica a atualização.
+
+        O processo:
+        1. Baixa o novo executável para um arquivo temporário
+        2. Cria um script (bat/sh) que:
+           a. Espera o app atual fechar
+           b. Substitui o executável antigo pelo novo
+           c. Reabre o app
+        3. Fecha o app atual
+
+        Args:
+            url_download: URL do novo executável
+            versao_nova: String da versão nova (ex: "1.2.0")
+            progress_callback: Função(progresso, status) chamada durante download
+        """
+
         def _task():
             try:
-                is_windows = platform.system() == 'Windows'
-                
-                # Garante que estamos trabalhando com caminhos absolutos
+                is_windows = platform.system() == "Windows"
                 exec_path = os.path.abspath(sys.executable)
                 exec_dir = os.path.dirname(exec_path)
                 exec_name = os.path.basename(exec_path)
-        
-                # Define nomes para o arquivo temporário e o script de atualização
+
                 temp_suffix = ".exe" if is_windows else ""
                 temp_path = os.path.join(exec_dir, f"update_temp{temp_suffix}")
-                
-                # 1. Baixar o novo arquivo
+
+                # 1. Baixar
                 r = requests.get(url_download, stream=True, timeout=30)
                 r.raise_for_status()
-                
-                total_size = int(r.headers.get('content-length', 0))
-                downloaded_size = 0
-                
-                with open(temp_path, 'wb') as f:
+
+                total_size = int(r.headers.get("content-length", 0))
+                downloaded = 0
+
+                with open(temp_path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
-                        downloaded_size += len(chunk)
+                        downloaded += len(chunk)
                         if progress_callback and total_size > 0:
-                            progress = downloaded_size / total_size
-                            progress_callback(progress, None)
-            
-                # 2. Criar script de atualização e executar
+                            progress_callback(downloaded / total_size, None)
+
+                # 2. Criar script de atualização
                 if is_windows:
                     updater_path = os.path.join(exec_dir, "updater.bat")
-                    bat_script = f"""
-                    @echo off
-                    echo Atualizando o sistema... Por favor, aguarde.
-                    timeout /t 3 /nobreak > NUL
-                    :retry
-                    del "{exec_path}"
-                    if exist "{exec_path}" (
-                        echo Arquivo ainda em uso, tentando novamente em 2 segundos...
-                        timeout /t 2 /nobreak > NUL
-                        goto retry
-                    )
-                    ren "{temp_path}" "{exec_name}"
-                    start "" "{exec_path}"
-                    del "{updater_path}"
-                    """
-                    with open(updater_path, "w", encoding="utf-8") as bat:
-                        bat.write(bat_script)
-                    
-                    if progress_callback: 
+                    script = f"""@echo off
+echo Atualizando o sistema... Por favor, aguarde.
+timeout /t 3 /nobreak > NUL
+:retry
+del "{exec_path}"
+if exist "{exec_path}" (
+    echo Arquivo ainda em uso, tentando novamente...
+    timeout /t 2 /nobreak > NUL
+    goto retry
+)
+ren "{temp_path}" "{exec_name}"
+start "" "{exec_path}"
+del "{updater_path}"
+"""
+                    with open(updater_path, "w", encoding="utf-8") as f:
+                        f.write(script)
+
+                    if progress_callback:
                         progress_callback(1.0, "finalizando")
-                    subprocess.Popen(updater_path, shell=True, cwd=exec_dir, 
-                                   creationflags=subprocess.DETACHED_PROCESS)
-                else: # Linux/Unix
+
+                    subprocess.Popen(updater_path, shell=True, cwd=exec_dir, creationflags=subprocess.DETACHED_PROCESS)
+                else:
                     updater_path = os.path.join(exec_dir, "updater.sh")
                     os.chmod(temp_path, 0o755)
-                    
-                    sh_script = f"""#!/bin/bash
-                    echo "Atualizando..."
-                    sleep 3
-                    rm -f "{exec_path}"
-                    mv "{temp_path}" "{exec_path}"
-                    nohup "{exec_path}" >/dev/null 2>&1 &
-                    rm -- "$0"
-                    """
-                    with open(updater_path, "w") as sh:
-                        sh.write(sh_script)
+                    script = f"""#!/bin/bash
+echo "Atualizando..."
+sleep 3
+rm -f "{exec_path}"
+mv "{temp_path}" "{exec_path}"
+nohup "{exec_path}" >/dev/null 2>&1 &
+rm -- "$0"
+"""
+                    with open(updater_path, "w") as f:
+                        f.write(script)
                     os.chmod(updater_path, 0o755)
-                    
-                    if progress_callback: 
-                        progress_callback(1.0, "finalizando")
-                    subprocess.Popen(["/bin/bash", updater_path], cwd=exec_dir, 
-                                   start_new_session=True)
 
-                self.salvar_versao(versao_nova)
+                    if progress_callback:
+                        progress_callback(1.0, "finalizando")
+
+                    subprocess.Popen(["/bin/bash", updater_path], cwd=exec_dir, start_new_session=True)
+
+                # 3. Fechar o app
                 os._exit(0)
-                
+
             except Exception as e:
-                if 'temp_path' in locals() and os.path.exists(temp_path):
+                if "temp_path" in locals() and os.path.exists(temp_path):
                     os.remove(temp_path)
-                raise Exception(f"Falha ao atualizar: {e}")
-        
+                raise RuntimeError(f"Falha ao atualizar: {e}")
+
         threading.Thread(target=_task, daemon=True).start()

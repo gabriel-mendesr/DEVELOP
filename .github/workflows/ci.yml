@@ -1,0 +1,181 @@
+# =============================================================================
+# .github/workflows/ci.yml — Pipeline de Integração Contínua
+# =============================================================================
+#
+# O QUE É INTEGRAÇÃO CONTÍNUA (CI)?
+# -----------------------------------
+# É um robô que roda automaticamente no GitHub toda vez que você faz um push
+# ou abre um Pull Request. Ele verifica se o código está em ordem ANTES de
+# você (ou alguém da equipe) fazer o merge.
+#
+# Se qualquer etapa falhar, o GitHub mostra um ✗ vermelho no commit/PR.
+# Só aparece ✓ verde se tudo passar.
+#
+# PIPELINE DESTE PROJETO (em ordem):
+#   1. lint      → ruff verifica estilo e erros lógicos
+#   2. typecheck → mypy verifica tipos em app/core/
+#   3. tests     → pytest + verificar_sistema.py
+#
+# COMO VER OS RESULTADOS:
+#   GitHub → seu repositório → aba "Actions"
+#
+# =============================================================================
+
+name: CI — Hotel Santos
+
+# Quando este pipeline roda:
+on:
+  push:
+    branches: [ main, develop ]   # Em todo push para main ou develop
+  pull_request:
+    branches: [ main ]            # Em todo PR que mira a branch main
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # JOB 1: Linter (ruff)
+  # ---------------------------------------------------------------------------
+  # O que faz: verifica estilo, imports desorganizados, variáveis não usadas,
+  # código morto, etc. Roda em segundos.
+  lint:
+    name: 🔍 Linter (ruff)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar ruff
+        run: pip install "ruff>=0.4.0"
+
+      - name: Verificar estilo e erros lógicos
+        # --output-format=github formata os erros para aparecerem como
+        # anotações inline no diff do Pull Request
+        run: ruff check app/ --output-format=github
+
+      # Verifica formatação sem alterar arquivos
+      # Se falhar: rode "ruff format app/" localmente para corrigir
+      - name: Verificar formatação
+        run: ruff format app/ --check
+
+
+  # ---------------------------------------------------------------------------
+  # JOB 2: Checagem de tipos (mypy)
+  # ---------------------------------------------------------------------------
+  # O que faz: verifica se os tipos das funções em app/core/ estão coerentes.
+  # Só roda em app/core/ — a interface gráfica usa libs sem stubs de tipo.
+  typecheck:
+    name: 🔎 Tipos (mypy)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependências de desenvolvimento
+        run: pip install -e ".[dev]"
+
+      - name: Checar tipos em app/core/
+        run: mypy app/core/
+
+  # ---------------------------------------------------------------------------
+  # JOB 3: Testes
+  # ---------------------------------------------------------------------------
+  # O que faz: roda todos os testes do projeto.
+  # Inclui pytest (test_models.py) + verificar_sistema.py.
+  #
+  # IMPORTANTE: testes que dependem de interface gráfica (janelas, tkinter)
+  # NÃO rodam em CI porque servidores não têm monitor. Por isso separamos
+  # a lógica de negócio (core/) da interface (app_gui.py, screens/).
+  # Os 82 testes do verificar_sistema.py rodam 100% sem janela. ✓
+  tests:
+    name: 🧪 Testes
+    runs-on: ubuntu-latest
+
+    # Roda em múltiplas versões do Python para garantir compatibilidade
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Cache das dependências pip: se requirements não mudou, reutiliza o cache
+      # Isso reduz o tempo de cada run de ~60s para ~10s
+      - name: Cache de dependências pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Instalar dependências
+        run: |
+          pip install --upgrade pip
+          # Instala as dependências do projeto sem as de GUI (não disponíveis no CI)
+          pip install pytest pytest-cov
+
+      - name: Rodar testes com cobertura
+        # --cov=app/core    → mede cobertura apenas do core (onde estão as regras)
+        # --cov-report=term → mostra o relatório no terminal do CI
+        # --cov-fail-under=70 → falha se cobertura cair abaixo de 70%
+        run: |
+          cd app
+          pytest ../tests/ -v \
+            --cov=core \
+            --cov-report=term-missing \
+            --cov-fail-under=70
+
+      # Salva o relatório HTML de cobertura como artefato do CI
+      # Para ver: Actions → run específico → Artifacts → coverage-report
+      - name: Gerar relatório HTML de cobertura
+        if: matrix.python-version == '3.11'   # só gera uma vez
+        run: |
+          cd app
+          pytest ../tests/ --cov=core --cov-report=html --quiet
+
+      - name: Publicar relatório de cobertura
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: app/htmlcov/
+          retention-days: 14    # mantém por 14 dias
+
+  # ---------------------------------------------------------------------------
+  # JOB 4: Segurança (pip-audit)
+  # ---------------------------------------------------------------------------
+  # O que faz: verifica se alguma dependência tem vulnerabilidade conhecida.
+  # Roda semanalmente (agendado) ou em push para main.
+  security:
+    name: 🔒 Segurança (pip-audit)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'   # Só na main
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar pip-audit
+        run: pip install pip-audit
+
+      - name: Auditar dependências
+        # --ignore-vuln PYSEC-XXXX para ignorar falsos positivos específicos
+        run: pip-audit --requirement app/requirements.txt
