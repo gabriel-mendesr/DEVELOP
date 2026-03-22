@@ -62,7 +62,6 @@ def db():
       - É muito rápido (não escreve no disco)
       - Não polui seu banco de dados real
     """
-    return Database(":memory:")
     banco = Database(":memory:")
     yield banco
     banco.fechar()
