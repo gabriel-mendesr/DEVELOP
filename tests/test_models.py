@@ -63,6 +63,9 @@ def db():
       - Não polui seu banco de dados real
     """
     return Database(":memory:")
+    banco = Database(":memory:")
+    yield banco
+    banco.fechar()
 
 
 @pytest.fixture
