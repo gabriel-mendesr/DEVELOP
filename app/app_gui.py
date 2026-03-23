@@ -1046,9 +1046,9 @@ class AppHotelLTS(ctk.CTk):
         self.tree_listas.delete(*self.tree_listas.get_children())
         listas = self.core.get_listas_resumo()
         for lista in listas:
-            data_br = datetime.strptime(l["data_criacao"], "%Y-%m-%d").strftime("%d/%m/%Y")  # noqa: F821
-            total = l["total_valor"] if l["total_valor"] else 0.0  # noqa: F821
-            self.tree_listas.insert("", "end", values=(l["id"], data_br, l["status"], f"R$ {total:.2f}"))  # noqa: F821
+            data_br = datetime.strptime(lista["data_criacao"], "%Y-%m-%d").strftime("%d/%m/%Y")
+            total = lista["total_valor"] if lista["total_valor"] else 0.0
+            self.tree_listas.insert("", "end", values=(lista["id"], data_br, lista["status"], f"R$ {total:.2f}"))
 
     def criar_nova_lista(self) -> None:
         try:
@@ -1773,9 +1773,18 @@ class AppHotelLTS(ctk.CTk):
                 eu_user.delete(0, "end")
                 eu_user.insert(0, user_data["username"])
                 eu_pass.delete(0, "end")
-                chk_admin.select() if user_data["is_admin"] else chk_admin.deselect()
-                chk_dates.select() if user_data["can_change_dates"] else chk_dates.deselect()
-                chk_products.select() if user_data.get("can_manage_products") else chk_products.deselect()
+                if user_data["is_admin"]:
+                    chk_admin.select()
+                else:
+                    chk_admin.deselect()
+                if user_data["can_change_dates"]:
+                    chk_dates.select()
+                else:
+                    chk_dates.deselect()
+                if user_data.get("can_manage_products"):
+                    chk_products.select()
+                else:
+                    chk_products.deselect()
 
             tv_u.bind("<ButtonRelease-1>", on_select_user)
 
