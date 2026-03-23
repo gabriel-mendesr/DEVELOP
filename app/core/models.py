@@ -210,7 +210,7 @@ class SistemaCreditos:
 
         Args:
             termo: Texto para buscar no nome ou documento
-            filtro: "todos", "vencidos", ou outro (com saldo > 0)
+            filtro: "todos", "vencidos", "vencendo", "com_multa"
         """
         termo_limpo = str(termo).strip()
         self.cursor.execute(
@@ -219,12 +219,23 @@ class SistemaCreditos:
         )
         hospedes = self.cursor.fetchall()
 
+        hoje = datetime.now().strftime("%Y-%m-%d")
+        alerta = (datetime.now() + timedelta(days=self.get_config("alerta_dias"))).strftime("%Y-%m-%d")
+
         resultado = []
         for h in hospedes:
             saldo, venc, bloqueado = self._processar_saldo(h["documento"])
             if filtro == "vencidos" and not bloqueado:
                 continue
-            if saldo <= 0 and filtro != "todos":
+            if filtro == "vencendo":
+                if venc == "N/A" or bloqueado:
+                    continue
+                v_iso = datetime.strptime(venc, "%d/%m/%Y").strftime("%Y-%m-%d")
+                if not (hoje <= v_iso <= alerta):
+                    continue
+            if filtro == "com_multa" and self.get_divida_multas(h["documento"]) <= 0:
+                continue
+            if saldo <= 0 and filtro not in ("todos", "com_multa"):
                 continue
             resultado.append((h["nome"], h["documento"], saldo))
 
@@ -405,9 +416,22 @@ class SistemaCreditos:
         return [dict(r) for r in self.cursor.fetchall()]
 
     def get_historico_global(
-        self, filtro: str = "", limite: int = 100, tipos: tuple[str, ...] | None = None
+        self,
+        filtro: str = "",
+        limite: int = 100,
+        tipos: tuple[str, ...] | None = None,
+        data_inicio: str | None = None,
+        data_fim: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Retorna histórico de todos os clientes (com filtros opcionais)."""
+        """Retorna histórico de todos os clientes (com filtros opcionais).
+
+        Args:
+            filtro: Texto para buscar no nome ou documento
+            limite: Número máximo de registros
+            tipos: Tupla de tipos de movimentação (ex: ("ENTRADA", "SAIDA"))
+            data_inicio: Data inicial no formato YYYY-MM-DD (opcional)
+            data_fim: Data final no formato YYYY-MM-DD (opcional)
+        """
         base_query = """
             SELECT h.id, h.data_acao, c.nome, h.documento, h.tipo,
                    h.valor, h.categoria, h.usuario, h.obs
@@ -425,6 +449,14 @@ class SistemaCreditos:
             placeholders = ", ".join("?" for _ in tipos)
             conditions.append(f"h.tipo IN ({placeholders})")
             params.extend(tipos)
+
+        if data_inicio:
+            conditions.append("h.data_acao >= ?")
+            params.append(data_inicio)
+
+        if data_fim:
+            conditions.append("h.data_acao <= ?")
+            params.append(data_fim)
 
         if conditions:
             base_query += " WHERE " + " AND ".join(conditions)
@@ -738,6 +770,101 @@ class SistemaCreditos:
         with self.conn:
             self.cursor.execute("DELETE FROM logs_auditoria")
         self.registrar_log(usuario_acao, "LIMPEZA_LOGS", "Histórico de auditoria apagado completamente.")
+
+    # =========================================================================
+    # EXPORTAÇÃO (CSV)
+    # =========================================================================
+
+    def exportar_csv(self) -> str:
+        """Exporta resumo de todos os hóspedes para CSV. Retorna o caminho do arquivo."""
+        import csv
+        import os
+        import tempfile
+
+        caminho = os.path.join(
+            tempfile.gettempdir(), f"hotel_santos_hospedes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+        hospedes = self.buscar_filtrado("", "todos")
+        with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Nome", "Documento", "Telefone", "Saldo", "Vencimento", "Status"])
+            for nome, doc, saldo in hospedes:
+                _, venc, bloq = self.get_saldo_info(doc)
+                h = self.get_hospede(doc)
+                tel = h.get("telefone", "") if h else ""
+                status = "Vencido" if bloq else ("Ativo" if saldo > 0 else "Sem saldo")
+                writer.writerow([nome, doc, tel or "", f"{saldo:.2f}", venc, status])
+        return caminho
+
+    def exportar_hospedes_csv(self, caminho: str) -> str:
+        """Exporta lista de hóspedes para um caminho específico. Retorna o caminho."""
+        import csv
+
+        hospedes = self.buscar_filtrado("", "todos")
+        with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Nome", "Documento", "Telefone", "Email", "Saldo", "Vencimento", "Status"])
+            for nome, doc, saldo in hospedes:
+                _, venc, bloq = self.get_saldo_info(doc)
+                h = self.get_hospede(doc)
+                tel = (h.get("telefone", "") or "") if h else ""
+                email = (h.get("email", "") or "") if h else ""
+                status = "Vencido" if bloq else ("Ativo" if saldo > 0 else "Sem saldo")
+                writer.writerow([nome, doc, tel, email, f"{saldo:.2f}", venc, status])
+        return caminho
+
+    def exportar_historico_financeiro_csv(self, mes: str | None = None) -> str:
+        """
+        Exporta histórico financeiro para CSV.
+
+        Args:
+            mes: Filtro de mês no formato MM/AAAA (ex: "03/2026"). None para tudo.
+
+        Retorna:
+            Caminho do arquivo gerado.
+        """
+        import csv
+        import os
+        import tempfile
+
+        suffix = f"_{mes.replace('/', '-')}" if mes else "_completo"
+        caminho = os.path.join(
+            tempfile.gettempdir(), f"hotel_santos_financeiro{suffix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
+
+        data_inicio = None
+        data_fim = None
+        if mes:
+            try:
+                dt = datetime.strptime(mes, "%m/%Y")
+                data_inicio = dt.strftime("%Y-%m-01")
+                # Último dia do mês
+                if dt.month == 12:
+                    data_fim = f"{dt.year + 1}-01-01"
+                else:
+                    data_fim = f"{dt.year}-{dt.month + 1:02d}-01"
+            except ValueError:
+                pass
+
+        dados = self.get_historico_global(limite=10000, data_inicio=data_inicio, data_fim=data_fim)
+        with open(caminho, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["ID", "Data", "Cliente", "Documento", "Tipo", "Valor", "Categoria", "Responsavel", "Obs"])
+            for d in dados:
+                writer.writerow(
+                    [
+                        d["id"],
+                        d["data_acao"],
+                        d["nome"],
+                        d["documento"],
+                        d["tipo"],
+                        f"{d['valor']:.2f}",
+                        d["categoria"],
+                        d["usuario"],
+                        d.get("obs", ""),
+                    ]
+                )
+        return caminho
 
     # =========================================================================
     # VALIDAÇÃO DE DOCUMENTOS (CPF/CNPJ)

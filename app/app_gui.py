@@ -57,6 +57,7 @@ class AppHotelLTS(ctk.CTk):
         self.main_frame: ctk.CTkFrame
         self.btn_update: ctk.CTkButton
         self.btn_sair: ctk.CTkButton
+        self.ent_busca_global: ctk.CTkEntry
 
         # Widgets da tela de Hóspedes
         self.ent_busca: ctk.CTkEntry
@@ -68,6 +69,8 @@ class AppHotelLTS(ctk.CTk):
 
         # Widgets da tela Financeiro
         self.ent_busca_lanc: ctk.CTkEntry
+        self.ent_data_inicio_lanc: ctk.CTkEntry
+        self.ent_data_fim_lanc: ctk.CTkEntry
         self.tree_l: ttk.Treeview
         self.menu_lanc: ctk.CTkFrame
 
@@ -209,6 +212,20 @@ class AppHotelLTS(ctk.CTk):
             **btn_opts,
         ).pack(pady=5, fill="x", padx=10)
 
+        ctk.CTkFrame(self.sidebar, height=1, fg_color="#334155").pack(fill="x", padx=10, pady=5)
+
+        self.ent_busca_global = ctk.CTkEntry(
+            self.sidebar,
+            placeholder_text="🔍 Busca rápida...",
+            width=160,
+            fg_color="#334155",
+            border_color="#475569",
+            text_color=self.colors["sidebar_txt"],
+            placeholder_text_color="#94a3b8",
+        )
+        self.ent_busca_global.pack(padx=10, pady=(0, 5))
+        self.ent_busca_global.bind("<Return>", self._busca_global_enter)
+
         ctk.CTkFrame(self.sidebar, fg_color="transparent").pack(expand=True, fill="y")
 
         self.btn_update = ctk.CTkButton(
@@ -326,7 +343,134 @@ class AppHotelLTS(ctk.CTk):
         self.main_frame.grid_rowconfigure(0, weight=1)
 
     # =========================================================================
-    # 1.5. AUTO-UPDATE
+    # 1.5. NOTIFICAÇÕES & BACKUP AUTOMÁTICO
+    # =========================================================================
+
+    def notificar_vencimentos(self) -> None:
+        """Exibe popup ao entrar com hóspedes vencendo em breve ou já vencidos."""
+        vencendo = self.core.get_hospedes_vencendo_em_breve()
+        vencidos = self.core.buscar_filtrado("", "vencidos")
+        devedores = self.core.get_devedores_multas()
+
+        if not vencendo and not vencidos and not devedores:
+            return
+
+        jan = ctk.CTkToplevel(self)
+        jan.title("⚠️ Alertas do Sistema")
+        jan.geometry("500x420")
+        jan.transient(self)
+        jan.lift()
+        jan.grab_set()
+
+        ctk.CTkLabel(jan, text="Alertas Pendentes", font=("Arial", 16, "bold")).pack(pady=15)
+
+        scroll = ctk.CTkScrollableFrame(jan, fg_color="transparent")
+        scroll.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+
+        if vencendo:
+            ctk.CTkLabel(
+                scroll,
+                text=f"⚠️ {len(vencendo)} hóspede(s) com crédito vencendo em breve:",
+                text_color=self.colors["aviso"],
+                font=("Arial", 12, "bold"),
+            ).pack(anchor="w", pady=(5, 2))
+            for nome, venc, saldo in vencendo[:5]:
+                ctk.CTkLabel(scroll, text=f"  • {nome}  →  {venc}  (R$ {saldo})", font=("Arial", 11)).pack(anchor="w")
+            if len(vencendo) > 5:
+                ctk.CTkLabel(scroll, text=f"  ... e mais {len(vencendo) - 5}", font=("Arial", 11)).pack(anchor="w")
+
+        if vencidos:
+            ctk.CTkLabel(
+                scroll,
+                text=f"🔴 {len(vencidos)} hóspede(s) com crédito VENCIDO:",
+                text_color=self.colors["perigo"],
+                font=("Arial", 12, "bold"),
+            ).pack(anchor="w", pady=(10, 2))
+            for nome, doc, saldo in vencidos[:5]:
+                ctk.CTkLabel(scroll, text=f"  • {nome}", font=("Arial", 11)).pack(anchor="w")
+            if len(vencidos) > 5:
+                ctk.CTkLabel(scroll, text=f"  ... e mais {len(vencidos) - 5}", font=("Arial", 11)).pack(anchor="w")
+
+        if devedores:
+            ctk.CTkLabel(
+                scroll,
+                text=f"💸 {len(devedores)} hóspede(s) com multas em aberto:",
+                text_color=self.colors["perigo"],
+                font=("Arial", 12, "bold"),
+            ).pack(anchor="w", pady=(10, 2))
+            for nome, doc, tel, divida in devedores[:5]:
+                ctk.CTkLabel(scroll, text=f"  • {nome}  →  R$ {divida:.2f}", font=("Arial", 11)).pack(anchor="w")
+            if len(devedores) > 5:
+                ctk.CTkLabel(scroll, text=f"  ... e mais {len(devedores) - 5}", font=("Arial", 11)).pack(anchor="w")
+
+        ctk.CTkButton(jan, text="Entendido", width=120, command=jan.destroy).pack(pady=10)
+
+    def fazer_backup_automatico(self) -> None:
+        """Realiza backup silencioso ao abrir o sistema."""
+
+        def _task():
+            try:
+                if hasattr(self, "core") and hasattr(self.core, "db"):
+                    self.core.db.fazer_backup()
+            except Exception:
+                pass
+
+        threading.Thread(target=_task, daemon=True).start()
+
+    def _busca_global_enter(self, event: object | None = None) -> None:
+        """Abre tela de hóspedes com busca pré-preenchida a partir da sidebar."""
+        termo = self.ent_busca_global.get().strip()
+        if not termo:
+            return
+        self.tela_hospedes()
+        self.ent_busca.delete(0, "end")
+        self.ent_busca.insert(0, termo)
+        self.atualizar_lista_hospedes("todos")
+
+    def _exportar_hospedes_csv(self) -> None:
+        """Exporta lista de hóspedes para arquivo CSV escolhido pelo usuário."""
+        caminho = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            initialfile=f"hospedes_{datetime.now().strftime('%Y%m%d')}.csv",
+        )
+        if not caminho:
+            return
+        try:
+            self.core.exportar_hospedes_csv(caminho)
+            messagebox.showinfo("Exportado", f"Lista de hóspedes salva em:\n{caminho}")
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    def _exportar_relatorio_mensal_csv(self) -> None:
+        """Exporta relatório financeiro do mês atual (ou escolhido pelo usuário) para CSV."""
+        mes_atual = datetime.now().strftime("%m/%Y")
+        dialog = ctk.CTkInputDialog(
+            text="Mês/Ano para exportar (MM/AAAA):\nDeixe vazio para exportar TUDO.",
+            title="Exportar Relatório Mensal",
+        )
+        mes = dialog.get_input()
+        if mes is None:
+            return
+        mes_filtro = mes.strip() if mes.strip() else None
+        caminho = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV", "*.csv")],
+            initialfile=f"relatorio_{(mes_filtro or mes_atual).replace('/', '-')}.csv",
+        )
+        if not caminho:
+            return
+        try:
+            import shutil
+
+            tmp = self.core.exportar_historico_financeiro_csv(mes_filtro)
+            shutil.copy2(tmp, caminho)
+            messagebox.showinfo("Exportado", f"Relatório salvo em:\n{caminho}")
+        except Exception as e:
+            messagebox.showerror("Erro", str(e))
+
+    # =========================================================================
+    # 1.6. AUTO-UPDATE
     # =========================================================================
     def verificar_e_notificar_update(self) -> None:
         def _task():
@@ -447,6 +591,8 @@ class AppHotelLTS(ctk.CTk):
                 self.sidebar.pack(side="left", fill="y")
                 self.main_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
                 self.tela_home()
+                self.after(500, self.notificar_vencimentos)
+                self.after(1000, self.fazer_backup_automatico)
                 self.after(2000, self.verificar_e_notificar_update)
             else:
                 messagebox.showerror("Erro", "Credenciais inválidas")
@@ -514,9 +660,52 @@ class AppHotelLTS(ctk.CTk):
             command=self.janela_cadastro_hospede,
         ).pack(side="right")
 
-        self.ent_busca = ctk.CTkEntry(self.main_frame, placeholder_text="Pesquisar por nome ou documento...", width=500)
-        self.ent_busca.pack(pady=10)
+        barra = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        barra.pack(fill="x", padx=15, pady=(5, 0))
+        self.ent_busca = ctk.CTkEntry(barra, placeholder_text="Pesquisar por nome ou documento...", width=400)
+        self.ent_busca.pack(side="left", pady=5)
         self.ent_busca.bind("<KeyRelease>", lambda e: self.agendar_busca(filtro))
+
+        filtros_frame = ctk.CTkFrame(barra, fg_color="transparent")
+        filtros_frame.pack(side="left", padx=10)
+        btn_filtro_opts = {"height": 30, "width": 110, "font": ("Arial", 11)}
+        ctk.CTkButton(
+            filtros_frame,
+            text="Todos",
+            fg_color=self.colors["hospedes"] if filtro == "todos" else "gray",
+            command=lambda: self.tela_hospedes("todos"),
+            **btn_filtro_opts,
+        ).pack(side="left", padx=2)
+        ctk.CTkButton(
+            filtros_frame,
+            text="⚠️ Vencendo",
+            fg_color=self.colors["aviso"] if filtro == "vencendo" else "gray",
+            command=lambda: self.tela_hospedes("vencendo"),
+            **btn_filtro_opts,
+        ).pack(side="left", padx=2)
+        ctk.CTkButton(
+            filtros_frame,
+            text="🔴 Vencidos",
+            fg_color=self.colors["perigo"] if filtro == "vencidos" else "gray",
+            command=lambda: self.tela_hospedes("vencidos"),
+            **btn_filtro_opts,
+        ).pack(side="left", padx=2)
+        ctk.CTkButton(
+            filtros_frame,
+            text="💸 Com Multa",
+            fg_color=self.colors["aviso"] if filtro == "com_multa" else "gray",
+            command=lambda: self.tela_hospedes("com_multa"),
+            **btn_filtro_opts,
+        ).pack(side="left", padx=2)
+
+        ctk.CTkButton(
+            barra,
+            text="📥 Exportar CSV",
+            height=30,
+            width=120,
+            fg_color=self.colors["dashboard"],
+            command=self._exportar_hospedes_csv,
+        ).pack(side="right", padx=5)
 
         self.tree_h = ttk.Treeview(self.main_frame, columns=("N", "D", "S"), show="headings")
         for c, t in [("N", "Nome Completo"), ("D", "CPF ou CNPJ"), ("S", "Saldo Disponível (R$)")]:
@@ -814,8 +1003,15 @@ class AppHotelLTS(ctk.CTk):
             text="📥 Exportar Relatório CSV",
             fg_color=self.colors["dashboard"],
             width=180,
-            command=lambda: [messagebox.showinfo("Exportado", f"Relatório salvo em:\n{self.core.exportar_csv()}")],
+            command=self._exportar_relatorio_mensal_csv,
         ).pack(side="right")
+        ctk.CTkButton(
+            nav,
+            text="📊 Exportar Todos Hóspedes",
+            fg_color="#334155",
+            width=190,
+            command=self._exportar_hospedes_csv,
+        ).pack(side="right", padx=5)
 
         scroll = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
         scroll.pack(fill="both", expand=True)
@@ -1455,9 +1651,38 @@ class AppHotelLTS(ctk.CTk):
         tabview.pack(fill="both", expand=True, padx=10, pady=5)
         tab_creditos = tabview.add("Extrato de Créditos")
         tab_multas_hist = tabview.add("Histórico de Multas")
+        tab_multas_pend = tabview.add("💸 Multas Pendentes")
 
-        self.ent_busca_lanc = ctk.CTkEntry(tab_creditos, placeholder_text="Filtrar por nome ou documento...", width=500)
-        self.ent_busca_lanc.pack(pady=10)
+        filtros_c = ctk.CTkFrame(tab_creditos, fg_color="transparent")
+        filtros_c.pack(fill="x", pady=(8, 0), padx=10)
+        self.ent_busca_lanc = ctk.CTkEntry(filtros_c, placeholder_text="Filtrar por nome ou documento...", width=280)
+        self.ent_busca_lanc.pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(filtros_c, text="De:").pack(side="left")
+        self.ent_data_inicio_lanc = ctk.CTkEntry(filtros_c, placeholder_text="DD/MM/AAAA", width=110)
+        self.ent_data_inicio_lanc.pack(side="left", padx=4)
+        ctk.CTkLabel(filtros_c, text="Até:").pack(side="left")
+        self.ent_data_fim_lanc = ctk.CTkEntry(filtros_c, placeholder_text="DD/MM/AAAA", width=110)
+        self.ent_data_fim_lanc.pack(side="left", padx=4)
+        ctk.CTkButton(
+            filtros_c,
+            text="Filtrar",
+            width=70,
+            height=28,
+            fg_color=self.colors["financeiro"],
+            command=self.atualizar_lista_lancamentos,
+        ).pack(side="left", padx=4)
+        ctk.CTkButton(
+            filtros_c,
+            text="Limpar",
+            width=70,
+            height=28,
+            fg_color="gray",
+            command=lambda: [
+                self.ent_data_inicio_lanc.delete(0, "end"),
+                self.ent_data_fim_lanc.delete(0, "end"),
+                self.atualizar_lista_lancamentos(),
+            ],
+        ).pack(side="left", padx=2)
 
         self.tree_l = ttk.Treeview(
             tab_creditos, columns=("ID", "Data", "Nome", "Tipo", "Valor", "Categoria", "Usuario"), show="headings"
@@ -1499,6 +1724,8 @@ class AppHotelLTS(ctk.CTk):
         self.tree_l.bind("<Button-3>", show_menu)
         self.bind("<Button-1>", lambda e: self.menu_lanc.place_forget())
         self.ent_busca_lanc.bind("<KeyRelease>", lambda e: self.atualizar_lista_lancamentos())
+        self.ent_data_inicio_lanc.bind("<Return>", lambda e: self.atualizar_lista_lancamentos())
+        self.ent_data_fim_lanc.bind("<Return>", lambda e: self.atualizar_lista_lancamentos())
         self.atualizar_lista_lancamentos()
 
         ent_busca_multas = ctk.CTkEntry(tab_multas_hist, placeholder_text="Filtrar por nome ou documento...", width=500)
@@ -1545,10 +1772,78 @@ class AppHotelLTS(ctk.CTk):
         ent_busca_multas.bind("<KeyRelease>", lambda e: atualizar_lista_multas())
         atualizar_lista_multas()
 
+        # --- ABA: MULTAS PENDENTES ---
+        ctk.CTkLabel(
+            tab_multas_pend,
+            text="Hóspedes com Dívida de Multas em Aberto",
+            font=("Arial", 14, "bold"),
+            text_color=self.colors["perigo"],
+        ).pack(pady=10)
+
+        tree_mp = ttk.Treeview(tab_multas_pend, columns=("Nome", "Documento", "Telefone", "Divida"), show="headings")
+        tree_mp.heading("Nome", text="Nome")
+        tree_mp.column("Nome", width=300)
+        tree_mp.heading("Documento", text="Documento")
+        tree_mp.column("Documento", width=150, anchor="center")
+        tree_mp.heading("Telefone", text="Telefone")
+        tree_mp.column("Telefone", width=120, anchor="center")
+        tree_mp.heading("Divida", text="Dívida (R$)")
+        tree_mp.column("Divida", width=120, anchor="center")
+        tree_mp.pack(expand=True, fill="both", padx=15, pady=(0, 10))
+        self.configurar_tags_tabela(tree_mp)
+
+        total_label = ctk.CTkLabel(tab_multas_pend, text="", font=("Arial", 12, "bold"))
+        total_label.pack(pady=5)
+
+        def atualizar_multas_pend() -> None:
+            tree_mp.delete(*tree_mp.get_children())
+            devedores = self.core.get_devedores_multas()
+            total = 0.0
+            for i, (nome, doc, tel, divida) in enumerate(devedores):
+                tag = "odd" if i % 2 != 0 else "even"
+                tree_mp.insert("", "end", values=(nome, doc, tel or "-", f"{divida:.2f}"), tags=(tag,))
+                total += divida
+            total_label.configure(text=f"Total em Aberto: R$ {total:.2f}")
+
+        tree_mp.bind("<Double-1>", lambda e: self._abrir_historico_da_multa(tree_mp))
+        ctk.CTkButton(
+            tab_multas_pend,
+            text="🔄 Atualizar",
+            width=120,
+            fg_color=self.colors["perigo"],
+            command=atualizar_multas_pend,
+        ).pack(pady=(0, 10))
+        atualizar_multas_pend()
+
+    def _abrir_historico_da_multa(self, tree: ttk.Treeview) -> None:
+        sel = tree.selection()
+        if not sel:
+            return
+        nome, doc, *_ = tree.item(sel[0])["values"]
+        self.tela_historico(str(nome), str(doc))
+
     def atualizar_lista_lancamentos(self) -> None:
         self.tree_l.delete(*self.tree_l.get_children())
         filtro = self.ent_busca_lanc.get()
-        dados = self.core.get_historico_global(filtro, tipos=("ENTRADA", "SAIDA"))
+
+        data_inicio = None
+        data_fim = None
+        try:
+            di = self.ent_data_inicio_lanc.get().strip()
+            if di:
+                data_inicio = datetime.strptime(di, "%d/%m/%Y").strftime("%Y-%m-%d")
+        except (ValueError, AttributeError):
+            pass
+        try:
+            df = self.ent_data_fim_lanc.get().strip()
+            if df:
+                data_fim = datetime.strptime(df, "%d/%m/%Y").strftime("%Y-%m-%d")
+        except (ValueError, AttributeError):
+            pass
+
+        dados = self.core.get_historico_global(
+            filtro, tipos=("ENTRADA", "SAIDA"), data_inicio=data_inicio, data_fim=data_fim
+        )
         for i, d in enumerate(dados):
             data_br = datetime.strptime(d["data_acao"], "%Y-%m-%d").strftime("%d/%m/%Y")
             tags = ["odd" if i % 2 != 0 else "even"]
