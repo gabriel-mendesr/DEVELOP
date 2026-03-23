@@ -378,6 +378,7 @@ class AppHotelLTS(ctk.CTk):
             progress_bar.set(progress)
             if status == "finalizando":
                 lbl_status.configure(text="Atualização baixada! Reiniciando o aplicativo...")
+                self.after(1500, lambda: os._exit(0))
             else:
                 lbl_status.configure(text=f"{int(progress * 100)}%")
 
@@ -1760,6 +1761,23 @@ class AppHotelLTS(ctk.CTk):
                 refresh_users()
                 eu_user.delete(0, "end")
                 eu_pass.delete(0, "end")
+
+            def on_select_user(event=None):
+                sel = tv_u.selection()
+                if not sel:
+                    return
+                username_sel = tv_u.item(sel[0])["values"][0]
+                user_data = next((u for u in self.core.get_usuarios() if u["username"] == username_sel), None)
+                if not user_data:
+                    return
+                eu_user.delete(0, "end")
+                eu_user.insert(0, user_data["username"])
+                eu_pass.delete(0, "end")
+                chk_admin.select() if user_data["is_admin"] else chk_admin.deselect()
+                chk_dates.select() if user_data["can_change_dates"] else chk_dates.deselect()
+                chk_products.select() if user_data.get("can_manage_products") else chk_products.deselect()
+
+            tv_u.bind("<ButtonRelease-1>", on_select_user)
 
             eu_pass.bind("<Return>", save_user)
             ctk.CTkButton(f_form, text="Salvar/Atualizar", command=save_user, fg_color=self.colors["ajustes"]).pack(
