@@ -14,6 +14,7 @@ APENAS ADMINS TÊM ACESSO COMPLETO:
   alterar usuários nem fazer backup.
 """
 
+from pathlib import Path
 from tkinter import filedialog, messagebox
 
 import customtkinter as ctk
@@ -26,6 +27,10 @@ class TelaConfig(TelaBase):
     Tela de configurações e administração do sistema.
     """
 
+    def __init__(self, master, core, usuario, colors, logger=None):
+        super().__init__(master, core, usuario, colors)
+        self._logger = logger
+
     def renderizar(self):
         """Ponto de entrada — chamado pelo app_gui.py."""
         self.limpar_master()
@@ -35,17 +40,16 @@ class TelaConfig(TelaBase):
         abas = ctk.CTkTabview(self.master)
         abas.pack(fill="both", expand=True, padx=15, pady=10)
 
-        # Aba Geral: sempre visível
+        # Abas sempre visíveis
         self._montar_aba_geral(abas.add("🔧 Geral"))
-
-        # Aba Categorias: sempre visível (gerenciar categorias de movimentação)
         self._montar_aba_categorias(abas.add("🏷️ Categorias"))
+        self._montar_aba_produtos(abas.add("📦 Produtos"))
+        self._montar_aba_notificacoes(abas.add("🔔 Notificações"))
 
         # Abas restritas a admin
         if self.is_admin:
             self._montar_aba_usuarios(abas.add("👤 Usuários"))
             self._montar_aba_banco(abas.add("💾 Banco de Dados"))
-            self._montar_aba_logs(abas.add("📋 Auditoria"))
 
         # Aba Sobre: sempre visível
         self._montar_aba_sobre(abas.add("ℹ️ Sobre"))
@@ -113,13 +117,10 @@ class TelaConfig(TelaBase):
         )
 
         tema_atual = self.core.get_config("tema")
-        self._var_tema = ctk.StringVar(value="Claro" if tema_atual == 1 else "Escuro")
+        # tema == 1 → Dark ("Escuro"), tema == 0 → Light ("Claro")
+        self._var_tema = ctk.StringVar(value="Escuro" if tema_atual == 1 else "Claro")
         ctk.CTkOptionMenu(
-            frame_tema, variable=self._var_tema, values=["Escuro", "Claro"], width=150, font=ctk.CTkFont(size=13)
-        ).pack(side="left", padx=10)
-
-        ctk.CTkLabel(
-            frame_tema, text="⚠️ Reinicie o app para aplicar.", font=ctk.CTkFont(size=11), text_color="#ff9800"
+            frame_tema, variable=self._var_tema, values=["Claro", "Escuro"], width=150, font=ctk.CTkFont(size=13)
         ).pack(side="left", padx=10)
 
         # === Botão Salvar ===
@@ -148,11 +149,14 @@ class TelaConfig(TelaBase):
             self.mostrar_erro("Alerta deve ser entre 1 e 365 dias.")
             return
 
-        tema_val = 1 if self._var_tema.get() == "Claro" else 0
+        tema_val = 1 if self._var_tema.get() == "Escuro" else 0
 
         self.core.set_config("validade_meses", validade, self.username)
         self.core.set_config("alerta_dias", alerta, self.username)
         self.core.set_config("tema", tema_val, self.username)
+
+        # Aplica o tema imediatamente (sem precisar reiniciar)
+        ctk.set_appearance_mode("Dark" if tema_val == 1 else "Light")
 
         self.mostrar_sucesso("Configurações salvas!")
 
@@ -243,10 +247,15 @@ class TelaConfig(TelaBase):
 
         # Tabela de usuários
         colunas = [
-            ("username", 160),
-            ("is_admin", 80),
-            ("can_change_dates", 140),
-            ("can_manage_products", 160),
+            ("username", 130),
+            ("is_admin", 70),
+            ("can_change_dates", 110),
+            ("can_manage_products", 120),
+            ("hospedes", 80),
+            ("financeiro", 80),
+            ("compras", 80),
+            ("dashboard", 85),
+            ("relatorios", 85),
         ]
         self._tree_users, _ = self.criar_tabela(aba, colunas)
         self._tree_users.bind("<Double-1>", lambda e: self._ao_clicar_usuario())
@@ -265,6 +274,9 @@ class TelaConfig(TelaBase):
         for item in self._tree_users.get_children():
             self._tree_users.delete(item)
 
+        def _check(val, default=1):
+            return "✅" if val else "—"
+
         for user in self.core.get_usuarios():
             self._tree_users.insert(
                 "",
@@ -272,9 +284,14 @@ class TelaConfig(TelaBase):
                 iid=user["username"],
                 values=(
                     user["username"],
-                    "✅ Admin" if user["is_admin"] else "—",
-                    "✅ Sim" if user.get("can_change_dates") else "—",
-                    "✅ Sim" if user.get("can_manage_products") else "—",
+                    "✅" if user["is_admin"] else "—",
+                    _check(user.get("can_change_dates")),
+                    _check(user.get("can_manage_products")),
+                    _check(user.get("can_access_hospedes", 1)),
+                    _check(user.get("can_access_financeiro", 1)),
+                    _check(user.get("can_access_compras", 1)),
+                    _check(user.get("can_access_dash", 1)),
+                    _check(user.get("can_access_relatorios", 1)),
                 ),
             )
 
@@ -288,46 +305,85 @@ class TelaConfig(TelaBase):
         modo_edicao = username is not None
         titulo = f"Editar Usuário: {username}" if modo_edicao else "Novo Usuário"
 
+        # Dados do usuário existente (para pré-preencher checkboxes)
+        dados_existentes: dict = {}
+        if modo_edicao:
+            for u in self.core.get_usuarios():
+                if u["username"] == username:
+                    dados_existentes = u
+                    break
+
         janela = ctk.CTkToplevel(self.master)
         janela.title(titulo)
-        janela.geometry("420x340")
-        janela.grab_set()
+        janela.geometry("420x520")
+        janela.transient(self.master)
+        janela.lift()
+        janela.after(100, lambda: [janela.grab_set(), janela.focus_force()])
 
-        frame = ctk.CTkFrame(janela)
-        frame.pack(fill="both", expand=True, padx=20, pady=20)
-        frame.columnconfigure(1, weight=1)
+        scroll = ctk.CTkScrollableFrame(janela)
+        scroll.pack(fill="both", expand=True, padx=10, pady=10)
+        scroll.columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(frame, text="Usuário:", anchor="w").grid(row=0, column=0, padx=10, pady=8, sticky="w")
-        entry_user = ctk.CTkEntry(frame, width=200)
+        ctk.CTkLabel(scroll, text="Usuário:", anchor="w").grid(row=0, column=0, padx=10, pady=8, sticky="w")
+        entry_user = ctk.CTkEntry(scroll, width=200)
         entry_user.grid(row=0, column=1, padx=10, pady=8)
 
-        ctk.CTkLabel(frame, text="Senha:", anchor="w").grid(row=1, column=0, padx=10, pady=8, sticky="w")
-        entry_senha = ctk.CTkEntry(frame, width=200, show="*")
+        ctk.CTkLabel(scroll, text="Senha:", anchor="w").grid(row=1, column=0, padx=10, pady=8, sticky="w")
+        entry_senha = ctk.CTkEntry(scroll, width=200, show="*")
         entry_senha.grid(row=1, column=1, padx=10, pady=8)
 
         if modo_edicao:
             entry_user.insert(0, username)
             entry_user.configure(state="disabled")
-            ctk.CTkLabel(
-                frame, text="(deixe em branco para manter)", font=ctk.CTkFont(size=11), text_color="#aaaaaa"
-            ).grid(row=1, column=2, padx=5, sticky="w")
+            ctk.CTkLabel(scroll, text="(em branco = manter)", font=ctk.CTkFont(size=11), text_color="#aaaaaa").grid(
+                row=1, column=2, padx=5, sticky="w"
+            )
 
-        # Checkboxes de permissões
-        var_admin = ctk.BooleanVar()
-        var_datas = ctk.BooleanVar()
-        var_produtos = ctk.BooleanVar()
-
-        ctk.CTkCheckBox(frame, text="Administrador", variable=var_admin).grid(
-            row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w"
-        )
-        ctk.CTkCheckBox(frame, text="Pode alterar datas", variable=var_datas).grid(
-            row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w"
-        )
-        ctk.CTkCheckBox(frame, text="Pode gerenciar produtos", variable=var_produtos).grid(
-            row=4, column=0, columnspan=2, padx=10, pady=5, sticky="w"
+        # === Permissões gerais ===
+        ctk.CTkLabel(scroll, text="Permissões:", anchor="w", font=ctk.CTkFont(size=12, weight="bold")).grid(
+            row=2, column=0, columnspan=2, padx=10, pady=(12, 2), sticky="w"
         )
 
-        # Frame de botões com botão de excluir (se edição)
+        var_admin = ctk.BooleanVar(value=bool(dados_existentes.get("is_admin", 0)))
+        var_datas = ctk.BooleanVar(value=bool(dados_existentes.get("can_change_dates", 0)))
+        var_produtos = ctk.BooleanVar(value=bool(dados_existentes.get("can_manage_products", 0)))
+
+        ctk.CTkCheckBox(scroll, text="Administrador", variable=var_admin).grid(
+            row=3, column=0, columnspan=2, padx=10, pady=4, sticky="w"
+        )
+        ctk.CTkCheckBox(scroll, text="Pode alterar datas", variable=var_datas).grid(
+            row=4, column=0, columnspan=2, padx=10, pady=4, sticky="w"
+        )
+        ctk.CTkCheckBox(scroll, text="Pode gerenciar produtos", variable=var_produtos).grid(
+            row=5, column=0, columnspan=2, padx=10, pady=4, sticky="w"
+        )
+
+        # === Acesso a módulos ===
+        ctk.CTkLabel(scroll, text="Acesso a módulos:", anchor="w", font=ctk.CTkFont(size=12, weight="bold")).grid(
+            row=6, column=0, columnspan=2, padx=10, pady=(12, 2), sticky="w"
+        )
+
+        modulos_vars = {
+            "can_access_hospedes": ctk.BooleanVar(value=bool(dados_existentes.get("can_access_hospedes", 1))),
+            "can_access_financeiro": ctk.BooleanVar(value=bool(dados_existentes.get("can_access_financeiro", 1))),
+            "can_access_compras": ctk.BooleanVar(value=bool(dados_existentes.get("can_access_compras", 1))),
+            "can_access_dash": ctk.BooleanVar(value=bool(dados_existentes.get("can_access_dash", 1))),
+            "can_access_relatorios": ctk.BooleanVar(value=bool(dados_existentes.get("can_access_relatorios", 1))),
+        }
+        modulos_labels = {
+            "can_access_hospedes": "👥 Hóspedes",
+            "can_access_financeiro": "💰 Financeiro",
+            "can_access_compras": "🛒 Compras",
+            "can_access_dash": "📊 Dashboard",
+            "can_access_relatorios": "📄 Relatórios",
+        }
+
+        for row_idx, (key, var) in enumerate(modulos_vars.items(), start=7):
+            ctk.CTkCheckBox(scroll, text=modulos_labels[key], variable=var).grid(
+                row=row_idx, column=0, columnspan=2, padx=10, pady=4, sticky="w"
+            )
+
+        # Frame de botões
         frame_btns = ctk.CTkFrame(janela, fg_color="transparent")
         frame_btns.pack(fill="x", padx=20, pady=(0, 15))
 
@@ -340,12 +396,21 @@ class TelaConfig(TelaBase):
             if not modo_edicao and not senha:
                 messagebox.showerror("Obrigatório", "Senha é obrigatória para novos usuários.", parent=janela)
                 return
-            # Se editando sem senha, mantém a existente (implementação simplificada)
             if modo_edicao and not senha:
                 messagebox.showinfo("Info", "Senha não alterada.", parent=janela)
             else:
                 self.core.salvar_usuario(
-                    user, senha, var_admin.get(), var_datas.get(), var_produtos.get(), self.username
+                    user,
+                    senha,
+                    var_admin.get(),
+                    var_datas.get(),
+                    var_produtos.get(),
+                    modulos_vars["can_access_hospedes"].get(),
+                    modulos_vars["can_access_financeiro"].get(),
+                    modulos_vars["can_access_compras"].get(),
+                    modulos_vars["can_access_dash"].get(),
+                    modulos_vars["can_access_relatorios"].get(),
+                    self.username,
                 )
             janela.destroy()
             self._carregar_usuarios()
@@ -469,32 +534,118 @@ class TelaConfig(TelaBase):
             self.mostrar_erro(f"Erro: {e}")
 
     # =========================================================================
-    # ABA AUDITORIA (só admin)
+    # ABA PRODUTOS
     # =========================================================================
 
-    def _montar_aba_logs(self, aba: ctk.CTkFrame):
-        """Exibe o log de auditoria das ações do sistema."""
+    def _montar_aba_produtos(self, aba: ctk.CTkFrame):
+        """Gerenciamento dos produtos predefinidos (catálogo para compras)."""
+        can_manage = self.is_admin or bool(self.usuario.get("can_manage_products", 0))
 
+        frame_acoes = ctk.CTkFrame(aba, fg_color="transparent")
+        frame_acoes.pack(fill="x", padx=10, pady=10)
+
+        self._entry_novo_prod = ctk.CTkEntry(
+            frame_acoes, placeholder_text="Novo produto...", width=220, font=ctk.CTkFont(size=13)
+        )
+        self._entry_novo_prod.pack(side="left", padx=(0, 10))
+
+        if can_manage:
+            ctk.CTkButton(
+                frame_acoes, text="+ Adicionar", command=self._adicionar_produto, width=120, font=ctk.CTkFont(size=13)
+            ).pack(side="left")
+        else:
+            ctk.CTkLabel(
+                frame_acoes,
+                text="Somente leitura — você não tem permissão para gerenciar produtos.",
+                font=ctk.CTkFont(size=11),
+                text_color=self.colors.get("text_secondary", "#aaaaaa"),
+            ).pack(side="left", padx=10)
+
+        frame_lista = ctk.CTkScrollableFrame(aba, fg_color="transparent")
+        frame_lista.pack(fill="both", expand=True, padx=10)
+        self._frame_lista_prods = frame_lista
+
+        self._can_manage_produtos = can_manage
+        self._carregar_produtos()
+
+    def _carregar_produtos(self):
+        for widget in self._frame_lista_prods.winfo_children():
+            widget.destroy()
+
+        produtos = self.core.get_produtos_predefinidos()
+        if not produtos:
+            ctk.CTkLabel(self._frame_lista_prods, text="Nenhum produto cadastrado.", text_color="#aaaaaa").pack(pady=20)
+            return
+
+        for prod in produtos:
+            linha = ctk.CTkFrame(
+                self._frame_lista_prods, fg_color=self.colors.get("bg_secondary", "#2b2b2b"), corner_radius=6
+            )
+            linha.pack(fill="x", pady=2)
+            ctk.CTkLabel(linha, text=prod, font=ctk.CTkFont(size=13), anchor="w").pack(side="left", padx=15, pady=8)
+            if self._can_manage_produtos:
+                ctk.CTkButton(
+                    linha,
+                    text="✕",
+                    command=lambda p=prod: self._remover_produto(p),
+                    width=32,
+                    height=28,
+                    fg_color="#c62828",
+                    hover_color="#8e0000",
+                    font=ctk.CTkFont(size=12),
+                ).pack(side="right", padx=8, pady=4)
+
+    def _adicionar_produto(self):
+        nome = self._entry_novo_prod.get().strip()
+        if not nome:
+            return
+        self.core.adicionar_produto_predefinido(nome)
+        self._entry_novo_prod.delete(0, "end")
+        self._carregar_produtos()
+
+    def _remover_produto(self, nome: str):
+        if self.confirmar(f"Remover produto '{nome}'?"):
+            self.core.remover_produto_predefinido(nome)
+            self._carregar_produtos()
+
+    # =========================================================================
+    # ABA NOTIFICAÇÕES
+    # =========================================================================
+
+    def _montar_aba_notificacoes(self, aba: ctk.CTkFrame):
+        """Logs de auditoria e arquivos de diagnóstico (visível a todos)."""
         frame_topo = ctk.CTkFrame(aba, fg_color="transparent")
         frame_topo.pack(fill="x", padx=10, pady=10)
 
         ctk.CTkLabel(frame_topo, text="Últimas 100 ações do sistema", font=ctk.CTkFont(size=13)).pack(side="left")
 
-        ctk.CTkButton(
-            frame_topo,
-            text="🗑️ Limpar Logs",
-            command=self._limpar_logs,
-            width=130,
-            fg_color="#c62828",
-            hover_color="#8e0000",
-            font=ctk.CTkFont(size=12),
-        ).pack(side="right", padx=5)
+        if self._logger:
+            ctk.CTkButton(
+                frame_topo,
+                text="📋 Exportar Diagnóstico",
+                command=self._exportar_diagnostico,
+                width=180,
+                fg_color="#0d9488",
+                hover_color="#0f766e",
+                font=ctk.CTkFont(size=12),
+            ).pack(side="right", padx=5)
+
+        if self.is_admin:
+            ctk.CTkButton(
+                frame_topo,
+                text="🗑️ Limpar Logs",
+                command=self._limpar_logs,
+                width=130,
+                fg_color="#c62828",
+                hover_color="#8e0000",
+                font=ctk.CTkFont(size=12),
+            ).pack(side="right", padx=5)
 
         ctk.CTkButton(
             frame_topo,
             text="🔄 Recarregar",
-            command=lambda: self._carregar_logs(),
-            width=120,
+            command=self._carregar_logs,
+            width=110,
             fg_color="#4a4a4a",
             hover_color="#333333",
             font=ctk.CTkFont(size=12),
@@ -509,6 +660,26 @@ class TelaConfig(TelaBase):
         ]
         self._tree_logs, _ = self.criar_tabela(aba, colunas)
         self._carregar_logs()
+
+        # Arquivos de log (se logger disponível)
+        if self._logger and hasattr(self._logger, "log_dir"):
+            log_dir: Path = self._logger.log_dir
+            if log_dir.exists():
+                log_files = sorted(log_dir.glob("*.log"), reverse=True)[:5]
+                if log_files:
+                    ctk.CTkLabel(
+                        aba,
+                        text=f"📁 Arquivos de log recentes ({log_dir})",
+                        font=ctk.CTkFont(size=11),
+                        text_color=self.colors.get("text_secondary", "#aaaaaa"),
+                    ).pack(anchor="w", padx=12, pady=(4, 2))
+                    for f in log_files:
+                        ctk.CTkLabel(
+                            aba,
+                            text=f"  • {f.name}  ({f.stat().st_size / 1024:.1f} KB)",
+                            font=ctk.CTkFont(size=11),
+                            text_color=self.colors.get("text_secondary", "#aaaaaa"),
+                        ).pack(anchor="w", padx=20)
 
     def _carregar_logs(self):
         for item in self._tree_logs.get_children():
@@ -525,6 +696,13 @@ class TelaConfig(TelaBase):
             self.core.limpar_logs_auditoria(self.username)
             self._carregar_logs()
             self.mostrar_sucesso("Logs limpos.")
+
+    def _exportar_diagnostico(self):
+        try:
+            caminho = self._logger.exportar_diagnostico()
+            self.mostrar_sucesso(f"Diagnóstico exportado:\n{caminho}")
+        except Exception as e:
+            self.mostrar_erro(f"Erro ao exportar diagnóstico:\n{e}")
 
     # =========================================================================
     # ABA SOBRE

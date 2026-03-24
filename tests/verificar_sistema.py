@@ -131,7 +131,7 @@ checar("from core.models import SistemaCreditos", _imp_models)  # noqa: E402
 
 
 def _imp_version():
-    from __version__ import VERSION  # noqa: E402
+    from __version__ import __version__ as VERSION  # noqa: E402
 
     assert VERSION
 
@@ -845,7 +845,7 @@ checar("Adicionar e remover categoria", _add_remove_categoria)
 def _log_auditoria():
     s = novo_sistema()
     s.registrar_log("admin", "ACAO_TESTE", "Detalhe aqui")
-    assert any(l["acao"] == "ACAO_TESTE" for lista in s.get_logs()), "Log ACAO_TESTE não encontrado"  # noqa: F821
+    assert any(log["acao"] == "ACAO_TESTE" for log in s.get_logs()), "Log ACAO_TESTE não encontrado"
 
 
 checar("registrar_log e get_logs funcionam", _log_auditoria)
@@ -856,7 +856,7 @@ def _limpar_logs():
     s.registrar_log("admin", "ACAO1", "")
     s.registrar_log("admin", "ACAO2", "")
     s.limpar_logs_auditoria("admin")
-    restantes = [l for lista in s.get_logs() if l["acao"] != "LIMPEZA_LOGS"]  # noqa: F821
+    restantes = [log for log in s.get_logs() if log["acao"] != "LIMPEZA_LOGS"]
     assert len(restantes) == 0, f"Sobrou {len(restantes)} log(s) inesperado(s)"
 
 
@@ -997,7 +997,7 @@ checar("app_gui.py: importa 'core.database' e 'core.models'", _app_gui_imports_n
 def _app_gui_sem_import_antigo():
     source = _abrir_source()
     # Filtra linhas de comentário para evitar falsos positivos na documentação
-    linhas_codigo = [l for lista in source.splitlines() if not l.strip().startswith("#")]  # noqa: F821
+    linhas_codigo = [linha for linha in source.splitlines() if not linha.strip().startswith("#")]
     codigo = "\n".join(linhas_codigo)
     assert (
         "from sistema_clientes import" not in codigo
@@ -1010,7 +1010,7 @@ checar("app_gui.py: import de 'sistema_clientes' removido", _app_gui_sem_import_
 def _app_gui_backup_correto():
     source = _abrir_source()
     # Filtra linhas de comentário para evitar falsos positivos na documentação
-    linhas_codigo = [l for lista in source.splitlines() if not l.strip().startswith("#")]  # noqa: F821
+    linhas_codigo = [linha for linha in source.splitlines() if not linha.strip().startswith("#")]
     codigo = "\n".join(linhas_codigo)
     assert (
         "self.core.fazer_backup()" not in codigo
@@ -1073,3 +1073,14 @@ print(f"{'═'*62}\n")
 
 if __name__ == "__main__":
     sys.exit(0 if _falhou == 0 else 1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTEGRAÇÃO COM PYTEST
+# Quando pytest coleta este arquivo, executa um único teste que reporta
+# todas as 88+ verificações como aprovadas ou falhas.
+# ─────────────────────────────────────────────────────────────────────────────
+def test_todas_as_verificacoes_passam():
+    """Garante que todos os checar() acima não retornaram falha."""
+    erros_fmt = "\n".join(f"[{sec}] {teste}: {motivo[:120]}" for sec, teste, motivo in _erros)
+    assert _falhou == 0, f"{_falhou} verificação(ões) falharam:\n{erros_fmt}"

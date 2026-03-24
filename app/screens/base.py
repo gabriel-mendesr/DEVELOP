@@ -72,6 +72,10 @@ class TelaBase:
         self.username = usuario.get("username", "Sistema")
         self.is_admin = bool(usuario.get("is_admin", 0))
 
+        # Callback opcional para o botão "← Voltar".
+        # Definido pelo app_gui.py antes de chamar renderizar().
+        self.on_back: Callable[..., None] | None = None
+
     # =========================================================================
     # UTILITÁRIOS DE INTERFACE — usados pelas telas filhas
     # =========================================================================
@@ -259,6 +263,18 @@ class TelaBase:
         """
         frame_header = ctk.CTkFrame(self.master, fg_color=self.colors.get("bg_secondary", "#2b2b2b"), corner_radius=10)
         frame_header.pack(fill="x", padx=15, pady=(15, 5))
+
+        if self.on_back is not None:
+            ctk.CTkButton(
+                frame_header,
+                text="← Voltar",
+                command=self.on_back,
+                width=90,
+                height=30,
+                fg_color="#334155",
+                hover_color="#475569",
+                font=ctk.CTkFont(size=12),
+            ).pack(side="right", padx=12, pady=8)
 
         ctk.CTkLabel(
             frame_header,

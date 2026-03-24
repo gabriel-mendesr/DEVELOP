@@ -163,6 +163,18 @@ MIGRATIONS = [
         "CREATE INDEX IF NOT EXISTS idx_compras_prod ON compras(produto)",
         "CREATE INDEX IF NOT EXISTS idx_produtos_nome ON produtos(nome)",
     ],
+    # -------------------------------------------------------------------------
+    # Versão 8: Controle de acesso por módulo
+    # Permite que o admin defina quais módulos cada usuário pode acessar.
+    # DEFAULT 1 = acesso liberado, para não quebrar usuários existentes.
+    # -------------------------------------------------------------------------
+    [
+        "ALTER TABLE usuarios ADD COLUMN can_access_hospedes INTEGER DEFAULT 1",
+        "ALTER TABLE usuarios ADD COLUMN can_access_financeiro INTEGER DEFAULT 1",
+        "ALTER TABLE usuarios ADD COLUMN can_access_compras INTEGER DEFAULT 1",
+        "ALTER TABLE usuarios ADD COLUMN can_access_dash INTEGER DEFAULT 1",
+        "ALTER TABLE usuarios ADD COLUMN can_access_relatorios INTEGER DEFAULT 1",
+    ],
 ]
 
 

@@ -116,18 +116,26 @@ class TelaHospedes(TelaBase):
             font=ctk.CTkFont(size=13),
         ).pack(side="left", padx=5, pady=10)
 
-        # Seletor de filtro
-        ctk.CTkLabel(frame, text="Filtro:", font=ctk.CTkFont(size=13)).pack(side="left", padx=(20, 5))
-
+        # Botões de filtro (substituem o OptionMenu para suportar todos os filtros do core)
         self._var_filtro = ctk.StringVar(value="todos")
-        ctk.CTkOptionMenu(
-            frame,
-            variable=self._var_filtro,
-            values=["todos", "com saldo", "vencidos"],
-            command=lambda _: self._atualizar_lista(),
-            width=130,
-            font=ctk.CTkFont(size=13),
-        ).pack(side="left", padx=5)
+        filtros = [
+            ("Todos", "todos"),
+            ("⚠️ Vencendo", "vencendo"),
+            ("🔴 Vencidos", "vencidos"),
+            ("💸 Com Multa", "com_multa"),
+        ]
+        filtros_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        filtros_frame.pack(side="left", padx=10)
+        for label, valor in filtros:
+            ctk.CTkButton(
+                filtros_frame,
+                text=label,
+                height=28,
+                width=105,
+                font=ctk.CTkFont(size=11),
+                fg_color=self.colors.get("accent", "#1f6aa5") if self._var_filtro.get() == valor else "#555",
+                command=lambda v=valor: self._set_filtro(v),
+            ).pack(side="left", padx=2)
 
         # Contador de resultados (atualizado pela _atualizar_lista)
         self._lbl_contador = ctk.CTkLabel(
@@ -175,9 +183,14 @@ class TelaHospedes(TelaBase):
         termo = self._var_busca.get().strip()
         filtro = self._var_filtro.get()
 
-        # Mapeia o texto do filtro para o valor que o core espera
-        # "com saldo" → "ativo", "todos" → "todos", etc.
-        filtro_core = {"todos": "todos", "com saldo": "ativo", "vencidos": "vencidos"}.get(filtro, "todos")
+        # Mapeia o valor do filtro para o que o core espera
+        filtro_core = {
+            "todos": "todos",
+            "com saldo": "ativo",
+            "vencidos": "vencidos",
+            "vencendo": "vencendo",
+            "com_multa": "com_multa",
+        }.get(filtro, "todos")
 
         # Busca no banco via core (não acessa o banco diretamente!)
         hospedes = self.core.buscar_filtrado(termo, filtro_core)
@@ -274,8 +287,9 @@ class TelaHospedes(TelaBase):
         janela = ctk.CTkToplevel(self.master)
         janela.title(titulo)
         janela.geometry("420x320")
-        janela.grab_set()  # Bloqueia a janela principal
-        janela.focus_set()  # Coloca o foco nesta janela
+        janela.transient(self.master)
+        janela.lift()
+        janela.after(100, lambda: [janela.grab_set(), janela.focus_force()])
 
         # Frame do formulário
         frame = ctk.CTkFrame(janela)
@@ -369,7 +383,9 @@ class TelaHospedes(TelaBase):
         janela = ctk.CTkToplevel(self.master)
         janela.title(f"Ficha — {hospede['nome']}")
         janela.geometry("800x600")
-        janela.grab_set()
+        janela.transient(self.master)
+        janela.lift()
+        janela.after(100, lambda: [janela.grab_set(), janela.focus_force()])
 
         # === Cabeçalho com resumo ===
         frame_topo = ctk.CTkFrame(janela, fg_color=self.colors.get("bg_secondary", "#2b2b2b"))
@@ -544,6 +560,19 @@ class TelaHospedes(TelaBase):
             # self.core.excluir_hospede(doc, self.username)
             self.mostrar_sucesso(f"Hóspede '{nome}' excluído.")
             self._atualizar_lista()
+
+    def _set_filtro(self, valor: str) -> None:
+        """Altera o filtro ativo e atualiza a lista."""
+        self._var_filtro.set(valor)
+        self._atualizar_lista()
+
+    def set_busca(self, termo: str) -> None:
+        """
+        Preenche o campo de busca programaticamente.
+        Usado pelo app_gui.py quando a busca global da sidebar dispara.
+        """
+        self._var_busca.set(termo)
+        # _atualizar_lista() é chamada automaticamente pelo trace no StringVar
 
     def _exportar_csv(self):
         """Exporta a lista atual como CSV."""

@@ -3,8 +3,9 @@ import sys
 import threading
 import traceback
 import webbrowser
+from collections.abc import Callable
 from datetime import datetime
-from tkinter import Listbox, filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 from urllib.parse import quote
 
 import customtkinter as ctk
@@ -22,8 +23,13 @@ import customtkinter as ctk
 # O Database precisa ser criado ANTES do SistemaCreditos (veja __init__).
 from core.database import Database
 from core.models import SistemaCreditos
-
-# from logger_system import LoggerSystem
+from logger_system import LoggerSystem
+from screens.compras import TelaCompras
+from screens.config import TelaConfig
+from screens.dashboard import TelaDashboard
+from screens.financeiro import TelaFinanceiro
+from screens.hospedes import TelaHospedes
+from screens.relatorios import TelaRelatorios
 from update_manager import UpdateManager
 
 try:
@@ -44,13 +50,18 @@ class AppHotelLTS(ctk.CTk):
 
         # --- Declaração de Atributos de Instância para Type Hinting ---
         self.core: SistemaCreditos
+        self.logger: LoggerSystem
         self.update_manager: UpdateManager
         self.colors: dict[str, str]
         self.current_user: dict | None = None
         self.search_job: str | None = None
-        self.current_screen_function: callable | None = None
+        self.current_screen_function: Callable[..., None] | None = None
         self.current_screen_args: tuple = ()
         self.current_screen_kwargs: dict = {}
+        # Tela anterior — usada pelo botão "← Voltar"
+        self._prev_screen_fn: Callable[..., None] | None = None
+        self._prev_screen_args: tuple = ()
+        self._prev_screen_kwargs: dict = {}
 
         # Widgets da UI principal
         self.sidebar: ctk.CTkFrame
@@ -59,37 +70,11 @@ class AppHotelLTS(ctk.CTk):
         self.btn_sair: ctk.CTkButton
         self.ent_busca_global: ctk.CTkEntry
 
-        # Widgets da tela de Hóspedes
-        self.ent_busca: ctk.CTkEntry
-        self.tree_h: ttk.Treeview
-        self.menu_hospede: ctk.CTkFrame
-
-        # Widgets da tela de Histórico
+        # Widgets da tela de Histórico (não migrada para screens/ ainda)
         self.tree_z: ttk.Treeview
 
-        # Widgets da tela Financeiro
-        self.ent_busca_lanc: ctk.CTkEntry
-        self.ent_data_inicio_lanc: ctk.CTkEntry
-        self.ent_data_fim_lanc: ctk.CTkEntry
-        self.tree_l: ttk.Treeview
-        self.menu_lanc: ctk.CTkFrame
-
-        # Widgets da tela de Compras
-        self.tree_listas: ttk.Treeview
-        self.frame_detalhes: ctk.CTkFrame
-        self.lbl_titulo_lista: ctk.CTkLabel
-        self.frame_acoes_lista: ctk.CTkFrame
-        self.btn_fechar_lista: ctk.CTkButton
-        self.btn_imprimir_lista: ctk.CTkButton
-        self.frame_add_item: ctk.CTkFrame
-        self.lista_produtos_cache: list[str] = []
-        self.e_prod_compras: ctk.CTkEntry
-        self.lb_sugestoes: Listbox
-        self.e_qtd_compras: ctk.CTkEntry
-        self.e_val_compras: ctk.CTkEntry
-        self.tree_itens: ttk.Treeview
-        self.lista_selecionada_id: int | None = None
-        self.lista_selecionada_status: str | None = None
+        # Instâncias de telas migradas (screens/)
+        self._tela_hospedes: TelaHospedes
 
         # Widgets da tela de Agenda
         # cal_agenda é o widget de calendário — guardado como atributo para
@@ -115,10 +100,21 @@ class AppHotelLTS(ctk.CTk):
         #   - Separa responsabilidades: Database cuida do banco, SistemaCreditos cuida da lógica
         db = Database()
         self.core = SistemaCreditos(db)
+        self.logger = LoggerSystem()
         # =======================================================================
 
         self.update_manager = UpdateManager()
         saved_theme = self.core.get_config("tema")
+
+        # Aplicar tema ttk ANTES do ctk para evitar que theme_use("clam") dentro de
+        # setup_custom_styles() seja chamado depois de ctk já ter configurado seus estilos,
+        # o que resetaria o Treeview para branco ao reiniciar no modo escuro.
+        _style = ttk.Style()
+        try:
+            _style.theme_use("clam")
+        except Exception:
+            pass
+
         ctk.set_appearance_mode("Dark" if saved_theme == 1 else "Light")
         ctk.set_default_color_theme("green")
 
@@ -131,7 +127,7 @@ class AppHotelLTS(ctk.CTk):
 
             if platform.system() == "Windows":
                 self.state("zoomed")
-        except:
+        except Exception:
             pass
 
         # --- PALETA DE CORES FOSCAS (MATTE) & SINGULARES ---
@@ -152,10 +148,18 @@ class AppHotelLTS(ctk.CTk):
             "ajustes": "#0d9488",
             "ajustes_hover": "#0f766e",
             "branco": "#f8fafc",
+            "relatorios": "#7b1fa2",
+            "relatorios_hover": "#6a1090",
+            "notificacoes": "#0369a1",
+            "notificacoes_hover": "#075985",
             "sidebar_bg": "#1e293b",
             "sidebar_txt": "#e2e8f0",
         }
-        self.setup_custom_styles()
+        # Adia setup_custom_styles() para depois do mainloop iniciar — garante que
+        # o tema ctk já esteja totalmente aplicado antes de configurar os estilos ttk.
+        self.after(1, self.setup_custom_styles)
+        # Reaplica estilos ttk automaticamente sempre que o tema mudar (Dark ↔ Light)
+        ctk.AppearanceModeTracker.add(self.setup_custom_styles)
 
         try:
             self.iconbitmap(resource_path("app.ico"))
@@ -176,41 +180,11 @@ class AppHotelLTS(ctk.CTk):
         ctk.CTkButton(
             self.sidebar, text="🏠 Home", command=self.tela_home, hover_color=self.colors["ajustes_hover"], **btn_opts
         ).pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(
-            self.sidebar,
-            text="👥 Hóspedes",
-            command=self.tela_hospedes,
-            hover_color=self.colors["hospedes_hover"],
-            **btn_opts,
-        ).pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(
-            self.sidebar,
-            text="💰 Financeiro",
-            command=self.tela_financeiro,
-            hover_color=self.colors["financeiro_hover"],
-            **btn_opts,
-        ).pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(
-            self.sidebar,
-            text="🛒 Compras",
-            command=self.tela_compras,
-            hover_color=self.colors["compras_hover"],
-            **btn_opts,
-        ).pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(
-            self.sidebar,
-            text="📊 Dashboard",
-            command=self.tela_dash,
-            hover_color=self.colors["dashboard_hover"],
-            **btn_opts,
-        ).pack(pady=5, fill="x", padx=10)
-        ctk.CTkButton(
-            self.sidebar,
-            text="⚙️ Ajustes",
-            command=self.tela_config,
-            hover_color=self.colors["ajustes_hover"],
-            **btn_opts,
-        ).pack(pady=5, fill="x", padx=10)
+
+        # Frame que conterá os botões de módulo — reconstruído após o login
+        # para refletir as permissões do usuário logado.
+        self.frame_sidebar_modulos = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        self.frame_sidebar_modulos.pack(fill="x")
 
         ctk.CTkFrame(self.sidebar, height=1, fg_color="#334155").pack(fill="x", padx=10, pady=5)
 
@@ -251,12 +225,14 @@ class AppHotelLTS(ctk.CTk):
     # =========================================================================
     def setup_custom_styles(self) -> None:
         style = ttk.Style()
-        try:
-            style.theme_use("clam")
-        except:
-            pass
 
         is_dark = ctk.get_appearance_mode() == "Dark"
+
+        # Atualiza as chaves de cor dependentes do tema; usadas por screens/base.py
+        self.colors["bg_secondary"] = "#1f2937" if is_dark else "#f1f5f9"
+        self.colors["text"] = "#f3f4f6" if is_dark else "#1f2937"
+        self.colors["text_secondary"] = "#9ca3af" if is_dark else "#6b7280"
+        self.colors["accent"] = "#1f6aa5"
 
         bg_color = "#1f2937" if is_dark else "#ffffff"
         fg_color = "#f3f4f6" if is_dark else "#1f2937"
@@ -264,13 +240,36 @@ class AppHotelLTS(ctk.CTk):
         header_bg = "#111827" if is_dark else "#e2e8f0"
         selected_fg = "#ffffff"
 
-        style.configure(
-            "Treeview", background=bg_color, fieldbackground=field_bg, foreground=fg_color, rowheight=35, borderwidth=0
-        )
-        style.configure(
-            "Treeview.Heading", background=header_bg, foreground=fg_color, relief="flat", font=("Arial", 11, "bold")
-        )
-        style.map("Treeview", background=[("selected", self.colors["ajustes"])], foreground=[("selected", selected_fg)])
+        for style_name in ("Treeview", "Hotel.Treeview"):
+            style.configure(
+                style_name,
+                background=bg_color,
+                fieldbackground=field_bg,
+                foreground=fg_color,
+                rowheight=35,
+                borderwidth=0,
+            )
+            style.configure(
+                f"{style_name}.Heading",
+                background=header_bg,
+                foreground=fg_color,
+                relief="flat",
+                font=("Arial", 11, "bold"),
+            )
+            style.map(
+                style_name,
+                background=[("selected", self.colors["ajustes"])],
+                foreground=[("selected", selected_fg)],
+            )
+
+        # Re-renderiza a tela atual para que as tabelas (Treeview) reflitam
+        # imediatamente o novo tema — sem isso, os widgets já renderizados
+        # não atualizam as cores automaticamente.
+        if self.current_user and self.current_screen_function:
+            try:
+                self.current_screen_function(*self.current_screen_args, **self.current_screen_kwargs)
+            except Exception:
+                pass
 
     def configurar_tags_tabela(self, tree: ttk.Treeview) -> None:
         """Aplica configurações de cores para linhas pares, ímpares e saídas, adaptando-se ao tema."""
@@ -294,6 +293,10 @@ class AppHotelLTS(ctk.CTk):
     def on_closing(self) -> None:
         """Encerra o processo de forma limpa"""
         try:
+            ctk.AppearanceModeTracker.remove(self.setup_custom_styles)
+        except Exception:
+            pass
+        try:
             # =======================================================================
             # MUDANÇA 3 DE 3 — BACKUP VIA db (NÃO MAIS VIA core)
             # =======================================================================
@@ -304,7 +307,7 @@ class AppHotelLTS(ctk.CTk):
             #   O SistemaCreditos expõe o banco como self.core.db, então:
             if hasattr(self, "core") and hasattr(self.core, "db"):
                 self.core.db.fazer_backup()
-        except:
+        except Exception:
             pass
         self.quit()
         self.destroy()
@@ -328,7 +331,7 @@ class AppHotelLTS(ctk.CTk):
     def _obter_cor_funcionario(self, nome_func: str) -> str:
         """Obtém ou cria cor para um funcionário"""
         if not hasattr(self, "cores_funcionarios"):
-            self.cores_funcionarios = {}
+            self.cores_funcionarios: dict[str, str] = {}
         if nome_func not in self.cores_funcionarios:
             cores = self._gerar_cores_funcionarios()
             idx = len(self.cores_funcionarios) % len(cores)
@@ -423,9 +426,7 @@ class AppHotelLTS(ctk.CTk):
         if not termo:
             return
         self.tela_hospedes()
-        self.ent_busca.delete(0, "end")
-        self.ent_busca.insert(0, termo)
-        self.atualizar_lista_hospedes("todos")
+        self._tela_hospedes.set_busca(termo)
 
     def _exportar_hospedes_csv(self) -> None:
         """Exporta lista de hóspedes para arquivo CSV escolhido pelo usuário."""
@@ -476,13 +477,13 @@ class AppHotelLTS(ctk.CTk):
         def _task():
             try:
                 if not getattr(sys, "frozen", False):
-                    print("INFO: Verificação de update pulada (rodando como script).")
+                    self.logger.log_info("Verificação de update pulada (rodando como script).")
                     return
                 tem_update, nova_versao, url = self.update_manager.verificar_atualizacao()
                 if tem_update:
                     self.after(0, self.mostrar_botao_update, nova_versao, url)
             except Exception as e:
-                print(f"Erro ao verificar atualização: {e}")
+                self.logger.log_erro(e, "verificar_atualizacao")
 
         threading.Thread(target=_task, daemon=True).start()
 
@@ -590,6 +591,7 @@ class AppHotelLTS(ctk.CTk):
                 self.main_frame.pack_forget()
                 self.sidebar.pack(side="left", fill="y")
                 self.main_frame.pack(side="right", fill="both", expand=True, padx=20, pady=20)
+                self._construir_botoes_sidebar_modulos()
                 self.tela_home()
                 self.after(500, self.notificar_vencimentos)
                 self.after(1000, self.fazer_backup_automatico)
@@ -610,6 +612,37 @@ class AppHotelLTS(ctk.CTk):
     # =========================================================================
     # 3. NAVEGAÇÃO PRINCIPAL
     # =========================================================================
+    def _construir_botoes_sidebar_modulos(self) -> None:
+        """Reconstrói os botões de módulo na sidebar conforme as permissões do usuário logado."""
+        for w in self.frame_sidebar_modulos.winfo_children():
+            w.destroy()
+
+        u = self.current_user or {}
+        is_admin = bool(u.get("is_admin", 0))
+        btn_opts = {"height": 40, "anchor": "w", "fg_color": "transparent", "text_color": self.colors["sidebar_txt"]}
+
+        # (texto, comando, hover_color, permission_key)
+        modulos = [
+            ("👥 Hóspedes", self.tela_hospedes, self.colors["hospedes_hover"], "can_access_hospedes"),
+            ("💰 Financeiro", self.tela_financeiro, self.colors["financeiro_hover"], "can_access_financeiro"),
+            ("🛒 Compras", self.tela_compras, self.colors["compras_hover"], "can_access_compras"),
+            ("📊 Dashboard", self.tela_dash, self.colors["dashboard_hover"], "can_access_dash"),
+            ("⚙️ Ajustes", self.tela_config, self.colors["ajustes_hover"], None),  # sempre visível
+            ("📄 Relatórios", self.tela_relatorios, self.colors["relatorios_hover"], "can_access_relatorios"),
+        ]
+
+        for texto, comando, hover, perm_key in modulos:
+            # Admin vê tudo; outros só veem se a permissão estiver habilitada (default=1)
+            if perm_key and not is_admin and not u.get(perm_key, 1):
+                continue
+            ctk.CTkButton(
+                self.frame_sidebar_modulos,
+                text=texto,
+                command=comando,
+                hover_color=hover,
+                **btn_opts,
+            ).pack(pady=5, fill="x", padx=10)
+
     def tela_home(self) -> None:
         self.current_screen_function = self.tela_home
         self.current_screen_args = ()
@@ -624,13 +657,45 @@ class AppHotelLTS(ctk.CTk):
         grid = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         grid.pack()
 
-        btns = [
-            ("👥 HÓSPEDES", self.tela_hospedes, (self.colors["hospedes"], self.colors["hospedes_hover"])),
-            ("💰 FINANCEIRO", self.tela_financeiro, (self.colors["financeiro"], self.colors["financeiro_hover"])),
-            ("🛒 COMPRAS", self.tela_compras, (self.colors["compras"], self.colors["compras_hover"])),
-            ("📊 DASHBOARD", self.tela_dash, (self.colors["dashboard"], self.colors["dashboard_hover"])),
-            ("⚙️ AJUSTES", self.tela_config, (self.colors["ajustes"], self.colors["ajustes_hover"])),
+        u = self.current_user or {}
+        is_admin = bool(u.get("is_admin", 0))
+
+        # (texto, comando, cores, permission_key)
+        todos_btns = [
+            (
+                "👥 HÓSPEDES",
+                self.tela_hospedes,
+                (self.colors["hospedes"], self.colors["hospedes_hover"]),
+                "can_access_hospedes",
+            ),
+            (
+                "💰 FINANCEIRO",
+                self.tela_financeiro,
+                (self.colors["financeiro"], self.colors["financeiro_hover"]),
+                "can_access_financeiro",
+            ),
+            (
+                "🛒 COMPRAS",
+                self.tela_compras,
+                (self.colors["compras"], self.colors["compras_hover"]),
+                "can_access_compras",
+            ),
+            (
+                "📊 DASHBOARD",
+                self.tela_dash,
+                (self.colors["dashboard"], self.colors["dashboard_hover"]),
+                "can_access_dash",
+            ),
+            ("⚙️ AJUSTES", self.tela_config, (self.colors["ajustes"], self.colors["ajustes_hover"]), None),
+            (
+                "📄 RELATÓRIOS",
+                self.tela_relatorios,
+                (self.colors["relatorios"], self.colors["relatorios_hover"]),
+                "can_access_relatorios",
+            ),
         ]
+
+        btns = [(t, c, col) for t, c, col, perm in todos_btns if perm is None or is_admin or u.get(perm, 1)]
 
         for i, (t, c, col) in enumerate(btns):
             ctk.CTkButton(grid, text=t, width=250, height=90, command=c, fg_color=col, font=("Arial", 14, "bold")).grid(
@@ -641,143 +706,19 @@ class AppHotelLTS(ctk.CTk):
     # 4. MÓDULO HÓSPEDES (Listagem e Busca)
     # =========================================================================
     def tela_hospedes(self, filtro: str = "todos") -> None:
-        self.current_screen_function = self.tela_hospedes
-        self.current_screen_args = ()
-        self.current_screen_kwargs = {"filtro": filtro}
+        self._set_tela(self.tela_hospedes, filtro=filtro)
         self.limpar_tela()
-        nav = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        nav.pack(fill="x", padx=10, pady=10)
-        ctk.CTkButton(nav, text="← Início", width=80, command=self.tela_home).pack(side="left")
-        ctk.CTkLabel(
-            nav, text="LISTAGEM DE HÓSPEDES", font=("Arial", 18, "bold"), text_color=self.colors["hospedes"]
-        ).pack(side="left", padx=20)
-        ctk.CTkButton(
-            nav,
-            text="+ Novo Hóspede",
-            width=120,
-            fg_color=self.colors["hospedes"],
-            hover_color=self.colors["hospedes_hover"],
-            command=self.janela_cadastro_hospede,
-        ).pack(side="right")
-
-        barra = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        barra.pack(fill="x", padx=15, pady=(5, 0))
-        self.ent_busca = ctk.CTkEntry(barra, placeholder_text="Pesquisar por nome ou documento...", width=400)
-        self.ent_busca.pack(side="left", pady=5)
-        self.ent_busca.bind("<KeyRelease>", lambda e: self.agendar_busca(filtro))
-
-        filtros_frame = ctk.CTkFrame(barra, fg_color="transparent")
-        filtros_frame.pack(side="left", padx=10)
-        btn_filtro_opts = {"height": 30, "width": 110, "font": ("Arial", 11)}
-        ctk.CTkButton(
-            filtros_frame,
-            text="Todos",
-            fg_color=self.colors["hospedes"] if filtro == "todos" else "gray",
-            command=lambda: self.tela_hospedes("todos"),
-            **btn_filtro_opts,
-        ).pack(side="left", padx=2)
-        ctk.CTkButton(
-            filtros_frame,
-            text="⚠️ Vencendo",
-            fg_color=self.colors["aviso"] if filtro == "vencendo" else "gray",
-            command=lambda: self.tela_hospedes("vencendo"),
-            **btn_filtro_opts,
-        ).pack(side="left", padx=2)
-        ctk.CTkButton(
-            filtros_frame,
-            text="🔴 Vencidos",
-            fg_color=self.colors["perigo"] if filtro == "vencidos" else "gray",
-            command=lambda: self.tela_hospedes("vencidos"),
-            **btn_filtro_opts,
-        ).pack(side="left", padx=2)
-        ctk.CTkButton(
-            filtros_frame,
-            text="💸 Com Multa",
-            fg_color=self.colors["aviso"] if filtro == "com_multa" else "gray",
-            command=lambda: self.tela_hospedes("com_multa"),
-            **btn_filtro_opts,
-        ).pack(side="left", padx=2)
-
-        ctk.CTkButton(
-            barra,
-            text="📥 Exportar CSV",
-            height=30,
-            width=120,
-            fg_color=self.colors["dashboard"],
-            command=self._exportar_hospedes_csv,
-        ).pack(side="right", padx=5)
-
-        self.tree_h = ttk.Treeview(self.main_frame, columns=("N", "D", "S"), show="headings")
-        for c, t in [("N", "Nome Completo"), ("D", "CPF ou CNPJ"), ("S", "Saldo Disponível (R$)")]:
-            self.tree_h.heading(c, text=t)
-            self.tree_h.column(c, anchor="center")
-        self.configurar_tags_tabela(self.tree_h)
-        self.tree_h.pack(expand=True, fill="both", padx=15, pady=10)
-        self.tree_h.bind("<Double-1>", self.preparar_historico)
-
-        self.menu_hospede = ctk.CTkFrame(self, width=150, height=100, border_width=1)
-        ctk.CTkButton(
-            self.menu_hospede,
-            text="Ver Histórico Financeiro",
-            command=self.preparar_historico,
-            fg_color="transparent",
-            text_color=ctk.ThemeManager.theme["CTkLabel"]["text_color"],
-            anchor="w",
-        ).pack(fill="x")
-        ctk.CTkButton(
-            self.menu_hospede,
-            text="Editar Cadastro",
-            command=self.preparar_edicao_hospede,
-            fg_color="transparent",
-            text_color=ctk.ThemeManager.theme["CTkLabel"]["text_color"],
-            anchor="w",
-        ).pack(fill="x")
-
-        def show_menu(event: object) -> None:
-            selection = self.tree_h.identify_row(event.y)
-            if selection:
-                self.tree_h.selection_set(selection)
-                self.menu_hospede.place(x=event.x_root - self.winfo_x(), y=event.y_root - self.winfo_y())
-                self.menu_hospede.lift()
-
-        self.tree_h.bind("<Button-3>", show_menu)
-        self.bind("<Button-1>", lambda e: self.menu_hospede.place_forget())
-        self.atualizar_lista_hospedes(filtro)
-
-    def agendar_busca(self, filtro: str) -> None:
-        """Aguarda 500ms após a última tecla antes de buscar (Debounce)"""
-        if self.search_job:
-            self.after_cancel(self.search_job)
-        self.search_job = self.after(500, lambda: self.atualizar_lista_hospedes(filtro))
-
-    def atualizar_lista_hospedes(self, filtro: str) -> None:
-        self.tree_h.delete(*self.tree_h.get_children())
-        for i, h in enumerate(self.core.buscar_filtrado(self.ent_busca.get(), filtro)):
-            tag = "odd" if i % 2 != 0 else "even"
-            self.tree_h.insert("", "end", iid=h[1], values=(h[0], h[1], f"{h[2]:.2f}"), tags=(tag,))
-
-    def preparar_historico(self, event: object | None = None) -> None:
-        self.menu_hospede.place_forget()
-        sel = self.tree_h.selection()
-        if sel:
-            doc = sel[0]
-            n = self.tree_h.item(doc)["values"][0]
-            self.tela_historico(n, str(doc))
-
-    def preparar_edicao_hospede(self, event: object | None = None) -> None:
-        self.menu_hospede.place_forget()
-        sel = self.tree_h.selection()
-        if sel:
-            doc = sel[0]
-            self.janela_cadastro_hospede(doc_to_edit=str(doc))
+        self._tela_hospedes = TelaHospedes(self.main_frame, self.core, self.current_user, self.colors)
+        self._tela_hospedes.on_back = self.voltar
+        self._tela_hospedes.renderizar()
+        if filtro != "todos":
+            self._tela_hospedes._set_filtro(filtro)
 
     # =========================================================================
     # 5. MÓDULO HISTÓRICO & FINANCEIRO (Detalhes do Cliente)
     # =========================================================================
     def tela_historico(self, nome: str, doc: str) -> None:
-        self.current_screen_function = self.tela_historico
-        self.current_screen_args = (nome, doc)
-        self.current_screen_kwargs = {}
+        self._set_tela(self.tela_historico, nome, doc)
         self.limpar_tela()
         self.main_frame.columnconfigure(0, weight=3)
         self.main_frame.columnconfigure(1, weight=1)
@@ -964,432 +905,44 @@ class AppHotelLTS(ctk.CTk):
 
         threading.Thread(target=_task, daemon=True).start()
 
+    def voltar(self) -> None:
+        """Navega para a tela anterior, ou para home se não houver anterior."""
+        if self._prev_screen_fn is not None:
+            fn, args, kwargs = self._prev_screen_fn, self._prev_screen_args, self._prev_screen_kwargs
+            self._prev_screen_fn = None
+            fn(*args, **kwargs)
+        else:
+            self.tela_home()
+
+    def _set_tela(self, fn: Callable[..., None], *args, **kwargs) -> None:
+        """Registra a tela atual como 'anterior' antes de trocar."""
+        if self.current_screen_function is not None:
+            self._prev_screen_fn = self.current_screen_function
+            self._prev_screen_args = self.current_screen_args
+            self._prev_screen_kwargs = self.current_screen_kwargs
+        self.current_screen_function = fn
+        self.current_screen_args = args
+        self.current_screen_kwargs = kwargs
+
     # =========================================================================
     # 6. MÓDULO DASHBOARD & RELATÓRIOS
     # =========================================================================
     def tela_dash(self) -> None:
-        import matplotlib.pyplot as plt
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
-        if ctk.get_appearance_mode() == "Dark":
-            plt.style.use("dark_background")
-            plt.rcParams.update(
-                {
-                    "figure.facecolor": "#1f2937",
-                    "axes.facecolor": "#1f2937",
-                    "text.color": "white",
-                    "axes.labelcolor": "white",
-                    "xtick.color": "white",
-                    "ytick.color": "white",
-                    "axes.edgecolor": "white",
-                    "legend.facecolor": "#343638",
-                }
-            )
-        else:
-            plt.style.use("default")
-            plt.rcdefaults()
-
-        self.current_screen_function = self.tela_dash
-        self.current_screen_args = ()
-        self.current_screen_kwargs = {}
+        self._set_tela(self.tela_dash)
         self.limpar_tela()
-        t, v, av, q, total_multas = self.core.get_dados_dash()
-        dias_config = self.core.get_config("alerta_dias")
-        nav = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        nav.pack(fill="x", padx=10, pady=5)
-        ctk.CTkButton(nav, text="← Início", width=80, command=self.tela_home).pack(side="left")
-        ctk.CTkButton(
-            nav,
-            text="📥 Exportar Relatório CSV",
-            fg_color=self.colors["dashboard"],
-            width=180,
-            command=self._exportar_relatorio_mensal_csv,
-        ).pack(side="right")
-        ctk.CTkButton(
-            nav,
-            text="📊 Exportar Todos Hóspedes",
-            fg_color="#334155",
-            width=190,
-            command=self._exportar_hospedes_csv,
-        ).pack(side="right", padx=5)
-
-        scroll = ctk.CTkScrollableFrame(self.main_frame, fg_color="transparent")
-        scroll.pack(fill="both", expand=True)
-
-        cards = ctk.CTkFrame(scroll, fg_color="transparent")
-        cards.pack(fill="x", pady=10)
-        lista_cards = [
-            ("Saldo Total Geral", f"R$ {t:.2f}", self.colors["sucesso"]),
-            ("Total Vencidos", f"R$ {v:.2f}", self.colors["perigo"]),
-            (f"A Vencer ({dias_config} dias)", f"R$ {av:.2f}", self.colors["aviso"]),
-            ("Base de Clientes", str(q), self.colors["dashboard"]),
-            ("Total Multas", f"R$ {total_multas:.2f}", self.colors["perigo"]),
-        ]
-        for tit, val, col in lista_cards:
-            c = ctk.CTkFrame(cards, border_width=1)
-            c.pack(side="left", expand=True, padx=5, fill="both", ipady=10)
-            ctk.CTkLabel(c, text=tit, font=("Arial", 11)).pack()
-            ctk.CTkLabel(c, text=val, font=("Arial", 18, "bold"), text_color=col).pack()
-
-        meses, entradas, saidas = self.core.get_dados_grafico_mensal()
-        if meses:
-            f_bar = ctk.CTkFrame(scroll, fg_color="transparent")
-            f_bar.pack(fill="x", padx=10, pady=5)
-            fig_bar, ax_bar = plt.subplots(figsize=(8, 2.5), dpi=80)
-            x = range(len(meses))
-            width = 0.35
-            ax_bar.bar([i - width / 2 for i in x], entradas, width, label="Entradas", color=self.colors["sucesso"])
-            ax_bar.bar([i + width / 2 for i in x], saidas, width, label="Saídas", color=self.colors["perigo"])
-            ax_bar.set_xticks(x)
-            ax_bar.set_xticklabels(meses)
-            ax_bar.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=2, frameon=False, fontsize="small")
-            ax_bar.spines["top"].set_visible(False)
-            ax_bar.spines["right"].set_visible(False)
-            FigureCanvasTkAgg(fig_bar, master=f_bar).get_tk_widget().pack(fill="both", expand=True)
-
-        inf = ctk.CTkFrame(scroll, fg_color="transparent")
-        inf.pack(fill="both", expand=True)
-        gr = ctk.CTkFrame(inf)
-        gr.pack(side="left", fill="both", expand=True, padx=5)
-        dados_g = self.core.get_dados_grafico_categorias()
-        if dados_g:
-            fig, ax = plt.subplots(figsize=(4, 3), dpi=85)
-            ax.pie([x[1] for x in dados_g], labels=[x[0] for x in dados_g], autopct="%1.1f%%")
-            FigureCanvasTkAgg(fig, master=gr).get_tk_widget().pack(pady=10, fill="both", expand=True)
-
-        tab = ctk.CTkFrame(inf)
-        tab.pack(side="right", fill="both", expand=True, padx=5)
-        ctk.CTkLabel(tab, text=f"Detalhamento Alerta ({dias_config} dias)", font=("Arial", 12, "bold")).pack(pady=5)
-        tv = ttk.Treeview(tab, columns=("H", "D", "V"), show="headings")
-        for c, t_ in [("H", "Hóspede"), ("D", "Vencimento"), ("V", "Saldo")]:
-            tv.heading(c, text=t_)
-            tv.column(c, anchor="center", width=100)
-        tv.pack(fill="both", expand=True)
-        [tv.insert("", "end", values=h) for h in self.core.get_hospedes_vencendo_em_breve()]
+        tela = TelaDashboard(self.main_frame, self.core, self.current_user, self.colors)
+        tela.on_back = self.voltar
+        tela.renderizar()
 
     # =========================================================================
     # MÓDULO COMPRAS
     # =========================================================================
     def tela_compras(self) -> None:
-        self.current_screen_function = self.tela_compras
-        self.current_screen_args = ()
-        self.current_screen_kwargs = {}
+        self._set_tela(self.tela_compras)
         self.limpar_tela()
-
-        nav = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        nav.pack(fill="x", padx=10, pady=5)
-        ctk.CTkButton(nav, text="← Início", width=80, command=self.tela_home).pack(side="left")
-        ctk.CTkLabel(
-            nav, text="GESTÃO DE COMPRAS (ORDENS)", font=("Arial", 18, "bold"), text_color=self.colors["compras"]
-        ).pack(side="left", padx=20)
-
-        paned = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        paned.pack(fill="both", expand=True, padx=10, pady=5)
-
-        frame_listas = ctk.CTkFrame(paned, width=350)
-        frame_listas.pack(side="left", fill="y", padx=(0, 10))
-        frame_listas.pack_propagate(False)
-
-        ctk.CTkLabel(frame_listas, text="Minhas Listas / Ordens", font=("Arial", 14, "bold")).pack(pady=10)
-        ctk.CTkButton(
-            frame_listas,
-            text="+ Nova Lista",
-            fg_color=self.colors["compras"],
-            hover_color=self.colors["compras_hover"],
-            command=self.criar_nova_lista,
-        ).pack(pady=5, padx=10, fill="x")
-
-        cols_l = ("ID", "Data", "Status", "Total")
-        self.tree_listas = ttk.Treeview(frame_listas, columns=cols_l, show="headings")
-        self.tree_listas.heading("ID", text="#")
-        self.tree_listas.column("ID", width=40, anchor="center")
-        self.tree_listas.heading("Data", text="Data")
-        self.tree_listas.column("Data", width=80, anchor="center")
-        self.tree_listas.heading("Status", text="Status")
-        self.tree_listas.column("Status", width=80, anchor="center")
-        self.tree_listas.heading("Total", text="Valor")
-        self.tree_listas.column("Total", width=80, anchor="e")
-        self.tree_listas.pack(fill="both", expand=True, padx=5, pady=5)
-        self.tree_listas.bind("<<TreeviewSelect>>", self.carregar_lista_selecionada)
-
-        self.frame_detalhes = ctk.CTkFrame(paned)
-        self.frame_detalhes.pack(side="right", fill="both", expand=True)
-
-        self.lbl_titulo_lista = ctk.CTkLabel(
-            self.frame_detalhes, text="Selecione uma lista para visualizar", font=("Arial", 16, "bold")
-        )
-        self.lbl_titulo_lista.pack(pady=10)
-
-        self.frame_acoes_lista = ctk.CTkFrame(self.frame_detalhes, fg_color="transparent")
-        self.frame_acoes_lista.pack(fill="x", padx=10)
-
-        ctk.CTkButton(
-            self.frame_acoes_lista,
-            text="💬 WhatsApp",
-            fg_color="#25D366",
-            hover_color="#128C7E",
-            width=120,
-            command=self.enviar_lista_whatsapp,
-        ).pack(side="right", padx=5)
-        self.btn_fechar_lista = ctk.CTkButton(
-            self.frame_acoes_lista,
-            text="🔒 Fechar Lista",
-            fg_color=self.colors["perigo"],
-            width=120,
-            command=self.fechar_lista_atual,
-        )
-        self.btn_imprimir_lista = ctk.CTkButton(
-            self.frame_acoes_lista,
-            text="📄 Imprimir PDF",
-            fg_color="#2c3e50",
-            width=120,
-            command=self.imprimir_lista_atual,
-        )
-
-        self.frame_add_item = ctk.CTkFrame(self.frame_detalhes, border_width=1, border_color="#555")
-        ctk.CTkLabel(self.frame_add_item, text="Adicionar Item à Lista:", font=("Arial", 12, "bold")).grid(
-            row=0, column=0, columnspan=4, sticky="w", padx=10, pady=5
-        )
-
-        self.lista_produtos_cache = self.core.get_produtos_predefinidos()
-        self.e_prod_compras = ctk.CTkEntry(self.frame_add_item, width=200, placeholder_text="Produto (Busca...)")
-        self.e_prod_compras.grid(row=1, column=0, padx=5, pady=5)
-
-        bg_list = "#333333" if ctk.get_appearance_mode() == "Dark" else "#ffffff"
-        fg_list = "#ffffff" if ctk.get_appearance_mode() == "Dark" else "#000000"
-        self.lb_sugestoes = Listbox(
-            self.main_frame,
-            width=40,
-            height=5,
-            bg=bg_list,
-            fg=fg_list,
-            selectbackground=self.colors["compras"],
-            selectforeground="white",
-            borderwidth=1,
-            relief="solid",
-        )
-
-        def autocomplete_prod(event: object) -> None:
-            if event.keysym in ["Down", "Up", "Return", "Tab"]:
-                return
-            typed = self.e_prod_compras.get()
-            if not typed:
-                self.lb_sugestoes.place_forget()
-                return
-            filtered = [p for p in self.lista_produtos_cache if typed.lower() in p.lower()]
-            if filtered:
-                self.lb_sugestoes.delete(0, "end")
-                for item in filtered:
-                    self.lb_sugestoes.insert("end", item)
-                self.lb_sugestoes.place(in_=self.e_prod_compras, x=0, rely=1.0, relwidth=1.0)
-                self.lb_sugestoes.lift()
-            else:
-                self.lb_sugestoes.place_forget()
-
-        def selecionar_sugestao(event: object | None = None) -> None:
-            if self.lb_sugestoes.curselection():
-                item = self.lb_sugestoes.get(self.lb_sugestoes.curselection())
-                self.e_prod_compras.delete(0, "end")
-                self.e_prod_compras.insert(0, item)
-                self.lb_sugestoes.place_forget()
-                self.e_prod_compras.focus_set()
-                self.e_qtd_compras.focus_set()
-
-        self.e_prod_compras.bind("<KeyRelease>", autocomplete_prod)
-        self.lb_sugestoes.bind("<Return>", selecionar_sugestao)
-        self.lb_sugestoes.bind("<Button-1>", selecionar_sugestao)
-
-        self.e_qtd_compras = ctk.CTkEntry(self.frame_add_item, width=70, placeholder_text="Qtd")
-        self.e_qtd_compras.grid(row=1, column=1, padx=5)
-
-        self.e_val_compras = ctk.CTkEntry(self.frame_add_item, width=90, placeholder_text="Valor Unit.")
-        self.e_val_compras.grid(row=1, column=2, padx=5)
-
-        ctk.CTkButton(
-            self.frame_add_item,
-            text="Adicionar",
-            width=80,
-            fg_color=self.colors["compras"],
-            hover_color=self.colors["compras_hover"],
-            command=self.adicionar_item_lista,
-        ).grid(row=1, column=3, padx=10)
-
-        self.e_prod_compras.bind(
-            "<Return>",
-            lambda e: selecionar_sugestao() if self.lb_sugestoes.winfo_ismapped() else self.adicionar_item_lista(),
-        )
-        self.e_qtd_compras.bind("<Return>", lambda e: self.adicionar_item_lista())
-        self.e_val_compras.bind("<Return>", lambda e: self.adicionar_item_lista())
-
-        cols_i = ("Prod", "Qtd", "Unit", "Total", "Var")
-        self.tree_itens = ttk.Treeview(self.frame_detalhes, columns=cols_i, show="headings")
-        self.tree_itens.heading("Prod", text="Produto")
-        self.tree_itens.column("Prod", width=200)
-        self.tree_itens.heading("Qtd", text="Qtd")
-        self.tree_itens.column("Qtd", width=50, anchor="center")
-        self.tree_itens.heading("Unit", text="Unit (R$)")
-        self.tree_itens.column("Unit", width=80, anchor="e")
-        self.tree_itens.heading("Total", text="Total (R$)")
-        self.tree_itens.column("Total", width=80, anchor="e")
-        self.tree_itens.heading("Var", text="Var")
-        self.tree_itens.column("Var", width=60, anchor="center")
-        self.tree_itens.pack(fill="both", expand=True, padx=10, pady=10)
-        self.configurar_tags_tabela(self.tree_itens)
-
-        self.atualizar_lista_de_listas()
-
-    def atualizar_lista_de_listas(self) -> None:
-        self.tree_listas.delete(*self.tree_listas.get_children())
-        listas = self.core.get_listas_resumo()
-        for lista in listas:
-            data_br = datetime.strptime(lista["data_criacao"], "%Y-%m-%d").strftime("%d/%m/%Y")
-            total = lista["total_valor"] if lista["total_valor"] else 0.0
-            self.tree_listas.insert("", "end", values=(lista["id"], data_br, lista["status"], f"R$ {total:.2f}"))
-
-    def criar_nova_lista(self) -> None:
-        try:
-            if not self.current_user:
-                return
-            lid = self.core.criar_lista_compras(self.current_user["username"])  # noqa: F841
-            self.atualizar_lista_de_listas()
-            child_id = self.tree_listas.get_children()[0]
-            self.tree_listas.selection_set(child_id)
-            self.tree_listas.focus(child_id)
-            self.carregar_lista_selecionada(None)
-        except Exception as e:
-            messagebox.showerror("Erro", str(e))
-
-    def carregar_lista_selecionada(self, event: object | None) -> None:
-        sel = self.tree_listas.selection()
-        if not sel:
-            return
-        item = self.tree_listas.item(sel[0])
-        lid, data, status, total = item["values"]
-        self.lista_selecionada_id = lid
-        self.lista_selecionada_status = status
-        self.lbl_titulo_lista.configure(text=f"Lista #{lid} - {status} ({data})")
-        if status == "ABERTA":
-            self.frame_add_item.pack(fill="x", padx=10, pady=5, after=self.frame_acoes_lista)
-            self.btn_fechar_lista.pack(side="left", padx=5)
-            self.btn_imprimir_lista.pack(side="left", padx=5)
-        else:
-            self.frame_add_item.pack_forget()
-            self.btn_fechar_lista.pack_forget()
-            self.btn_imprimir_lista.pack(side="left", padx=5)
-        self.atualizar_itens_lista()
-
-    def atualizar_itens_lista(self) -> None:
-        self.tree_itens.delete(*self.tree_itens.get_children())
-        if not self.lista_selecionada_id:
-            return
-        itens = self.core.get_itens_lista(self.lista_selecionada_id)
-        for i in itens:
-            seta = "-"
-            tag_seta = "even"
-            if i.get("tendencia") == "subiu":
-                seta = "▲"
-                tag_seta = "seta_subiu"
-            elif i.get("tendencia") == "desceu":
-                seta = "▼"
-                tag_seta = "seta_desceu"
-            self.tree_itens.insert(
-                "",
-                "end",
-                values=(i["produto"], i["quantidade"], f"{i['valor_unitario']:.2f}", f"{i['valor_total']:.2f}", seta),
-                tags=(tag_seta,),
-            )
-
-    def adicionar_item_lista(self) -> None:
-        if not self.lista_selecionada_id or self.lista_selecionada_status != "ABERTA":
-            return
-        if not self.current_user:
-            return
-        try:
-            raw_prod = self.e_prod_compras.get()
-            qtd = self.e_qtd_compras.get()
-            val = self.e_val_compras.get()
-            if not raw_prod or not qtd or not val:
-                raise Exception("Preencha todos os campos.")
-            prod_digitado = raw_prod.upper().strip()
-            itens_atuais = self.core.get_itens_lista(self.lista_selecionada_id)
-            if any(item["produto"] == prod_digitado for item in itens_atuais):
-                raise Exception(f"O produto '{prod_digitado}' já está nesta lista.")
-            produtos_existentes = [p.upper() for p in self.lista_produtos_cache]
-            if prod_digitado not in produtos_existentes:
-                raise Exception("Produto não cadastrado! Cadastre-o primeiro em Ajustes.")
-            self.core.adicionar_compra(
-                datetime.now().strftime("%d/%m/%Y"),
-                prod_digitado,
-                qtd,
-                val,
-                usuario=self.current_user["username"],
-                lista_id=self.lista_selecionada_id,
-            )
-            self.e_prod_compras.delete(0, "end")
-            self.e_qtd_compras.delete(0, "end")
-            self.e_val_compras.delete(0, "end")
-            self.e_prod_compras.focus()
-            self.lb_sugestoes.place_forget()
-            self.atualizar_itens_lista()
-            self.atualizar_lista_de_listas()
-        except Exception as e:
-            messagebox.showerror("Erro", str(e))
-
-    def fechar_lista_atual(self) -> None:
-        if not self.lista_selecionada_id:
-            return
-        if messagebox.askyesno("Confirmar", "Deseja fechar esta lista? Ela não poderá mais ser editada."):
-            self.core.fechar_lista_compras(self.lista_selecionada_id)
-            self.atualizar_lista_de_listas()
-            for item in self.tree_listas.get_children():
-                if self.tree_listas.item(item)["values"][0] == self.lista_selecionada_id:
-                    self.tree_listas.selection_set(item)
-                    self.carregar_lista_selecionada(None)
-                    break
-
-    def imprimir_lista_atual(self) -> None:
-        if not self.lista_selecionada_id:
-            return
-        self.configure(cursor="watch")
-
-        def _task():
-            try:
-                f = self.core.gerar_pdf_lista(self.lista_selecionada_id)
-                self.after(0, lambda: messagebox.showinfo("Sucesso", f"PDF Gerado: {f}"))
-            except Exception as e:
-                self.after(0, lambda err=e: messagebox.showerror("Erro", str(err)))
-            finally:
-                self.after(0, lambda: self.configure(cursor="arrow"))
-
-        threading.Thread(target=_task, daemon=True).start()
-
-    def enviar_lista_whatsapp(self) -> None:
-        if not self.lista_selecionada_id:
-            messagebox.showwarning("Aviso", "Selecione uma lista primeiro.")
-            return
-        itens = self.core.get_itens_lista(self.lista_selecionada_id)
-        if not itens:
-            messagebox.showwarning("Aviso", "A lista está vazia.")
-            return
-        msg = f"*LISTA DE COMPRAS #{self.lista_selecionada_id}*\n\n"
-        for i in itens:
-            msg += f"- {i['quantidade']}x {i['produto']} (R$ {i['valor_unitario']:.2f})\n"
-        link = f"https://web.whatsapp.com/send?text={quote(msg)}"
-        webbrowser.open(link)
-
-    def exportar_pdf_compras(self) -> None:
-        self.configure(cursor="watch")
-
-        def _task():
-            try:
-                f = self.core.gerar_pdf_compras()
-                self.after(0, lambda: messagebox.showinfo("Sucesso", f"Relatório de Compras gerado: {f}"))
-            except Exception as e:
-                self.after(0, lambda err=e: messagebox.showerror("Erro", str(err)))
-            finally:
-                self.after(0, lambda: self.configure(cursor="arrow"))
-
-        threading.Thread(target=_task, daemon=True).start()
+        tela = TelaCompras(self.main_frame, self.core, self.current_user, self.colors)
+        tela.on_back = self.voltar
+        tela.renderizar()
 
     # =========================================================================
     # MÓDULO AGENDA
@@ -1444,10 +997,10 @@ class AppHotelLTS(ctk.CTk):
 
         # Cria o calendário e guarda como self.cal_agenda para acesso pelos métodos
         self.cal_agenda = Calendar(right_frame, selectmode="day", date_pattern="dd/mm/yyyy", locale="pt_BR")
-        self.cal_agenda.pack(fill="both", expand=True, padx=10, pady=10)
+        self.cal_agenda.pack(fill="both", expand=True, padx=10, pady=10)  # type: ignore[union-attr]
 
         # Quando o usuário clica numa data, atualiza a lista de tarefas do dia
-        self.cal_agenda.bind("<<CalendarSelected>>", lambda e: self.refresh_lista_funcionarios())
+        self.cal_agenda.bind("<<CalendarSelected>>", lambda e: self.refresh_lista_funcionarios())  # type: ignore[union-attr]
 
         # --- Conteúdo do Painel Esquerdo ---
         add_frame = ctk.CTkFrame(left_frame, fg_color="transparent")
@@ -1536,7 +1089,7 @@ class AppHotelLTS(ctk.CTk):
                 for t in tarefas:
                     self.tree_tarefas_dia.insert("", "end", values=(t["id"], t["nome"], t["obs"]))
             except Exception as e:
-                print(f"Erro ao buscar agendamento: {e}")
+                self.logger.log_erro(e, "buscar_agendamentos")
 
     def agendar_funcionario_selecionado(self):
         """
@@ -1592,644 +1145,28 @@ class AppHotelLTS(ctk.CTk):
     # 7. MÓDULO LANÇAMENTOS (Central)
     # =========================================================================
     def tela_financeiro(self) -> None:
-        self.current_screen_function = self.tela_financeiro
-        self.current_screen_args = ()
-        self.current_screen_kwargs = {}
+        self._set_tela(self.tela_financeiro)
         self.limpar_tela()
-        nav = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        nav.pack(fill="x", padx=10, pady=10)
-        ctk.CTkButton(nav, text="← Início", width=80, command=self.tela_home).pack(side="left")
-        ctk.CTkLabel(
-            nav, text="CENTRAL FINANCEIRA", font=("Arial", 18, "bold"), text_color=self.colors["financeiro"]
-        ).pack(side="left", padx=20)
-
-        def acao_exportar():
-            dialog = ctk.CTkInputDialog(
-                text="Digite o Mês/Ano (MM/AAAA) para filtrar\nou deixe vazio para exportar TUDO:",
-                title="Exportar Relatório",
-            )
-            mes = dialog.get_input()
-            if mes is not None:
-                arquivo = self.core.exportar_historico_financeiro_csv(mes.strip() if mes.strip() else None)
-                messagebox.showinfo("Exportado", f"Relatório salvo em:\n{arquivo}")
-
-        def acao_fechamento():
-            dialog = ctk.CTkInputDialog(
-                text="Digite a Data (DD/MM/AAAA) para o fechamento\n(Deixe vazio para HOJE):",
-                title="Fechamento de Caixa",
-            )
-            data_str = dialog.get_input()
-            if data_str is not None:
-                try:
-                    data_iso = (
-                        datetime.strptime(data_str, "%d/%m/%Y").strftime("%Y-%m-%d")
-                        if data_str.strip()
-                        else datetime.now().strftime("%Y-%m-%d")
-                    )
-                    arquivo = self.core.gerar_pdf_fechamento(data_iso)
-                    messagebox.showinfo("Sucesso", f"Relatório gerado:\n{arquivo}")
-                except Exception as e:
-                    messagebox.showerror("Erro", str(e))
-
-        ctk.CTkButton(nav, text="🖨️ Fechamento Dia", width=140, fg_color="#2c3e50", command=acao_fechamento).pack(
-            side="right", padx=5
-        )
-        ctk.CTkButton(
-            nav, text="📥 Exportar Extrato", width=160, fg_color=self.colors["financeiro"], command=acao_exportar
-        ).pack(side="right", padx=5)
-        ctk.CTkButton(
-            nav,
-            text="+ Novo Lançamento",
-            width=160,
-            fg_color=self.colors["financeiro"],
-            text_color="white",
-            hover_color=self.colors["financeiro_hover"],
-            command=self.janela_novo_lancamento_central,
-        ).pack(side="right")
-
-        tabview = ctk.CTkTabview(self.main_frame)
-        tabview.pack(fill="both", expand=True, padx=10, pady=5)
-        tab_creditos = tabview.add("Extrato de Créditos")
-        tab_multas_hist = tabview.add("Histórico de Multas")
-        tab_multas_pend = tabview.add("💸 Multas Pendentes")
-
-        filtros_c = ctk.CTkFrame(tab_creditos, fg_color="transparent")
-        filtros_c.pack(fill="x", pady=(8, 0), padx=10)
-        self.ent_busca_lanc = ctk.CTkEntry(filtros_c, placeholder_text="Filtrar por nome ou documento...", width=280)
-        self.ent_busca_lanc.pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(filtros_c, text="De:").pack(side="left")
-        self.ent_data_inicio_lanc = ctk.CTkEntry(filtros_c, placeholder_text="DD/MM/AAAA", width=110)
-        self.ent_data_inicio_lanc.pack(side="left", padx=4)
-        ctk.CTkLabel(filtros_c, text="Até:").pack(side="left")
-        self.ent_data_fim_lanc = ctk.CTkEntry(filtros_c, placeholder_text="DD/MM/AAAA", width=110)
-        self.ent_data_fim_lanc.pack(side="left", padx=4)
-        ctk.CTkButton(
-            filtros_c,
-            text="Filtrar",
-            width=70,
-            height=28,
-            fg_color=self.colors["financeiro"],
-            command=self.atualizar_lista_lancamentos,
-        ).pack(side="left", padx=4)
-        ctk.CTkButton(
-            filtros_c,
-            text="Limpar",
-            width=70,
-            height=28,
-            fg_color="gray",
-            command=lambda: [
-                self.ent_data_inicio_lanc.delete(0, "end"),
-                self.ent_data_fim_lanc.delete(0, "end"),
-                self.atualizar_lista_lancamentos(),
-            ],
-        ).pack(side="left", padx=2)
-
-        self.tree_l = ttk.Treeview(
-            tab_creditos, columns=("ID", "Data", "Nome", "Tipo", "Valor", "Categoria", "Usuario"), show="headings"
-        )
-        self.tree_l.heading("ID", text="ID")
-        self.tree_l.column("ID", width=50, anchor="center")
-        self.tree_l.heading("Data", text="Data")
-        self.tree_l.column("Data", width=100, anchor="center")
-        self.tree_l.heading("Nome", text="Cliente")
-        self.tree_l.column("Nome", width=250)
-        self.tree_l.heading("Tipo", text="Tipo")
-        self.tree_l.column("Tipo", width=100, anchor="center")
-        self.tree_l.heading("Valor", text="Valor")
-        self.tree_l.column("Valor", width=100, anchor="center")
-        self.tree_l.heading("Categoria", text="Cat/Motivo")
-        self.tree_l.column("Categoria", width=150)
-        self.tree_l.heading("Usuario", text="Resp.")
-        self.tree_l.column("Usuario", width=100, anchor="center")
-        self.tree_l.pack(expand=True, fill="both", padx=15, pady=10)
-        self.configurar_tags_tabela(self.tree_l)
-
-        self.menu_lanc = ctk.CTkFrame(self, width=150, height=50, border_width=1)
-        ctk.CTkButton(
-            self.menu_lanc,
-            text="Excluir Lançamento",
-            command=self.excluir_lancamento_selecionado,
-            fg_color="transparent",
-            text_color="red",
-            anchor="w",
-        ).pack(fill="x")
-
-        def show_menu(event: object) -> None:
-            selection = self.tree_l.identify_row(event.y)
-            if selection:
-                self.tree_l.selection_set(selection)
-                self.menu_lanc.place(x=event.x_root - self.winfo_x(), y=event.y_root - self.winfo_y())
-                self.menu_lanc.lift()
-
-        self.tree_l.bind("<Button-3>", show_menu)
-        self.bind("<Button-1>", lambda e: self.menu_lanc.place_forget())
-        self.ent_busca_lanc.bind("<KeyRelease>", lambda e: self.atualizar_lista_lancamentos())
-        self.ent_data_inicio_lanc.bind("<Return>", lambda e: self.atualizar_lista_lancamentos())
-        self.ent_data_fim_lanc.bind("<Return>", lambda e: self.atualizar_lista_lancamentos())
-        self.atualizar_lista_lancamentos()
-
-        ent_busca_multas = ctk.CTkEntry(tab_multas_hist, placeholder_text="Filtrar por nome ou documento...", width=500)
-        ent_busca_multas.pack(pady=10)
-
-        tree_m = ttk.Treeview(
-            tab_multas_hist, columns=("ID", "Data", "Nome", "Tipo", "Valor", "Categoria", "Usuario"), show="headings"
-        )
-        tree_m.heading("ID", text="ID")
-        tree_m.column("ID", width=50, anchor="center")
-        tree_m.heading("Data", text="Data")
-        tree_m.column("Data", width=100, anchor="center")
-        tree_m.heading("Nome", text="Cliente")
-        tree_m.column("Nome", width=250)
-        tree_m.heading("Tipo", text="Tipo")
-        tree_m.column("Tipo", width=120, anchor="center")
-        tree_m.heading("Valor", text="Valor")
-        tree_m.column("Valor", width=100, anchor="center")
-        tree_m.heading("Categoria", text="Cat/Motivo")
-        tree_m.column("Categoria", width=150)
-        tree_m.heading("Usuario", text="Resp.")
-        tree_m.column("Usuario", width=100, anchor="center")
-        tree_m.pack(expand=True, fill="both", padx=15, pady=10)
-        self.configurar_tags_tabela(tree_m)
-
-        def atualizar_lista_multas() -> None:
-            tree_m.delete(*tree_m.get_children())
-            filtro = ent_busca_multas.get()
-            dados = self.core.get_historico_global(filtro, tipos=("MULTA", "PAGAMENTO_MULTA"))
-            for i, d in enumerate(dados):
-                data_br = datetime.strptime(d["data_acao"], "%Y-%m-%d").strftime("%d/%m/%Y")
-                tags = ["odd" if i % 2 != 0 else "even"]
-                if d["tipo"] == "MULTA":
-                    tags.append("multa")
-                if d["tipo"] == "PAGAMENTO_MULTA":
-                    tags.append("pagamento_multa")
-                tree_m.insert(
-                    "",
-                    "end",
-                    values=(d["id"], data_br, d["nome"], d["tipo"], f"{d['valor']:.2f}", d["categoria"], d["usuario"]),
-                    tags=tags,
-                )
-
-        ent_busca_multas.bind("<KeyRelease>", lambda e: atualizar_lista_multas())
-        atualizar_lista_multas()
-
-        # --- ABA: MULTAS PENDENTES ---
-        ctk.CTkLabel(
-            tab_multas_pend,
-            text="Hóspedes com Dívida de Multas em Aberto",
-            font=("Arial", 14, "bold"),
-            text_color=self.colors["perigo"],
-        ).pack(pady=10)
-
-        tree_mp = ttk.Treeview(tab_multas_pend, columns=("Nome", "Documento", "Telefone", "Divida"), show="headings")
-        tree_mp.heading("Nome", text="Nome")
-        tree_mp.column("Nome", width=300)
-        tree_mp.heading("Documento", text="Documento")
-        tree_mp.column("Documento", width=150, anchor="center")
-        tree_mp.heading("Telefone", text="Telefone")
-        tree_mp.column("Telefone", width=120, anchor="center")
-        tree_mp.heading("Divida", text="Dívida (R$)")
-        tree_mp.column("Divida", width=120, anchor="center")
-        tree_mp.pack(expand=True, fill="both", padx=15, pady=(0, 10))
-        self.configurar_tags_tabela(tree_mp)
-
-        total_label = ctk.CTkLabel(tab_multas_pend, text="", font=("Arial", 12, "bold"))
-        total_label.pack(pady=5)
-
-        def atualizar_multas_pend() -> None:
-            tree_mp.delete(*tree_mp.get_children())
-            devedores = self.core.get_devedores_multas()
-            total = 0.0
-            for i, (nome, doc, tel, divida) in enumerate(devedores):
-                tag = "odd" if i % 2 != 0 else "even"
-                tree_mp.insert("", "end", values=(nome, doc, tel or "-", f"{divida:.2f}"), tags=(tag,))
-                total += divida
-            total_label.configure(text=f"Total em Aberto: R$ {total:.2f}")
-
-        tree_mp.bind("<Double-1>", lambda e: self._abrir_historico_da_multa(tree_mp))
-        ctk.CTkButton(
-            tab_multas_pend,
-            text="🔄 Atualizar",
-            width=120,
-            fg_color=self.colors["perigo"],
-            command=atualizar_multas_pend,
-        ).pack(pady=(0, 10))
-        atualizar_multas_pend()
-
-    def _abrir_historico_da_multa(self, tree: ttk.Treeview) -> None:
-        sel = tree.selection()
-        if not sel:
-            return
-        nome, doc, *_ = tree.item(sel[0])["values"]
-        self.tela_historico(str(nome), str(doc))
-
-    def atualizar_lista_lancamentos(self) -> None:
-        self.tree_l.delete(*self.tree_l.get_children())
-        filtro = self.ent_busca_lanc.get()
-
-        data_inicio = None
-        data_fim = None
-        try:
-            di = self.ent_data_inicio_lanc.get().strip()
-            if di:
-                data_inicio = datetime.strptime(di, "%d/%m/%Y").strftime("%Y-%m-%d")
-        except (ValueError, AttributeError):
-            pass
-        try:
-            df = self.ent_data_fim_lanc.get().strip()
-            if df:
-                data_fim = datetime.strptime(df, "%d/%m/%Y").strftime("%Y-%m-%d")
-        except (ValueError, AttributeError):
-            pass
-
-        dados = self.core.get_historico_global(
-            filtro, tipos=("ENTRADA", "SAIDA"), data_inicio=data_inicio, data_fim=data_fim
-        )
-        for i, d in enumerate(dados):
-            data_br = datetime.strptime(d["data_acao"], "%Y-%m-%d").strftime("%d/%m/%Y")
-            tags = ["odd" if i % 2 != 0 else "even"]
-            if d["tipo"] == "SAIDA":
-                tags.append("saida")
-            if d["tipo"] == "MULTA":
-                tags.append("multa")
-            if d["tipo"] == "PAGAMENTO_MULTA":
-                tags.append("pagamento_multa")
-            self.tree_l.insert(
-                "",
-                "end",
-                values=(d["id"], data_br, d["nome"], d["tipo"], f"{d['valor']:.2f}", d["categoria"], d["usuario"]),
-                tags=tags,
-            )
-
-    def excluir_lancamento_selecionado(self) -> None:
-        self.menu_lanc.place_forget()
-        if not self.current_user or not self.current_user["is_admin"]:
-            messagebox.showerror("Acesso Negado", "Apenas administradores podem excluir lançamentos.")
-            return
-        sel = self.tree_l.selection()
-        if not sel:
-            return
-        item = self.tree_l.item(sel[0])
-        id_mov = item["values"][0]
-        if messagebox.askyesno("Confirmar Exclusão", f"Tem certeza que deseja excluir o lançamento ID {id_mov}?"):
-            try:
-                self.core.excluir_movimentacao(id_mov, self.current_user["username"])
-                self.atualizar_lista_lancamentos()
-                messagebox.showinfo("Sucesso", "Lançamento excluído.")
-            except Exception as e:
-                messagebox.showerror("Erro", str(e))
+        tela = TelaFinanceiro(self.main_frame, self.core, self.current_user, self.colors)
+        tela.on_back = self.voltar
+        tela.renderizar()
 
     # =========================================================================
     # 8. MÓDULO CONFIGURAÇÕES & ADMIN
     # =========================================================================
     def tela_config(self) -> None:
-        self.current_screen_function = self.tela_config
-        self.current_screen_args = ()
-        self.current_screen_kwargs = {}
+        self._set_tela(self.tela_config)
         self.limpar_tela()
-        nav = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        nav.pack(fill="x", padx=10, pady=5)
-        ctk.CTkButton(nav, text="← Início", width=80, command=self.tela_home).pack(side="left")
+        tela = TelaConfig(self.main_frame, self.core, self.current_user, self.colors, logger=self.logger)
+        tela.on_back = self.voltar
+        tela.renderizar()
 
-        def toggle_theme():
-            new_mode = "Dark" if ctk.get_appearance_mode() == "Light" else "Light"
-            ctk.set_appearance_mode(new_mode)
-            self.setup_custom_styles()
-            self.core.set_config("tema", 1 if new_mode == "Dark" else 0, self.current_user["username"])
-            if self.current_screen_function:
-                self.current_screen_function(*self.current_screen_args, **self.current_screen_kwargs)
-
-        icon = "🌙" if ctk.get_appearance_mode() == "Light" else "☀️"
-        ctk.CTkButton(nav, text=f"{icon} Tema", width=100, fg_color="#555", command=toggle_theme).pack(side="right")
-
-        if self.current_user["is_admin"] or self.current_user.get("can_manage_products"):
-            self.config_admin_view()
-        else:
-            self.config_user_view()
-
-        f_versao = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        f_versao.pack(side="bottom", fill="x", padx=10, pady=10)
-        ctk.CTkLabel(f_versao, text=f"Versão do Sistema: {self.core.versao_atual}").pack(side="left", padx=10)
-        ctk.CTkButton(f_versao, text="Verificar Atualizações", command=self.verificar_update_manual).pack(
-            side="right", padx=10
-        )
-
-    def config_admin_view(self) -> None:
-        tabview = ctk.CTkTabview(self.main_frame, segmented_button_selected_color=self.colors["ajustes"])
-        tabview.pack(fill="both", expand=True, padx=10, pady=5)
-
-        tab_sistema = tab_usuarios = tab_categorias = tab_auditoria = tab_produtos = None
-
-        if self.current_user["is_admin"]:
-            tab_sistema = tabview.add("Sistema")
-            tab_usuarios = tabview.add("Usuários")
-            tab_categorias = tabview.add("Categorias")
-            tab_auditoria = tabview.add("Auditoria")
-
-        if self.current_user["is_admin"] or self.current_user.get("can_manage_products"):
-            tab_produtos = tabview.add("Produtos")
-
-        # --- ABA SISTEMA ---
-        if self.current_user["is_admin"]:
-            f_grid = ctk.CTkFrame(tab_sistema, fg_color="transparent")
-            f_grid.pack(pady=10, padx=20, anchor="w")
-            ctk.CTkLabel(f_grid, text="Validade (Meses):").grid(row=0, column=0, padx=5)
-            ev = ctk.CTkEntry(f_grid, width=50)
-            ev.insert(0, str(self.core.get_config("validade_meses")))
-            ev.grid(row=0, column=1, padx=5)
-            ctk.CTkLabel(f_grid, text="Alerta (Dias):").grid(row=0, column=2, padx=5)
-            ea = ctk.CTkComboBox(f_grid, values=["15", "30", "60", "90"], width=60)
-            ea.set(str(self.core.get_config("alerta_dias")))
-            ea.grid(row=0, column=3, padx=5)
-            ctk.CTkButton(
-                tab_sistema,
-                text="Salvar Configurações",
-                height=30,
-                fg_color=self.colors["ajustes"],
-                command=lambda: [
-                    self.core.set_config("validade_meses", int(ev.get()), self.current_user["username"]),
-                    self.core.set_config("alerta_dias", int(ea.get()), self.current_user["username"]),
-                    messagebox.showinfo("Sucesso", "Configurações salvas!"),
-                    self.tela_dash(),
-                ],
-            ).pack(pady=10, padx=20, anchor="w")
-
-            f_backup = ctk.CTkFrame(tab_sistema, fg_color="transparent")
-            f_backup.pack(pady=20, padx=20, anchor="w")
-
-            # ===========================================================================
-            # CORREÇÃO — BACKUP / RESTORE / OTIMIZAR AGORA VIA self.core.db
-            # ===========================================================================
-            # ANTES: self.core.fazer_backup() / self.core.restaurar_backup() / self.core.otimizar_banco()
-            #   → Esses métodos existiam no sistema_clientes.py monolítico.
-            #
-            # DEPOIS: Pertencem ao Database (core/database.py), acessível por self.core.db
-            #   → self.core.db.fazer_backup()
-            #   → self.core.db.restaurar_backup(path)
-            #   → self.core.db.otimizar()
-            # ===========================================================================
-            ctk.CTkButton(
-                f_backup,
-                text="Fazer Backup do Banco",
-                height=30,
-                fg_color=self.colors["aviso"],
-                command=lambda: [
-                    self.core.db.fazer_backup(),
-                    messagebox.showinfo("Backup", "Backup realizado com sucesso na pasta 'backups'!"),
-                ],
-            ).pack(side="left", padx=5)
-
-            def restaurar():
-                path = filedialog.askopenfilename(filetypes=[("Banco de Dados", "*.db")])
-                if path:
-                    if messagebox.askyesno("Confirmar", "Isso substituirá os dados atuais pelos do backup. Continuar?"):
-                        try:
-                            self.core.db.restaurar_backup(path)
-                            messagebox.showinfo("Sucesso", "Backup restaurado! Reinicie o sistema.")
-                        except Exception as e:
-                            messagebox.showerror("Erro", str(e))
-
-            ctk.CTkButton(
-                f_backup, text="Restaurar Backup", height=30, fg_color=self.colors["perigo"], command=restaurar
-            ).pack(side="left", padx=5)
-            ctk.CTkButton(
-                f_backup,
-                text="🧹 Otimizar Banco",
-                height=30,
-                fg_color="#2c3e50",
-                command=lambda: [
-                    self.core.db.otimizar(),
-                    messagebox.showinfo("Sucesso", "Banco de dados otimizado e compactado!"),
-                ],
-            ).pack(side="left", padx=5)
-
-        # --- ABA USUÁRIOS ---
-        if self.current_user["is_admin"]:
-            f_form = ctk.CTkFrame(tab_usuarios, fg_color="transparent")
-            f_form.pack(pady=10, fill="x", padx=10)
-            eu_user = ctk.CTkEntry(f_form, placeholder_text="Usuário")
-            eu_user.pack(side="left", padx=5)
-            eu_pass = ctk.CTkEntry(f_form, placeholder_text="Senha")
-            eu_pass.pack(side="left", padx=5)
-            chk_admin = ctk.CTkCheckBox(f_form, text="Admin")
-            chk_admin.pack(side="left", padx=5)
-            chk_dates = ctk.CTkCheckBox(f_form, text="Alterar Datas")
-            chk_dates.pack(side="left", padx=5)
-            chk_products = ctk.CTkCheckBox(f_form, text="Gerir Produtos")
-            chk_products.pack(side="left", padx=5)
-
-            tv_u = ttk.Treeview(tab_usuarios, columns=("U", "A", "D"), show="headings", height=8)
-            tv_u.heading("U", text="Usuário")
-            tv_u.heading("A", text="Admin")
-            tv_u.heading("D", text="Pode Alterar Datas")
-            tv_u.column("U", anchor="center")
-            tv_u.column("A", anchor="center")
-            tv_u.column("D", anchor="center")
-            tv_u.pack(fill="both", expand=True, padx=10, pady=5)
-            self.configurar_tags_tabela(tv_u)
-
-            def refresh_users() -> None:
-                tv_u.delete(*tv_u.get_children())
-                for i, u in enumerate(self.core.get_usuarios()):
-                    tag = "odd" if i % 2 != 0 else "even"
-                    tv_u.insert(
-                        "",
-                        "end",
-                        values=(
-                            u["username"],
-                            "Sim" if u["is_admin"] else "Não",
-                            "Sim" if u["can_change_dates"] else "Não",
-                        ),
-                        tags=(tag,),
-                    )
-
-            def save_user(event=None):
-                if not eu_user.get() or not eu_pass.get():
-                    return
-                self.core.salvar_usuario(
-                    eu_user.get(),
-                    eu_pass.get(),
-                    chk_admin.get(),
-                    chk_dates.get(),
-                    chk_products.get(),
-                    self.current_user["username"],
-                )
-                refresh_users()
-                eu_user.delete(0, "end")
-                eu_pass.delete(0, "end")
-
-            def on_select_user(event=None):
-                sel = tv_u.selection()
-                if not sel:
-                    return
-                username_sel = tv_u.item(sel[0])["values"][0]
-                user_data = next((u for u in self.core.get_usuarios() if u["username"] == username_sel), None)
-                if not user_data:
-                    return
-                eu_user.delete(0, "end")
-                eu_user.insert(0, user_data["username"])
-                eu_pass.delete(0, "end")
-                if user_data["is_admin"]:
-                    chk_admin.select()
-                else:
-                    chk_admin.deselect()
-                if user_data["can_change_dates"]:
-                    chk_dates.select()
-                else:
-                    chk_dates.deselect()
-                if user_data.get("can_manage_products"):
-                    chk_products.select()
-                else:
-                    chk_products.deselect()
-
-            tv_u.bind("<ButtonRelease-1>", on_select_user)
-
-            eu_pass.bind("<Return>", save_user)
-            ctk.CTkButton(f_form, text="Salvar/Atualizar", command=save_user, fg_color=self.colors["ajustes"]).pack(
-                side="left", padx=5
-            )
-            refresh_users()
-
-            def del_user():
-                sel = tv_u.selection()
-                if not sel:
-                    return
-                u = tv_u.item(sel[0])["values"][0]
-                if u == "gabriel":
-                    messagebox.showerror("Erro", "Não é possível excluir o superadmin.")
-                    return
-                if messagebox.askyesno("Confirmar", f"Excluir {u}?"):
-                    self.core.excluir_usuario(u, self.current_user["username"])
-                    refresh_users()
-
-            ctk.CTkButton(
-                tab_usuarios, text="Excluir Selecionado", fg_color=self.colors["perigo"], command=del_user
-            ).pack(pady=10, anchor="e", padx=10)
-
-        # --- ABA CATEGORIAS ---
-        if self.current_user["is_admin"]:
-            fc_top = ctk.CTkFrame(tab_categorias, fg_color="transparent")
-            fc_top.pack(fill="x", padx=10, pady=10)
-            ec_cat = ctk.CTkEntry(fc_top, placeholder_text="Nova Categoria")
-            ec_cat.pack(side="left", padx=5, expand=True, fill="x")
-
-            def add_c(event: object | None = None) -> None:
-                self.core.adicionar_categoria(ec_cat.get())
-                ec_cat.delete(0, "end")
-                refresh_c()
-
-            ec_cat.bind("<Return>", add_c)
-            ctk.CTkButton(fc_top, text="+", width=40, command=add_c, fg_color=self.colors["ajustes"]).pack(side="left")
-            tv_c = ttk.Treeview(tab_categorias, columns=("C",), show="headings")
-            tv_c.heading("C", text="Nome")
-            tv_c.pack(fill="x", padx=10, pady=5)
-            self.configurar_tags_tabela(tv_c)
-
-            def refresh_c() -> None:
-                tv_c.delete(*tv_c.get_children())
-                for i, c in enumerate(self.core.get_categorias()):
-                    tag = "odd" if i % 2 != 0 else "even"
-                    tv_c.insert("", "end", values=(c,), tags=(tag,))
-
-            refresh_c()
-
-            def del_c() -> None:
-                if tv_c.selection():
-                    self.core.remover_categoria(tv_c.item(tv_c.selection()[0])["values"][0])
-                    refresh_c()
-
-            ctk.CTkButton(
-                tab_categorias, text="Remover Selecionada", height=25, fg_color=self.colors["perigo"], command=del_c
-            ).pack(pady=5, anchor="e", padx=10)
-
-        # --- ABA PRODUTOS ---
-        if self.current_user["is_admin"] or self.current_user.get("can_manage_products"):
-            fp_top = ctk.CTkFrame(tab_produtos, fg_color="transparent")
-            fp_top.pack(fill="x", padx=10, pady=10)
-            ep_prod = ctk.CTkEntry(fp_top, placeholder_text="Nome do Produto (Ex: Detergente 5L)")
-            ep_prod.pack(side="left", padx=5, expand=True, fill="x")
-
-            def add_p(event: object | None = None) -> None:
-                self.core.adicionar_produto_predefinido(ep_prod.get())
-                ep_prod.delete(0, "end")
-                refresh_p()
-
-            ep_prod.bind("<Return>", add_p)
-            ctk.CTkButton(fp_top, text="+ Adicionar", width=100, command=add_p, fg_color=self.colors["ajustes"]).pack(
-                side="left"
-            )
-            tv_p = ttk.Treeview(tab_produtos, columns=("P",), show="headings")
-            tv_p.heading("P", text="Produto")
-            tv_p.pack(fill="both", expand=True, padx=10, pady=5)
-            self.configurar_tags_tabela(tv_p)
-
-            def refresh_p() -> None:
-                tv_p.delete(*tv_p.get_children())
-                for i, p in enumerate(self.core.get_produtos_predefinidos()):
-                    tag = "odd" if i % 2 != 0 else "even"
-                    tv_p.insert("", "end", values=(p,), tags=(tag,))
-
-            refresh_p()
-
-            def del_p() -> None:
-                if tv_p.selection():
-                    self.core.remover_produto_predefinido(tv_p.item(tv_p.selection()[0])["values"][0])
-                    refresh_p()
-
-            ctk.CTkButton(
-                tab_produtos, text="Remover Selecionado", height=25, fg_color=self.colors["perigo"], command=del_p
-            ).pack(pady=5, anchor="e", padx=10)
-
-        # --- ABA AUDITORIA ---
-        if self.current_user["is_admin"]:
-            tv_log = ttk.Treeview(tab_auditoria, columns=("DH", "U", "A", "D", "M"), show="headings")
-            tv_log.heading("DH", text="Data/Hora")
-            tv_log.column("DH", width=140)
-            tv_log.heading("U", text="Usuário")
-            tv_log.column("U", width=100)
-            tv_log.heading("A", text="Ação")
-            tv_log.column("A", width=150)
-            tv_log.heading("D", text="Detalhes")
-            tv_log.column("D", width=350)
-            tv_log.heading("M", text="Máquina")
-            tv_log.column("M", width=100)
-            tv_log.pack(fill="both", expand=True, padx=10, pady=10)
-            self.configurar_tags_tabela(tv_log)
-            for i, log in enumerate(self.core.get_logs()):
-                tag = "odd" if i % 2 != 0 else "even"
-                tv_log.insert(
-                    "",
-                    "end",
-                    values=(log["data_hora"], log["usuario"], log["acao"], log["detalhes"], log["maquina"]),
-                    tags=(tag,),
-                )
-
-    def config_user_view(self) -> None:
-        f = ctk.CTkFrame(self.main_frame, width=400)
-        f.pack(pady=50, ipady=20)
-        ctk.CTkLabel(f, text="Alterar Minha Senha", font=("Arial", 16, "bold")).pack(pady=15)
-        ep = ctk.CTkEntry(f, placeholder_text="Nova Senha", show="*", width=250)
-        ep.pack(pady=10)
-        epc = ctk.CTkEntry(f, placeholder_text="Confirmar Nova Senha", show="*", width=250)
-        epc.pack(pady=10)
-
-        def save_pass(event: object | None = None) -> None:
-            p1 = ep.get()
-            p2 = epc.get()
-            if not p1:
-                return
-            if p1 != p2:
-                messagebox.showerror("Erro", "As senhas não coincidem.")
-                return
-            u = self.current_user
-            self.core.salvar_usuario(
-                u["username"], p1, u["is_admin"], u["can_change_dates"], u.get("can_manage_products", 0), u["username"]
-            )
-            messagebox.showinfo("Sucesso", "Senha alterada com sucesso!")
-            ep.delete(0, "end")
-            epc.delete(0, "end")
-
-        epc.bind("<Return>", save_pass)
-        ctk.CTkButton(f, text="Atualizar Senha", command=save_pass, fg_color=self.colors["ajustes"]).pack(pady=20)
+    def tela_relatorios(self) -> None:
+        self._set_tela(self.tela_relatorios)
+        self.limpar_tela()
+        tela = TelaRelatorios(self.main_frame, self.core, self.current_user, self.colors)
+        tela.on_back = self.voltar
+        tela.renderizar()
 
     # =========================================================================
     # 9. JANELAS DE DIÁLOGO (POPUPS & TOPLEVELS)
@@ -2363,11 +1300,11 @@ class AppHotelLTS(ctk.CTk):
             from tkcalendar import DateEntry
         except ImportError:
             return
-        item = self.tree_z.identify_row(event.y)
+        item = self.tree_z.identify_row(event.y)  # type: ignore[attr-defined]
         if not item:
             return
         self.tree_z.selection_set(item)
-        id_mov, tp, val, dt_mov, *_ = self.tree_z.item(item)["values"]
+        id_mov, tp, val, dt_mov, *_ = self.tree_z.item(item)["values"]  # type: ignore[misc]
         if tp != "ENTRADA":
             return
         jan = ctk.CTkToplevel(self)
@@ -2381,7 +1318,7 @@ class AppHotelLTS(ctk.CTk):
         cal.pack(pady=20)
 
         def ok() -> None:
-            self.core.atualizar_data_vencimento_manual(id_mov, cal.get(), self.current_user["username"])
+            self.core.atualizar_data_vencimento_manual(id_mov, cal.get(), self.current_user["username"])  # type: ignore[index]
             jan.destroy()
             self.tela_historico(nome, doc)
 
@@ -2456,7 +1393,9 @@ class AppHotelLTS(ctk.CTk):
         eemail.bind("<Return>", salvar)
         ctk.CTkButton(jan, text="Salvar", fg_color=self.colors["hospedes"], width=300, command=salvar).pack(pady=20)
 
-    def _janela_movimentacao(self, title: str, doc: str, nome: str, tipo_mov: str, callback: callable) -> None:
+    def _janela_movimentacao(
+        self, title: str, doc: str, nome: str, tipo_mov: str, callback: Callable[..., None]
+    ) -> None:
         jan = ctk.CTkToplevel(self)
         jan.title(title)
         jan.geometry("350x350")
@@ -2525,7 +1464,7 @@ if __name__ == "__main__":
         app = AppHotelLTS()
         app.mainloop()
     except Exception:
-        app_data = os.getenv("APPDATA") if os.name == "nt" else os.path.expanduser("~")
+        app_data = os.getenv("APPDATA") or os.path.expanduser("~")
         log_dir = os.path.join(app_data, "SistemaHotelSantos", "logs")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
@@ -2539,5 +1478,5 @@ if __name__ == "__main__":
             messagebox.showerror(
                 "Erro Fatal", f"O sistema encontrou um erro e precisou ser fechado.\n\nLog salvo em:\n{log_file}"
             )
-        except:
+        except Exception:
             pass

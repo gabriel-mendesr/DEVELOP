@@ -314,7 +314,9 @@ class TelaCompras(TelaBase):
         janela = ctk.CTkToplevel(self.master)
         janela.title("Nova Lista de Compras")
         janela.geometry("350x180")
-        janela.grab_set()
+        janela.transient(self.master)
+        janela.lift()
+        janela.after(100, lambda: [janela.grab_set(), janela.focus_force()])
 
         frame = ctk.CTkFrame(janela)
         frame.pack(fill="both", expand=True, padx=20, pady=20)
@@ -344,7 +346,9 @@ class TelaCompras(TelaBase):
         janela = ctk.CTkToplevel(self.master)
         janela.title("Adicionar Item")
         janela.geometry("400x300")
-        janela.grab_set()
+        janela.transient(self.master)
+        janela.lift()
+        janela.after(100, lambda: [janela.grab_set(), janela.focus_force()])
 
         frame = ctk.CTkFrame(janela)
         frame.pack(fill="both", expand=True, padx=20, pady=20)

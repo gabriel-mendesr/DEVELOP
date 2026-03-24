@@ -151,6 +151,11 @@ class SistemaCreditos:
         is_admin: bool,
         can_change_dates: bool,
         can_manage_products: bool,
+        can_access_hospedes: bool = True,
+        can_access_financeiro: bool = True,
+        can_access_compras: bool = True,
+        can_access_dash: bool = True,
+        can_access_relatorios: bool = True,
         usuario_acao: str = "Sistema",
     ) -> None:
         salt = secrets.token_hex(16)
@@ -158,9 +163,23 @@ class SistemaCreditos:
         with self.conn:
             self.cursor.execute(
                 "INSERT OR REPLACE INTO usuarios "
-                "(username, password, is_admin, can_change_dates, can_manage_products, salt) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
-                (username, password_hash, int(is_admin), int(can_change_dates), int(can_manage_products), salt),
+                "(username, password, is_admin, can_change_dates, can_manage_products, "
+                "can_access_hospedes, can_access_financeiro, can_access_compras, "
+                "can_access_dash, can_access_relatorios, salt) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    username,
+                    password_hash,
+                    int(is_admin),
+                    int(can_change_dates),
+                    int(can_manage_products),
+                    int(can_access_hospedes),
+                    int(can_access_financeiro),
+                    int(can_access_compras),
+                    int(can_access_dash),
+                    int(can_access_relatorios),
+                    salt,
+                ),
             )
         self.registrar_log(usuario_acao, "SALVAR_USUARIO", f"Usuario alvo: {username} | Admin: {is_admin}")
 

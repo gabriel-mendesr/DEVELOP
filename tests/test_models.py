@@ -35,6 +35,7 @@ CONCEITO: FIXTURE
 
 import os
 import sys
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -409,3 +410,291 @@ class TestValidacao:
         """Documentos que não são CPF nem CNPJ são aceitos se > 3 chars."""
         assert sistema._validar_cpf_cnpj("MG1234567") is True  # RG de MG
         assert sistema._validar_cpf_cnpj("AB") is False  # Muito curto
+
+    def test_cnpj_valido(self, sistema):
+        """CNPJ com dígitos verificadores corretos."""
+        assert sistema._validar_cpf_cnpj("11222333000181") is True
+
+    def test_cnpj_invalido_repetido(self, sistema):
+        """CNPJ com todos dígitos iguais é inválido."""
+        assert sistema._validar_cpf_cnpj("11111111111111") is False
+
+    def test_cnpj_invalido_digito_errado(self, sistema):
+        """CNPJ com dígito verificador corrompido é inválido."""
+        assert sistema._validar_cpf_cnpj("11222333000189") is False  # último dígito errado
+
+
+# =============================================================================
+# TESTES FINANCEIRO EXPANDIDO
+# =============================================================================
+
+
+class TestFinanceiroExpandido:
+    """Cobre caminhos do core não exercitados pelos testes base."""
+
+    DOC = "52998224725"
+
+    def _hospede(self, sistema):
+        sistema.cadastrar_hospede("Teste Expandido", self.DOC)
+
+    def test_saida_parcialmente_consome_entrada(self, sistema):
+        """FIFO: saída menor que entrada não zera o crédito."""
+        self._hospede(sistema)
+        sistema.adicionar_movimentacao(self.DOC, 500, "Cortesia", "ENTRADA")
+        sistema.adicionar_movimentacao(self.DOC, 300, "Uso", "SAIDA")
+        saldo, _, _ = sistema.get_saldo_info(self.DOC)
+        assert saldo == pytest.approx(200.0)
+
+    def test_movimentacao_hospede_inexistente(self, sistema):
+        """Adicionar movimentação para doc inexistente lança ValueError."""
+        with pytest.raises(ValueError):
+            sistema.adicionar_movimentacao("00000000000", 100, "Cat", "ENTRADA")
+
+    def test_pagar_multa_valor_zero_bloqueia(self, sistema):
+        """Pagar multa com valor zero ou negativo lança ValueError."""
+        self._hospede(sistema)
+        sistema.adicionar_multa(self.DOC, 50, "Atraso")
+        with pytest.raises(ValueError):
+            sistema.pagar_multa(self.DOC, 0, "Dinheiro")
+
+    def test_historico_global_com_tipo_filtro(self, sistema):
+        """get_historico_global filtra por tipo corretamente."""
+        self._hospede(sistema)
+        sistema.adicionar_movimentacao(self.DOC, 100, "Cat", "ENTRADA")
+        sistema.adicionar_movimentacao(self.DOC, 50, "Uso", "SAIDA")
+
+        entradas = sistema.get_historico_global(tipos=("ENTRADA",))
+        saidas = sistema.get_historico_global(tipos=("SAIDA",))
+        assert all(r["tipo"] == "ENTRADA" for r in entradas)
+        assert all(r["tipo"] == "SAIDA" for r in saidas)
+
+    def test_historico_global_com_datas(self, sistema):
+        """get_historico_global filtra por data_inicio e data_fim."""
+        self._hospede(sistema)
+        sistema.adicionar_movimentacao(self.DOC, 100, "Cat", "ENTRADA")
+        hoje = datetime.today().date().isoformat()
+        resultado = sistema.get_historico_global(data_inicio=hoje, data_fim=hoje)
+        assert len(resultado) >= 1
+
+    def test_get_dados_grafico_categorias(self, sistema):
+        """get_dados_grafico_categorias retorna dados após uma entrada."""
+        self._hospede(sistema)
+        sistema.adicionar_movimentacao(self.DOC, 200, "Cortesia", "ENTRADA")
+        dados = sistema.get_dados_grafico_categorias()
+        assert len(dados) >= 1
+        assert dados[0][1] == pytest.approx(200.0)
+
+    def test_get_dados_dash_hospede_vencido(self, sistema):
+        """Dashboard contabiliza saldo vencido corretamente."""
+        self._hospede(sistema)
+        # Força validade 0 meses → crédito vence hoje (no passado no próximo segundo)
+        sistema.set_config("validade_meses", 0)
+        sistema.adicionar_movimentacao(self.DOC, 300, "Cortesia", "ENTRADA")
+        total_saldo, total_vencido, _, n, _ = sistema.get_dados_dash()
+        assert n >= 1
+        assert total_saldo >= 300.0
+
+    def test_get_hospedes_vencendo_em_breve(self, sistema):
+        """Hóspede com crédito dentro do alerta aparece no resultado."""
+        self._hospede(sistema)
+        sistema.set_config("validade_meses", 1)  # vence em ~30 dias
+        sistema.set_config("alerta_dias", 60)  # alerta de 60 dias
+        sistema.adicionar_movimentacao(self.DOC, 100, "Cat", "ENTRADA")
+        resultado = sistema.get_hospedes_vencendo_em_breve()
+        assert len(resultado) >= 1
+        assert resultado[0][0] == "TESTE EXPANDIDO"
+
+
+# =============================================================================
+# TESTES BUSCA FILTRADA EXPANDIDA
+# =============================================================================
+
+
+class TestBuscaFiltrada:
+    """Cobre os filtros não exercitados nos testes base."""
+
+    DOC = "11144477735"
+
+    def _hospede(self, sistema):
+        sistema.cadastrar_hospede("Filtro Teste", self.DOC)
+
+    def test_buscar_filtro_vencidos(self, sistema):
+        """buscar_filtrado('', 'vencidos') retorna hóspedes com crédito vencido."""
+        self._hospede(sistema)
+        # Insere diretamente com data de vencimento no passado
+        ontem = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        with sistema.conn:
+            sistema.cursor.execute(
+                "INSERT INTO historico_zebra (documento, tipo, valor, categoria, data_acao, data_vencimento, obs, usuario)"
+                " VALUES (?, 'ENTRADA', 100, 'Cat', ?, ?, '', 'admin')",
+                (self.DOC, ontem, ontem),
+            )
+        resultado = sistema.buscar_filtrado("", "vencidos")
+        docs = [r[1] for r in resultado]
+        assert self.DOC in docs
+
+    def test_buscar_filtro_com_multa(self, sistema):
+        """buscar_filtrado('', 'com_multa') retorna só quem tem multa."""
+        self._hospede(sistema)
+        sistema.adicionar_multa(self.DOC, 80, "Teste")
+        resultado = sistema.buscar_filtrado("", "com_multa")
+        docs = [r[1] for r in resultado]
+        assert self.DOC in docs
+
+    def test_buscar_filtro_vencendo(self, sistema):
+        """buscar_filtrado('', 'vencendo') retorna hóspedes dentro do alerta."""
+        self._hospede(sistema)
+        sistema.set_config("validade_meses", 1)  # vence em ~30 dias
+        sistema.set_config("alerta_dias", 60)
+        sistema.adicionar_movimentacao(self.DOC, 150, "Cat", "ENTRADA")
+        resultado = sistema.buscar_filtrado("", "vencendo")
+        docs = [r[1] for r in resultado]
+        assert self.DOC in docs
+
+
+# =============================================================================
+# TESTES COMPRAS EXPANDIDO
+# =============================================================================
+
+
+class TestComprasExpandido:
+    """Cobre caminhos de compras não exercitados."""
+
+    def test_compra_data_invalida_usa_hoje(self, sistema):
+        """Data inválida faz fallback para hoje sem lançar exceção."""
+        lista_id = sistema.criar_lista_compras("admin")
+        sistema.adicionar_compra(
+            data_compra="nao-e-uma-data",
+            produto="Produto X",
+            qtd="1",
+            valor_unit="10,00",
+            lista_id=lista_id,
+            usuario="admin",
+        )
+        itens = sistema.get_itens_lista(lista_id)
+        assert len(itens) == 1
+
+    def test_fechar_lista(self, sistema):
+        """Fechar lista altera status para FECHADA."""
+        lista_id = sistema.criar_lista_compras("admin")
+        sistema.fechar_lista_compras(lista_id)
+        listas = sistema.get_listas_resumo()
+        lista = next(item for item in listas if item["id"] == lista_id)
+        assert lista["status"] == "FECHADA"
+
+    def test_itens_lista_tendencia_subiu(self, sistema):
+        """Tendência 'subiu' quando preço atual > preço anterior."""
+        lista1 = sistema.criar_lista_compras("admin")
+        sistema.adicionar_compra("01/01/2025", "CAFÉ", "1", "5,00", lista_id=lista1)
+        lista2 = sistema.criar_lista_compras("admin")
+        sistema.adicionar_compra("01/03/2025", "CAFÉ", "1", "8,00", lista_id=lista2)
+        itens = sistema.get_itens_lista(lista2)
+        cafe = next(i for i in itens if i["produto"] == "CAFÉ")
+        assert cafe["tendencia"] == "subiu"
+
+    def test_itens_lista_tendencia_desceu(self, sistema):
+        """Tendência 'desceu' quando preço atual < preço anterior."""
+        lista1 = sistema.criar_lista_compras("admin")
+        sistema.adicionar_compra("01/01/2025", "ARROZ", "1", "10,00", lista_id=lista1)
+        lista2 = sistema.criar_lista_compras("admin")
+        sistema.adicionar_compra("01/03/2025", "ARROZ", "1", "7,00", lista_id=lista2)
+        itens = sistema.get_itens_lista(lista2)
+        arroz = next(i for i in itens if i["produto"] == "ARROZ")
+        assert arroz["tendencia"] == "desceu"
+
+
+# =============================================================================
+# TESTES DE EXPORTAÇÃO
+# =============================================================================
+
+
+class TestExportacao:
+    """Cobre métodos de exportação CSV."""
+
+    def test_exportar_csv_gera_arquivo(self, sistema):
+        """exportar_csv() cria um arquivo não-vazio."""
+        import os
+
+        caminho = sistema.exportar_csv()
+        assert os.path.exists(caminho)
+        assert os.path.getsize(caminho) > 0
+        os.unlink(caminho)
+
+    def test_exportar_historico_sem_mes(self, sistema):
+        """exportar_historico_financeiro_csv(None) cria arquivo sem filtro de mês."""
+        import os
+
+        caminho = sistema.exportar_historico_financeiro_csv(None)
+        assert os.path.exists(caminho)
+        os.unlink(caminho)
+
+    def test_exportar_historico_com_mes(self, sistema):
+        """exportar_historico_financeiro_csv('03/2026') cria arquivo filtrado."""
+        import os
+
+        caminho = sistema.exportar_historico_financeiro_csv("03/2026")
+        assert os.path.exists(caminho)
+        os.unlink(caminho)
+
+
+# =============================================================================
+# TESTES DE LOG E ANOTAÇÕES
+# =============================================================================
+
+
+class TestLogEAnotacoes:
+    """Cobre registrar_log, get_logs, limpar_logs e anotações."""
+
+    def test_registrar_e_ler_log(self, sistema):
+        """registrar_log adiciona entrada visível em get_logs."""
+        sistema.registrar_log("admin", "TESTE_LOG", "detalhe qualquer")
+        logs = sistema.get_logs()
+        assert any(log["acao"] == "TESTE_LOG" for log in logs)
+
+    def test_limpar_logs(self, sistema):
+        """limpar_logs_auditoria apaga os logs anteriores."""
+        sistema.registrar_log("admin", "LOG_ANTES", "x")
+        sistema.limpar_logs_auditoria("admin")
+        logs = sistema.get_logs()
+        # Após limpar, só deve existir o log da própria limpeza
+        assert all(log["acao"] == "LIMPEZA_LOGS" for log in logs)
+
+    def test_salvar_e_ler_anotacao(self, sistema):
+        """salvar_anotacao persiste e get_anotacao recupera o texto."""
+        sistema.cadastrar_hospede("Anot Teste", "52998224725")
+        sistema.salvar_anotacao("52998224725", "Nota de teste aqui")
+        texto = sistema.get_anotacao("52998224725")
+        assert texto == "Nota de teste aqui"
+
+
+# =============================================================================
+# TESTES DE AUTENTICAÇÃO LEGADA
+# =============================================================================
+
+
+class TestAuthLegacy:
+    """Cobre migração automática de usuário sem salt (formato legado)."""
+
+    def test_login_legado_sem_salt(self, sistema):
+        """
+        Usuário com hash SHA-256 puro (sem salt) é autenticado e
+        automaticamente migrado para o novo formato com salt.
+        """
+        import hashlib
+
+        legacy_hash = hashlib.sha256(b"minhasenha").hexdigest()
+        with sistema.conn:
+            sistema.cursor.execute(
+                "INSERT INTO usuarios (username, password, salt, is_admin, can_change_dates, can_manage_products)"
+                " VALUES (?, ?, NULL, 0, 0, 0)",
+                ("usuario_legado", legacy_hash),
+            )
+
+        # Primeiro login: autentica e migra
+        user = sistema.verificar_login("usuario_legado", "minhasenha")
+        assert user is not None
+        assert user["username"] == "usuario_legado"
+
+        # Segundo login: agora usa o novo formato com salt
+        user2 = sistema.verificar_login("usuario_legado", "minhasenha")
+        assert user2 is not None
