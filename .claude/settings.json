@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/gabrielmendes/develop/**)",
+      "Bash(python -m ruff check app/app_gui.py --output-format=text)",
+      "Bash(python -m ruff check app/app_gui.py)",
+      "Bash(python -m ruff check app/screens/)",
+      "Bash(python -m pytest tests/test_models.py -v --tb=short)"
+    ]
+  }
+}
