@@ -24,9 +24,6 @@ import threading
 from collections.abc import Callable
 
 
-import requests
-
-
 class UpdateManager:
     """Gerencia verificação e aplicação de atualizações."""
 
@@ -93,6 +90,8 @@ class UpdateManager:
             Ou: (False, None, None)
         """
         try:
+            import requests  # noqa: PLC0415
+
             print(f"🔍 Verificando atualizações... (versão atual: {self.versao_atual})")
             response = requests.get(self.GITHUB_API, timeout=10)
             response.raise_for_status()
@@ -179,6 +178,8 @@ class UpdateManager:
 
         def _task():
             try:
+                import requests  # noqa: PLC0415
+
                 is_windows = platform.system() == "Windows"
                 exec_path = os.path.abspath(sys.executable)
                 exec_dir = os.path.dirname(exec_path)
