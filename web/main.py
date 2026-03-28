@@ -12,12 +12,15 @@ Variáveis de ambiente:
     SECRET_KEY   - chave para sessões (alterar em produção!)
 """
 
+import csv as _csv
+import io
 import os
 import sys
 from pathlib import Path
 
+from exporters import pdf_extrato, pdf_inadimplentes, pdf_mensal
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -675,3 +678,123 @@ async def ajustes_usuario_excluir(request: Request, username: str):
     sistema.excluir_usuario(username, usuario_acao=u["username"])
     _flash(request, f"Usuário '{username}' excluído.", "success")
     return RedirectResponse("/ajustes", status_code=302)
+
+
+# =============================================================================
+# Exportações — PDF e CSV
+# =============================================================================
+
+
+@app.get("/hospedes/{doc}/extrato.pdf")
+async def hospede_extrato_pdf(request: Request, doc: str):
+    if not _user(request):
+        return _redirect_login()
+    hospede = sistema.get_hospede(doc)
+    if not hospede:
+        return RedirectResponse("/hospedes", status_code=302)
+    movimentos = sistema.get_historico_detalhado(doc)
+    saldo, venc, bloqueado = sistema.get_saldo_info(doc)
+    data = pdf_extrato(hospede, movimentos, saldo, venc, bloqueado, sistema.empresa)
+    nome = hospede.get("nome", doc).replace(" ", "_")
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=extrato_{nome}.pdf"},
+    )
+
+
+@app.get("/relatorios/mensal.pdf")
+async def relatorio_mensal_pdf(request: Request, mes: str = ""):
+    if not _user(request):
+        return _redirect_login()
+    if not mes:
+        mes = __import__("datetime").datetime.now().strftime("%m/%Y")
+    try:
+        from datetime import datetime as _dt
+
+        dt = _dt.strptime(mes, "%m/%Y")
+        inicio = dt.strftime("%Y-%m-01")
+        fim = f"{dt.year}-{dt.month + 1:02d}-01" if dt.month < 12 else f"{dt.year + 1}-01-01"
+    except ValueError:
+        return RedirectResponse("/relatorios", status_code=302)
+    movimentos = sistema.get_historico_global(data_inicio=inicio, data_fim=fim, limite=1000)
+    data = pdf_mensal(mes, movimentos, sistema.empresa)
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=mensal_{mes.replace('/', '-')}.pdf"},
+    )
+
+
+@app.get("/relatorios/inadimplentes.pdf")
+async def relatorio_inadimplentes_pdf(request: Request):
+    if not _user(request):
+        return _redirect_login()
+    devedores = sistema.get_devedores_multas()
+    if not devedores:
+        _flash(request, "Nenhum inadimplente encontrado.", "info")
+        return RedirectResponse("/relatorios", status_code=302)
+    data = pdf_inadimplentes(devedores, sistema.empresa)
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=inadimplentes.pdf"},
+    )
+
+
+@app.get("/hospedes/exportar.csv")
+async def hospedes_csv(request: Request):
+    if not _user(request):
+        return _redirect_login()
+    hospedes_raw = sistema.buscar_filtrado("", "todos")
+    output = io.StringIO()
+    w = _csv.writer(output)
+    w.writerow(["Nome", "Documento", "Saldo", "Vencimento", "Status"])
+    for nome, doc, saldo in hospedes_raw:
+        _, venc, bloqueado = sistema.get_saldo_info(doc)
+        status = "VENCIDO" if bloqueado else ("ATIVO" if saldo > 0 else "SEM SALDO")
+        w.writerow([nome, doc, f"{saldo:.2f}", venc, status])
+    return Response(
+        content=output.getvalue().encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=hospedes.csv"},
+    )
+
+
+@app.get("/relatorios/exportar.csv")
+async def relatorio_csv(request: Request, mes: str = ""):
+    if not _user(request):
+        return _redirect_login()
+    kwargs: dict = {"limite": 5000}
+    if mes:
+        try:
+            from datetime import datetime as _dt
+
+            dt = _dt.strptime(mes, "%m/%Y")
+            kwargs["data_inicio"] = dt.strftime("%Y-%m-01")
+            kwargs["data_fim"] = f"{dt.year}-{dt.month + 1:02d}-01" if dt.month < 12 else f"{dt.year + 1}-01-01"
+        except ValueError:
+            pass
+    movimentos = sistema.get_historico_global(**kwargs)
+    output = io.StringIO()
+    w = _csv.writer(output)
+    w.writerow(["Data", "Hospede", "Documento", "Tipo", "Valor", "Categoria", "Obs", "Usuario"])
+    for m in movimentos:
+        w.writerow(
+            [
+                m.get("data_acao", ""),
+                m.get("nome", ""),
+                m.get("documento", ""),
+                m.get("tipo", ""),
+                m.get("valor", ""),
+                m.get("categoria", "") or "",
+                m.get("obs", "") or "",
+                m.get("usuario", "") or "",
+            ]
+        )
+    fname = f"financeiro_{mes.replace('/', '-')}.csv" if mes else "financeiro.csv"
+    return Response(
+        content=output.getvalue().encode("utf-8-sig"),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={fname}"},
+    )

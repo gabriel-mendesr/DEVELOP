@@ -651,6 +651,16 @@ class SistemaCreditos:
                         total_a_vencer += s
         return total_saldo, total_vencido, total_a_vencer, len(docs), total_multas
 
+    def get_devedores_multas(self) -> list[tuple[str, str, str, float]]:
+        """Retorna lista de (nome, documento, telefone, saldo) de hóspedes inadimplentes."""
+        hospedes = self._fetch("SELECT nome, documento, telefone FROM hospedes")
+        resultado = []
+        for h in hospedes:
+            saldo, _, bloqueado = self._processar_saldo(h["documento"])
+            if bloqueado and saldo > 0:
+                resultado.append((h["nome"], h["documento"], h["telefone"] or "", saldo))
+        return sorted(resultado, key=lambda x: x[0])
+
     def get_hospedes_vencendo_em_breve(self) -> list[tuple[str, str, str]]:
         hoje = datetime.now().strftime("%Y-%m-%d")
         alerta = (datetime.now() + timedelta(days=self.get_config("alerta_dias"))).strftime("%Y-%m-%d")

@@ -10,3 +10,5 @@ services:
         sync: false          # preencher manualmente no painel do Render
       - key: SECRET_KEY
         generateValue: true  # gerado automaticamente pelo Render
+      - key: PYTHON_VERSION
+        value: 3.11.0

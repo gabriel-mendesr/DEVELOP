@@ -2,11 +2,20 @@
 {% block title %}{{ hospede.nome }} — Hotel Santos{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center gap-2 mb-4">
+<div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
   <a href="/hospedes" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
   </a>
-  <h1 class="page-title mb-0">{{ hospede.nome }}</h1>
+  <h1 class="page-title mb-0 me-auto">{{ hospede.nome }}</h1>
+  <a href="/hospedes/{{ hospede.documento }}/extrato.pdf"
+     class="btn btn-sm btn-outline-danger">
+    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+  </a>
+  {% if hospede.telefone %}
+  <button id="btn-wpp-voucher" class="btn btn-sm btn-success">
+    <i class="bi bi-whatsapp me-1"></i>Voucher
+  </button>
+  {% endif %}
 </div>
 
 <div class="row g-4">
@@ -232,4 +241,26 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const btnVoucher = document.getElementById('btn-wpp-voucher');
+if (btnVoucher) {
+  btnVoucher.addEventListener('click', () => {
+    const nome  = "{{ hospede.nome }}";
+    const saldo = "{{ '%.2f'|format(saldo) }}".replace('.', ',');
+    const venc  = "{{ vencimento }}";
+    const fone  = "{{ hospede.telefone | replace(' ','') | replace('-','') | replace('(','') | replace(')','') }}";
+    const msg =
+      `*HOTEL SANTOS - VOUCHER DE CREDITO*\n\n` +
+      `Ola ${nome},\n` +
+      `Segue seu saldo atualizado:\n\n` +
+      `\u{1F4B0} *Valor:* R$ ${saldo}\n` +
+      `\u{1F4C5} *Validade:* ${venc}\n\n` +
+      `Utilize este credito em sua proxima hospedagem!`;
+    window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`, '_blank');
+  });
+}
+</script>
 {% endblock %}
