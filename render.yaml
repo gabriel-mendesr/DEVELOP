@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: hotel-santos
+    runtime: python
+    rootDir: web
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # preencher manualmente no painel do Render
+      - key: SECRET_KEY
+        generateValue: true  # gerado automaticamente pelo Render

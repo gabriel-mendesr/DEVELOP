@@ -29,11 +29,20 @@
         </div>
         <div class="mb-2">
           <label class="form-label">Produto</label>
-          <input type="text" name="produto" class="form-control" list="lista-produtos"
-                 placeholder="Ex: Café, Açúcar..." required>
-          <datalist id="lista-produtos">
-            {% for p in produtos %}<option value="{{ p }}">{% endfor %}
-          </datalist>
+          {% if produtos %}
+          <select name="produto" class="form-select" required>
+            <option value="">— Selecione —</option>
+            {% for p in produtos %}
+            <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div class="form-control text-muted" style="background:#f8fafc; font-size:0.82rem">
+            Nenhum produto cadastrado —
+            <a href="/ajustes?tab=produtos" class="text-primary">cadastre em Ajustes</a>
+          </div>
+          <input type="hidden" name="produto" value="">
+          {% endif %}
         </div>
         <div class="row g-2 mb-2">
           <div class="col-5">

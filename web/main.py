@@ -6,19 +6,16 @@ Como rodar localmente:
     uvicorn main:app --reload
 
 Variáveis de ambiente:
-    DB_PATH    - caminho para o hotel.db (padrão: ../app/hotel.db)
-    SECRET_KEY - chave para sessões (alterar em produção!)
+    DATABASE_URL - connection string PostgreSQL (ex: postgresql://user:pass@host/db)
+                   Se ausente, usa SQLite local (desenvolvimento)
+    DB_PATH      - caminho do SQLite (padrão: ../app/hotel.db)
+    SECRET_KEY   - chave para sessões (alterar em produção!)
 """
 
 import os
 import sys
 from pathlib import Path
 
-# Permite importar app/core/ sem precisar instalá-lo como pacote
-sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
-
-from core.database import Database
-from core.models import SistemaCreditos
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -26,10 +23,24 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 # =============================================================================
-# Inicialização
+# Inicialização — PostgreSQL (produção) ou SQLite (local)
 # =============================================================================
 BASE_DIR = Path(__file__).parent
-DB_PATH = os.getenv("DB_PATH", str(Path(__file__).parent.parent / "app" / "hotel.db"))
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+if DATABASE_URL:
+    # Produção: Neon.tech / PostgreSQL
+    from db_pg import SistemaCreditos as _SC
+
+    sistema = _SC(DATABASE_URL)
+else:
+    # Desenvolvimento: SQLite local (mesmo banco do app desktop)
+    sys.path.insert(0, str(Path(__file__).parent.parent / "app"))
+    from core.database import Database
+    from core.models import SistemaCreditos as _SC  # type: ignore[no-redef]
+
+    _db = Database(os.getenv("DB_PATH", str(Path(__file__).parent.parent / "app" / "hotel.db")))
+    sistema = _SC(_db)
 
 app = FastAPI(title="Hotel Santos")
 app.add_middleware(
@@ -39,9 +50,6 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-
-db = Database(DB_PATH)
-sistema = SistemaCreditos(db)
 
 
 # =============================================================================

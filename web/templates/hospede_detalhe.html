@@ -93,11 +93,20 @@
         </div>
         <div class="mb-2">
           <label class="form-label">Categoria</label>
-          <input type="text" name="categoria" class="form-control" list="lista-categorias"
-                 placeholder="Ex: Diária, Refeição...">
-          <datalist id="lista-categorias">
-            {% for c in categorias %}<option value="{{ c }}">{% endfor %}
-          </datalist>
+          {% if categorias %}
+          <select name="categoria" class="form-select">
+            <option value="">— Sem categoria —</option>
+            {% for c in categorias %}
+            <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div class="form-control text-muted" style="background:#f8fafc; font-size:0.82rem">
+            Nenhuma categoria cadastrada —
+            <a href="/ajustes?tab=categorias" class="text-primary">cadastre em Ajustes</a>
+          </div>
+          <input type="hidden" name="categoria" value="">
+          {% endif %}
         </div>
         <div class="mb-3">
           <label class="form-label">Observação</label>
