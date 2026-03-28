@@ -57,6 +57,20 @@ jobs:
             --noconfirm `
             --collect-all customtkinter `
             --collect-all tkcalendar `
+            --hidden-import core `
+            --hidden-import core.database `
+            --hidden-import core.models `
+            --hidden-import screens `
+            --hidden-import screens.base `
+            --hidden-import screens.hospedes `
+            --hidden-import screens.financeiro `
+            --hidden-import screens.compras `
+            --hidden-import screens.config `
+            --hidden-import screens.dashboard `
+            --hidden-import screens.relatorios `
+            --hidden-import screens.notificacoes `
+            --add-data "core;core" `
+            --add-data "screens;screens" `
             app_gui.py
 
       # Inno Setup já vem instalado nos runners Windows do GitHub Actions
@@ -121,6 +135,20 @@ jobs:
             --noconfirm \
             --collect-all customtkinter \
             --collect-all tkcalendar \
+            --hidden-import core \
+            --hidden-import core.database \
+            --hidden-import core.models \
+            --hidden-import screens \
+            --hidden-import screens.base \
+            --hidden-import screens.hospedes \
+            --hidden-import screens.financeiro \
+            --hidden-import screens.compras \
+            --hidden-import screens.config \
+            --hidden-import screens.dashboard \
+            --hidden-import screens.relatorios \
+            --hidden-import screens.notificacoes \
+            --add-data "core:core" \
+            --add-data "screens:screens" \
             app_gui.py
           mv dist/SistemaHotelSantos dist/SistemaHotelSantos-Ubuntu
           chmod +x dist/SistemaHotelSantos-Ubuntu
