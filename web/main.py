@@ -111,9 +111,23 @@ async def logout(request: Request):
 
 
 # =============================================================================
-# Dashboard
+# Home
 # =============================================================================
 @app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    if not _user(request):
+        return _redirect_login()
+    return templates.TemplateResponse(
+        request,
+        "home.html",
+        _ctx(request, active="home"),
+    )
+
+
+# =============================================================================
+# Dashboard
+# =============================================================================
+@app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     if not _user(request):
         return _redirect_login()
