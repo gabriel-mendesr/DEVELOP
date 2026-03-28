@@ -268,6 +268,40 @@ class SistemaCreditos:
             )
         self.registrar_log(usuario_acao, "SALVAR_USUARIO", f"Usuario alvo: {username}")
 
+    def atualizar_permissoes_usuario(
+        self,
+        username: str,
+        is_admin: int,
+        can_change_dates: int,
+        can_manage_products: int,
+        can_access_hospedes: int,
+        can_access_financeiro: int,
+        can_access_compras: int,
+        can_access_dash: int,
+        can_access_relatorios: int,
+        usuario_acao: str = "Sistema",
+    ) -> None:
+        with self._tx():
+            self._execute(
+                """UPDATE usuarios SET
+                    is_admin=?, can_change_dates=?, can_manage_products=?,
+                    can_access_hospedes=?, can_access_financeiro=?,
+                    can_access_compras=?, can_access_dash=?, can_access_relatorios=?
+                   WHERE username=?""",
+                (
+                    is_admin,
+                    can_change_dates,
+                    can_manage_products,
+                    can_access_hospedes,
+                    can_access_financeiro,
+                    can_access_compras,
+                    can_access_dash,
+                    can_access_relatorios,
+                    username,
+                ),
+            )
+        self.registrar_log(usuario_acao, "EDITAR_USUARIO", f"Usuario alvo: {username}")
+
     def excluir_usuario(self, username: str, usuario_acao: str = "Sistema") -> None:
         with self._tx():
             self._execute("DELETE FROM usuarios WHERE username = ?", (username,))

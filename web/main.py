@@ -517,32 +517,26 @@ async def ajustes_usuario_editar(
             )
         else:
             # Atualiza só permissões, mantém senha atual
-            with sistema.conn:
-                sistema.cursor.execute(
-                    """UPDATE usuarios SET
-                        is_admin=?, can_change_dates=?, can_manage_products=?,
-                        can_access_hospedes=?, can_access_financeiro=?,
-                        can_access_compras=?, can_access_dash=?, can_access_relatorios=?
-                       WHERE username=?""",
-                    (
-                        int(is_admin),
-                        int(can_change_dates),
-                        int(can_manage_products),
-                        int(can_access_hospedes),
-                        int(can_access_financeiro),
-                        int(can_access_compras),
-                        int(can_access_dash),
-                        int(can_access_relatorios),
-                        username,
-                    ),
-                )
-            sistema.registrar_log(u["username"], "EDITAR_USUARIO", f"Usuario alvo: {username}")
+            sistema.atualizar_permissoes_usuario(
+                username=username,
+                is_admin=int(is_admin),
+                can_change_dates=int(can_change_dates),
+                can_manage_products=int(can_manage_products),
+                can_access_hospedes=int(can_access_hospedes),
+                can_access_financeiro=int(can_access_financeiro),
+                can_access_compras=int(can_access_compras),
+                can_access_dash=int(can_access_dash),
+                can_access_relatorios=int(can_access_relatorios),
+                usuario_acao=u["username"],
+            )
         _flash(request, f"Usuário '{username}' atualizado.", "success")
         # Se editou a si mesmo, atualiza a sessão
         if username == u["username"]:
-            updated = sistema.cursor.execute("SELECT * FROM usuarios WHERE username=?", (username,)).fetchone()
-            if updated:
-                request.session["user"] = dict(updated)
+            updated = sistema.get_usuarios()
+            for usr in updated:
+                if usr["username"] == username:
+                    request.session["user"] = usr
+                    break
     except Exception as e:
         _flash(request, str(e), "danger")
     return RedirectResponse("/ajustes", status_code=302)
