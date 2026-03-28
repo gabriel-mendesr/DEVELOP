@@ -15,7 +15,7 @@
 
 <div class="row g-4">
 
-  <!-- Adicionar item (só se aberta) -->
+  <!-- Formulário (só se aberta) -->
   {% if lista.status == 'ABERTA' %}
   <div class="col-12 col-lg-4">
     <div class="form-card">
@@ -78,14 +78,19 @@
     <div class="table-card">
       <div class="table-header">
         <h6><i class="bi bi-list-ul me-2"></i>Itens da Lista</h6>
-        {% if itens %}
-        <span class="fw-bold">
-          Total: R$ {{ "%.2f"|format(itens|sum(attribute='valor_total')) }}
-        </span>
-        {% endif %}
+        <div class="d-flex align-items-center gap-2">
+          {% if itens %}
+          <span class="fw-bold" style="font-size:0.85rem">
+            Total: R$ {{ "%.2f"|format(itens|sum(attribute='valor_total')) }}
+          </span>
+          <button id="btn-whatsapp" class="btn btn-sm btn-success">
+            <i class="bi bi-whatsapp me-1"></i>WhatsApp
+          </button>
+          {% endif %}
+        </div>
       </div>
       <div class="table-responsive">
-        <table class="table">
+        <table class="table" id="tabela-itens">
           <thead>
             <tr>
               <th>Data</th>
@@ -93,7 +98,7 @@
               <th>Qtd</th>
               <th>Valor Unit.</th>
               <th>Total</th>
-              <th>Tendência</th>
+              <th>Variação</th>
             </tr>
           </thead>
           <tbody>
@@ -125,21 +130,129 @@
         </table>
       </div>
     </div>
+
+    <!-- Gráfico de variação de preços -->
+    {% if historico_precos %}
+    <div class="table-card mt-4">
+      <div class="table-header">
+        <h6><i class="bi bi-graph-up me-2" style="color:#ea580c"></i>Variação de Preços</h6>
+        <div class="d-flex gap-1 flex-wrap" id="filtro-produtos">
+          {% for produto in historico_precos %}
+          <button class="btn btn-sm btn-outline-secondary btn-filtro active"
+                  data-produto="{{ produto }}">{{ produto }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div style="padding:1rem">
+        <canvas id="grafico-precos" height="120"></canvas>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
-  // Preenche data com hoje no formato DD/MM/AAAA
-  const campo = document.getElementById('campo-data');
-  if (campo) {
-    const hoje = new Date();
-    const dd = String(hoje.getDate()).padStart(2, '0');
-    const mm = String(hoje.getMonth() + 1).padStart(2, '0');
-    const aaaa = hoje.getFullYear();
-    campo.value = `${dd}/${mm}/${aaaa}`;
-  }
+// ── Data padrão: hoje ─────────────────────────────────────────────────────
+const campo = document.getElementById('campo-data');
+if (campo) {
+  const hoje = new Date();
+  const dd = String(hoje.getDate()).padStart(2, '0');
+  const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+  campo.value = `${dd}/${mm}/${hoje.getFullYear()}`;
+}
+
+// ── WhatsApp ──────────────────────────────────────────────────────────────
+const btnWpp = document.getElementById('btn-whatsapp');
+if (btnWpp) {
+  btnWpp.addEventListener('click', () => {
+    const rows = document.querySelectorAll('#tabela-itens tbody tr');
+    let linhas = [`*Lista de Compras #{{ lista.id }}*\n`];
+    let total = 0;
+    rows.forEach(tr => {
+      const cols = tr.querySelectorAll('td');
+      if (cols.length < 5) return;
+      const produto  = cols[1].innerText.trim();
+      const qtd      = cols[2].innerText.trim();
+      const valUnit  = cols[3].innerText.trim();
+      const valTotal = cols[4].innerText.trim();
+      linhas.push(`• ${produto} — ${qtd}x ${valUnit} = ${valTotal}`);
+      const num = parseFloat(valTotal.replace('R$ ', '').replace(',', '.'));
+      if (!isNaN(num)) total += num;
+    });
+    linhas.push(`\n*Total: R$ ${total.toFixed(2).replace('.', ',')}*`);
+    const texto = linhas.join('\n');
+    window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+  });
+}
+
+// ── Gráfico de variação de preços ────────────────────────────────────────
+const dadosHistorico = {{ historico_precos | tojson }};
+const cores = [
+  '#1f6aa5','#ea580c','#16a34a','#7c3aed',
+  '#dc2626','#ca8a04','#0891b2','#db2777'
+];
+
+if (Object.keys(dadosHistorico).length > 0) {
+  // Coleta todas as datas únicas ordenadas
+  const todasDatas = [...new Set(
+    Object.values(dadosHistorico).flatMap(pts => pts.map(p => p.data))
+  )].sort();
+
+  const datasets = Object.entries(dadosHistorico).map(([produto, pontos], i) => {
+    const mapaValor = Object.fromEntries(pontos.map(p => [p.data, p.valor]));
+    return {
+      label: produto,
+      data: todasDatas.map(d => mapaValor[d] ?? null),
+      borderColor: cores[i % cores.length],
+      backgroundColor: cores[i % cores.length] + '22',
+      tension: 0.3,
+      spanGaps: true,
+      pointRadius: 5,
+      pointHoverRadius: 7,
+    };
+  });
+
+  const ctx = document.getElementById('grafico-precos').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: todasDatas, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: R$ ${ctx.parsed.y?.toFixed(2).replace('.', ',') ?? '—'}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            callback: val => 'R$ ' + val.toFixed(2).replace('.', ',')
+          }
+        }
+      }
+    }
+  });
+
+  // Filtro por produto
+  document.querySelectorAll('.btn-filtro').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+      const produto = btn.dataset.produto;
+      const ds = chart.data.datasets.find(d => d.label === produto);
+      if (ds) {
+        ds.hidden = !btn.classList.contains('active');
+        chart.update();
+      }
+    });
+  });
+}
 </script>
 {% endblock %}

@@ -609,6 +609,24 @@ class SistemaCreditos:
         rows = self._fetch("SELECT nome FROM produtos ORDER BY nome")
         return [r["nome"] for r in rows]
 
+    def get_historico_precos(self, produtos: list[str]) -> dict[str, list[dict]]:
+        """Retorna histórico de preços por produto para exibir gráfico de variação."""
+        if not produtos:
+            return {}
+        placeholders = ", ".join("%s" for _ in produtos)
+        rows = self._fetch(
+            f"SELECT produto, data_compra, valor_unitario FROM compras "  # noqa: S608
+            f"WHERE produto IN ({placeholders}) ORDER BY produto, data_compra",
+            tuple(produtos),
+        )
+        resultado: dict[str, list[dict]] = {}
+        for r in rows:
+            p = r["produto"]
+            if p not in resultado:
+                resultado[p] = []
+            resultado[p].append({"data": r["data_compra"], "valor": float(r["valor_unitario"])})
+        return resultado
+
     # ------------------------------------------------------------------
     # Dashboard
     # ------------------------------------------------------------------

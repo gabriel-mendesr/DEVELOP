@@ -625,6 +625,24 @@ class SistemaCreditos:
         self.cursor.execute("SELECT nome FROM produtos ORDER BY nome")
         return [r["nome"] for r in self.cursor.fetchall()]
 
+    def get_historico_precos(self, produtos: list[str]) -> dict[str, list[dict]]:
+        """Retorna histórico de preços por produto para exibir gráfico de variação."""
+        if not produtos:
+            return {}
+        placeholders = ", ".join("?" for _ in produtos)
+        self.cursor.execute(
+            f"SELECT produto, data_compra, valor_unitario FROM compras "  # noqa: S608
+            f"WHERE produto IN ({placeholders}) ORDER BY produto, data_compra",
+            produtos,
+        )
+        resultado: dict[str, list[dict]] = {}
+        for r in self.cursor.fetchall():
+            p = r["produto"]
+            if p not in resultado:
+                resultado[p] = []
+            resultado[p].append({"data": r["data_compra"], "valor": float(r["valor_unitario"])})
+        return resultado
+
     # =========================================================================
     # MÓDULO CALENDÁRIO / AGENDA
     # =========================================================================

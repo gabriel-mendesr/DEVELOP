@@ -339,6 +339,8 @@ async def compras_detalhe(request: Request, lista_id: int):
         return RedirectResponse("/compras", status_code=302)
     itens = sistema.get_itens_lista(lista_id)
     produtos = sistema.get_produtos_predefinidos()
+    nomes_itens = list({item["produto"] for item in itens})
+    historico_precos = sistema.get_historico_precos(nomes_itens)
     return templates.TemplateResponse(
         request,
         "compras_detalhe.html",
@@ -347,6 +349,7 @@ async def compras_detalhe(request: Request, lista_id: int):
             lista=lista,
             itens=itens,
             produtos=produtos,
+            historico_precos=historico_precos,
             active="compras",
         ),
     )
