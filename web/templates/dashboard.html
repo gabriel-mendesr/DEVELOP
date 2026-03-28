@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="page-title">Dashboard</h1>
+  <span class="text-muted" style="font-size:0.8rem">
+    <i class="bi bi-clock me-1"></i>Bem-vindo, {{ user.username }}
+  </span>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(31,106,165,0.12)">
+        <i class="bi bi-people-fill" style="color:#1f6aa5"></i>
+      </div>
+      <div>
+        <div class="stat-label">Hóspedes</div>
+        <div class="stat-value">{{ total_hospedes }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(22,163,74,0.12)">
+        <i class="bi bi-cash-stack" style="color:#16a34a"></i>
+      </div>
+      <div>
+        <div class="stat-label">Saldo Total</div>
+        <div class="stat-value">R$ {{ "%.2f"|format(total_saldo) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(220,38,38,0.12)">
+        <i class="bi bi-exclamation-triangle-fill" style="color:#dc2626"></i>
+      </div>
+      <div>
+        <div class="stat-label">Vencido</div>
+        <div class="stat-value" style="color:#dc2626">R$ {{ "%.2f"|format(total_vencido) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(234,179,8,0.12)">
+        <i class="bi bi-clock-history" style="color:#ca8a04"></i>
+      </div>
+      <div>
+        <div class="stat-label">A Vencer</div>
+        <div class="stat-value" style="color:#ca8a04">R$ {{ "%.2f"|format(total_a_vencer) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(124,58,237,0.12)">
+        <i class="bi bi-shield-exclamation" style="color:#7c3aed"></i>
+      </div>
+      <div>
+        <div class="stat-label">Multas</div>
+        <div class="stat-value" style="color:#7c3aed">R$ {{ "%.2f"|format(total_multas) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Movimentos recentes -->
+  <div class="col-12 col-xl-7">
+    <div class="table-card">
+      <div class="table-header">
+        <h6><i class="bi bi-clock-history me-2 text-primary"></i>Movimentos Recentes</h6>
+        <a href="/financeiro" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Hóspede</th>
+              <th>Tipo</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in movimentos %}
+            <tr>
+              <td style="white-space:nowrap">{{ m.data_acao }}</td>
+              <td>
+                <a href="/hospedes/{{ m.documento }}" class="text-decoration-none fw-medium">
+                  {{ m.nome }}
+                </a>
+              </td>
+              <td>
+                <span class="badge rounded-pill
+                  {% if m.tipo == 'ENTRADA' %}badge-entrada
+                  {% elif m.tipo == 'SAIDA' %}badge-saida
+                  {% elif m.tipo == 'MULTA' %}badge-multa
+                  {% else %}badge-pagamento{% endif %}">
+                  {{ m.tipo }}
+                </span>
+              </td>
+              <td class="fw-semibold">R$ {{ "%.2f"|format(m.valor) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Nenhum movimento encontrado</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vencendo em breve -->
+  <div class="col-12 col-xl-5">
+    <div class="table-card">
+      <div class="table-header">
+        <h6><i class="bi bi-calendar-event me-2 text-warning"></i>Vencendo em Breve</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Hóspede</th>
+              <th>Vencimento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vencendo %}
+            <tr>
+              <td>
+                <a href="/hospedes/{{ v[1] }}" class="text-decoration-none fw-medium">
+                  {{ v[0] }}
+                </a>
+              </td>
+              <td><span class="badge rounded-pill badge-multa">{{ v[2] }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2" class="text-center text-muted py-4">
+              <i class="bi bi-check-circle text-success me-1"></i>Nenhum vencendo em breve
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,512 @@
+{% extends "base.html" %}
+{% block title %}Ajustes — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="page-title"><i class="bi bi-gear-fill me-2" style="color:#0369a1"></i>Ajustes</h1>
+</div>
+
+<!-- Tabs nav -->
+<ul class="nav nav-tabs mb-4" id="tabsAjustes">
+  <li class="nav-item">
+    <a class="nav-link" data-tab="geral" href="#">
+      <i class="bi bi-sliders me-1"></i> Geral
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-tab="categorias" href="#">
+      <i class="bi bi-tags me-1"></i> Categorias
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-tab="produtos" href="#">
+      <i class="bi bi-box-seam me-1"></i> Produtos
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-tab="usuarios" href="#">
+      <i class="bi bi-people me-1"></i> Usuários
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-tab="banco" href="#">
+      <i class="bi bi-database me-1"></i> Banco de Dados
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-tab="logs" href="#">
+      <i class="bi bi-journal-text me-1"></i> Logs
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-tab="sobre" href="#">
+      <i class="bi bi-info-circle me-1"></i> Sobre
+    </a>
+  </li>
+</ul>
+
+<div id="tab-content">
+
+  <!-- ═══════════════════════════════════════════════════════ GERAL -->
+  <div class="tab-pane" data-pane="geral">
+    <div class="form-card" style="max-width:520px">
+      <h6 class="fw-bold mb-4"><i class="bi bi-sliders me-2 text-primary"></i>Configurações Gerais</h6>
+      <form method="post" action="/ajustes/config">
+        <div class="mb-4">
+          <p class="fw-semibold mb-3" style="color:#0f172a; font-size:0.9rem">💳 Créditos</p>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label">Validade dos créditos (meses)</label>
+              <input type="number" name="validade_meses" class="form-control"
+                     value="{{ config_validade }}" min="1" max="120" required>
+              <small class="text-muted">Após quantos meses o crédito vence?</small>
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label">Alerta de vencimento (dias)</label>
+              <input type="number" name="alerta_dias" class="form-control"
+                     value="{{ config_alerta }}" min="1" max="365" required>
+              <small class="text-muted">Alertar quantos dias antes?</small>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-floppy me-1"></i> Salvar configurações
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ CATEGORIAS -->
+  <div class="tab-pane" data-pane="categorias">
+    <div class="row g-4">
+      <div class="col-12 col-md-5">
+        <div class="form-card">
+          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Nova Categoria</h6>
+          <form method="post" action="/ajustes/categoria">
+            <div class="mb-3">
+              <label class="form-label">Nome</label>
+              <input type="text" name="nome" class="form-control" placeholder="Ex: Diária, Refeição..." required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-check-lg me-1"></i> Adicionar
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="col-12 col-md-7">
+        <div class="table-card">
+          <div class="table-header">
+            <h6>{{ categorias|length }} categoria(s)</h6>
+          </div>
+          {% if categorias %}
+          <ul class="list-group list-group-flush">
+            {% for cat in categorias %}
+            <li class="list-group-item d-flex justify-content-between align-items-center px-4"
+                style="font-size:0.875rem">
+              <span><i class="bi bi-tag me-2 text-muted"></i>{{ cat }}</span>
+              <form method="post" action="/ajustes/categoria/{{ cat|urlencode }}/excluir"
+                    onsubmit="return confirm('Remover categoria {{ cat }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-center text-muted py-4">Nenhuma categoria cadastrada</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ PRODUTOS -->
+  <div class="tab-pane" data-pane="produtos">
+    <div class="row g-4">
+      {% if can_manage %}
+      <div class="col-12 col-md-5">
+        <div class="form-card">
+          <h6 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-primary"></i>Novo Produto</h6>
+          <form method="post" action="/ajustes/produto">
+            <div class="mb-3">
+              <label class="form-label">Nome do produto</label>
+              <input type="text" name="nome" class="form-control"
+                     placeholder="Ex: Café, Açúcar, Papel..." required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-check-lg me-1"></i> Adicionar
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+      <div class="col-12 {% if can_manage %}col-md-7{% endif %}">
+        <div class="table-card">
+          <div class="table-header">
+            <h6>{{ produtos|length }} produto(s) predefinido(s)</h6>
+            {% if not can_manage %}
+            <span class="text-muted" style="font-size:0.78rem">
+              <i class="bi bi-lock me-1"></i>Somente leitura
+            </span>
+            {% endif %}
+          </div>
+          {% if produtos %}
+          <ul class="list-group list-group-flush">
+            {% for prod in produtos %}
+            <li class="list-group-item d-flex justify-content-between align-items-center px-4"
+                style="font-size:0.875rem">
+              <span><i class="bi bi-box-seam me-2 text-muted"></i>{{ prod }}</span>
+              {% if can_manage %}
+              <form method="post" action="/ajustes/produto/{{ prod|urlencode }}/excluir"
+                    onsubmit="return confirm('Remover produto {{ prod }}?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-center text-muted py-4">Nenhum produto cadastrado</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ USUÁRIOS -->
+  <div class="tab-pane" data-pane="usuarios">
+    <div class="row g-4">
+      <div class="col-12 col-lg-7">
+        <div class="table-card">
+          <div class="table-header">
+            <h6>{{ usuarios|length }} usuário(s)</h6>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Usuário</th><th>Admin</th><th>Módulos</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in usuarios %}
+                <tr>
+                  <td class="fw-medium">
+                    {{ u.username }}
+                    {% if u.username == user.username %}
+                    <span class="badge rounded-pill ms-1"
+                          style="background:#dbeafe;color:#1e40af;font-size:0.65rem">você</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if u.is_admin %}
+                    <span class="badge badge-entrada rounded-pill">Sim</span>
+                    {% else %}
+                    <span class="badge rounded-pill" style="background:#f1f5f9;color:#475569">Não</span>
+                    {% endif %}
+                  </td>
+                  <td style="font-size:0.75rem; color:#64748b">
+                    {% set mods = [] %}
+                    {% if u.get('can_access_hospedes', 1) %}{% set _ = mods.append('Hósp') %}{% endif %}
+                    {% if u.get('can_access_financeiro', 1) %}{% set _ = mods.append('Fin') %}{% endif %}
+                    {% if u.get('can_access_compras', 1) %}{% set _ = mods.append('Comp') %}{% endif %}
+                    {% if u.get('can_access_dash', 1) %}{% set _ = mods.append('Dash') %}{% endif %}
+                    {% if u.get('can_access_relatorios', 1) %}{% set _ = mods.append('Rel') %}{% endif %}
+                    {{ mods|join(', ') or '—' }}
+                  </td>
+                  <td>
+                    <div class="d-flex gap-1">
+                      <button type="button" class="btn btn-sm btn-outline-primary"
+                              data-bs-toggle="modal"
+                              data-bs-target="#modalEditar_{{ u.username }}">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      {% if u.username != user.username %}
+                      <form method="post" action="/ajustes/usuario/{{ u.username }}/excluir"
+                            onsubmit="return confirm('Excluir {{ u.username }}?')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Modal editar -->
+                <div class="modal fade" id="modalEditar_{{ u.username }}" tabindex="-1">
+                  <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content" style="border-radius:14px;border:none">
+                      <form method="post" action="/ajustes/usuario/{{ u.username }}/editar">
+                        <div class="modal-header" style="border-bottom:1px solid #f1f5f9">
+                          <h5 class="modal-title fw-bold">
+                            <i class="bi bi-pencil-square me-2 text-primary"></i>Editar — {{ u.username }}
+                          </h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                          <div class="mb-3">
+                            <label class="form-label">Nova senha</label>
+                            <input type="password" name="password" class="form-control"
+                                   placeholder="Deixe em branco para manter a atual"
+                                   autocomplete="new-password">
+                            <small class="text-muted">Se não quiser alterar, deixe vazio.</small>
+                          </div>
+                          <hr class="my-3">
+                          <p class="form-label mb-2">Permissões</p>
+                          <div class="d-flex flex-wrap gap-3 mb-3">
+                            {% for fid, flabel in [
+                              ('is_admin','Administrador'),
+                              ('can_change_dates','Alterar datas'),
+                              ('can_manage_products','Gerenciar produtos')
+                            ] %}
+                            <div class="form-check">
+                              <input class="form-check-input" type="checkbox"
+                                     name="{{ fid }}" value="1"
+                                     id="e_{{ fid }}_{{ u.username }}"
+                                     {% if u.get(fid) %}checked{% endif %}>
+                              <label class="form-check-label" style="font-size:0.82rem"
+                                     for="e_{{ fid }}_{{ u.username }}">{{ flabel }}</label>
+                            </div>
+                            {% endfor %}
+                          </div>
+                          <p class="form-label mb-2">Módulos</p>
+                          <div class="row g-2">
+                            {% for mid, mlabel in [
+                              ('can_access_dash','Dashboard'),
+                              ('can_access_hospedes','Hóspedes'),
+                              ('can_access_financeiro','Financeiro'),
+                              ('can_access_compras','Compras'),
+                              ('can_access_relatorios','Relatórios')
+                            ] %}
+                            <div class="col-6">
+                              <div class="form-check">
+                                <input class="form-check-input" type="checkbox"
+                                       name="{{ mid }}" value="1"
+                                       id="e_{{ mid }}_{{ u.username }}"
+                                       {% if u.get(mid, 1) %}checked{% endif %}>
+                                <label class="form-check-label" style="font-size:0.82rem"
+                                       for="e_{{ mid }}_{{ u.username }}">{{ mlabel }}</label>
+                              </div>
+                            </div>
+                            {% endfor %}
+                          </div>
+                        </div>
+                        <div class="modal-footer" style="border-top:1px solid #f1f5f9">
+                          <button type="button" class="btn btn-outline-secondary"
+                                  data-bs-dismiss="modal">Cancelar</button>
+                          <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i> Salvar
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Novo usuário -->
+      <div class="col-12 col-lg-5">
+        <div class="form-card">
+          <h6 class="fw-bold mb-3">
+            <i class="bi bi-person-plus me-2 text-primary"></i>Novo Usuário
+          </h6>
+          <form method="post" action="/ajustes/usuario">
+            <div class="mb-2">
+              <label class="form-label">Usuário *</label>
+              <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Senha *</label>
+              <input type="password" name="password" class="form-control" required
+                     autocomplete="new-password">
+            </div>
+            <p class="form-label mb-1">Permissões</p>
+            <div class="d-flex flex-wrap gap-3 mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_admin" value="1" id="n_admin">
+                <label class="form-check-label" for="n_admin" style="font-size:0.82rem">Admin</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="can_change_dates" value="1" id="n_dates">
+                <label class="form-check-label" for="n_dates" style="font-size:0.82rem">Alt. datas</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="can_manage_products" value="1" id="n_prod">
+                <label class="form-check-label" for="n_prod" style="font-size:0.82rem">Ger. produtos</label>
+              </div>
+            </div>
+            <p class="form-label mb-1">Módulos</p>
+            <div class="row g-1 mb-3">
+              {% for mid, mlabel in [
+                ('can_access_dash','Dashboard'),
+                ('can_access_hospedes','Hóspedes'),
+                ('can_access_financeiro','Financeiro'),
+                ('can_access_compras','Compras'),
+                ('can_access_relatorios','Relatórios')
+              ] %}
+              <div class="col-6">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="{{ mid }}" value="1"
+                         id="n_{{ mid }}" checked>
+                  <label class="form-check-label" for="n_{{ mid }}"
+                         style="font-size:0.82rem">{{ mlabel }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-check-lg me-1"></i> Criar Usuário
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ BANCO -->
+  <div class="tab-pane" data-pane="banco">
+    <div class="row g-4" style="max-width:700px">
+
+      <div class="col-12">
+        <div class="form-card">
+          <h6 class="fw-bold mb-1"><i class="bi bi-download me-2 text-primary"></i>Backup</h6>
+          <p class="text-muted mb-3" style="font-size:0.85rem">
+            Cria uma cópia de segurança do banco de dados no servidor.<br>
+            Os últimos 20 backups são mantidos automaticamente.
+          </p>
+          <form method="post" action="/ajustes/banco/backup">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-floppy me-1"></i> Fazer Backup Agora
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="form-card">
+          <h6 class="fw-bold mb-1"><i class="bi bi-wrench me-2" style="color:#64748b"></i>Otimizar Banco</h6>
+          <p class="text-muted mb-3" style="font-size:0.85rem">
+            Remove espaço desperdiçado no banco de dados (VACUUM).<br>
+            Equivalente a desfragmentar um disco — não altera dados.
+          </p>
+          <form method="post" action="/ajustes/banco/otimizar">
+            <button type="submit" class="btn btn-outline-secondary">
+              <i class="bi bi-gear me-1"></i> Otimizar
+            </button>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ LOGS -->
+  <div class="tab-pane" data-pane="logs">
+    <div class="table-card">
+      <div class="table-header">
+        <h6><i class="bi bi-list-check me-2"></i>Log de Auditoria</h6>
+        <div class="d-flex gap-2">
+          <span class="badge bg-secondary">{{ logs|length }}</span>
+          <form method="post" action="/ajustes/logs/limpar"
+                onsubmit="return confirm('Limpar todos os logs? Esta ação não pode ser desfeita.')">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash me-1"></i> Limpar logs
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Detalhes</th><th>Máquina</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <td style="font-size:0.78rem;white-space:nowrap;color:#64748b">{{ log.data_hora }}</td>
+              <td style="font-size:0.82rem">{{ log.usuario }}</td>
+              <td>
+                <span class="badge rounded-pill"
+                      style="background:#f1f5f9;color:#334155;font-size:0.72rem">
+                  {{ log.acao }}
+                </span>
+              </td>
+              <td style="font-size:0.78rem;color:#64748b">{{ log.get('detalhes', '') or '—' }}</td>
+              <td style="font-size:0.75rem;color:#94a3b8">{{ log.get('maquina', '') or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">Nenhum log registrado</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ SOBRE -->
+  <div class="tab-pane" data-pane="sobre">
+    <div class="form-card" style="max-width:560px; text-align:center">
+      <div style="font-size:3rem; margin-bottom:0.5rem">🏨</div>
+      <h4 class="fw-bold mb-1">Hotel Santos</h4>
+      <p class="text-muted mb-4" style="font-size:0.875rem">
+        Sistema de Gestão — Versão {{ versao }}
+      </p>
+      <div class="text-start">
+        <div class="info-row"><span class="label">Razão Social</span>
+          <span class="value">{{ empresa.razao }}</span></div>
+        <div class="info-row"><span class="label">CNPJ</span>
+          <span class="value">{{ empresa.cnpj }}</span></div>
+        <div class="info-row"><span class="label">Endereço</span>
+          <span class="value">{{ empresa.endereco }}</span></div>
+        <div class="info-row"><span class="label">Contato</span>
+          <span class="value">{{ empresa.contato }}</span></div>
+        <div class="info-row"><span class="label">E-mail</span>
+          <span class="value">{{ empresa.email }}</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #tab-content -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Ativa a aba correta com base no parâmetro ?tab= da URL
+  const activeTab = "{{ tab }}";
+
+  function activateTab(name) {
+    document.querySelectorAll('.nav-tabs .nav-link').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === name);
+    });
+    document.querySelectorAll('.tab-pane').forEach(el => {
+      el.style.display = el.dataset.pane === name ? 'block' : 'none';
+    });
+  }
+
+  // Navegação pelas tabs
+  document.querySelectorAll('.nav-tabs .nav-link').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const name = el.dataset.tab;
+      activateTab(name);
+      history.replaceState(null, '', '/ajustes?tab=' + name);
+    });
+  });
+
+  // Ativa na carga da página
+  activateTab(activeTab);
+</script>
+{% endblock %}

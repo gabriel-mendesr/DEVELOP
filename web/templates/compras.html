@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Compras — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="page-title"><i class="bi bi-cart3 me-2" style="color:#ea580c"></i>Compras</h1>
+  <form method="post" action="/compras">
+    <button type="submit" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i> Nova Lista
+    </button>
+  </form>
+</div>
+
+<div class="table-card">
+  <div class="table-header">
+    <h6>{{ listas|length }} lista(s)</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Data</th>
+          <th>Criado por</th>
+          <th>Status</th>
+          <th>Itens</th>
+          <th>Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in listas %}
+        <tr>
+          <td style="font-family:monospace; color:#94a3b8">#{{ l.id }}</td>
+          <td style="font-size:0.82rem; white-space:nowrap">{{ l.data_criacao }}</td>
+          <td style="font-size:0.82rem">{{ l.usuario or '—' }}</td>
+          <td>
+            <span class="badge rounded-pill
+              {% if l.status == 'ABERTA' %}badge-aberta{% else %}badge-fechada{% endif %}">
+              {{ l.status }}
+            </span>
+          </td>
+          <td>{{ l.total_itens or 0 }}</td>
+          <td class="fw-semibold">R$ {{ "%.2f"|format(l.total_valor or 0) }}</td>
+          <td>
+            <a href="/compras/{{ l.id }}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye me-1"></i> Ver
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-cart display-6 d-block mb-2 opacity-50"></i>
+            Nenhuma lista de compras
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Relatórios — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h1 class="page-title"><i class="bi bi-file-earmark-bar-graph me-2" style="color:#7b1fa2"></i>Relatórios</h1>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" id="tabsRelatorios">
+  <li class="nav-item">
+    <a class="nav-link {% if not doc and not mes %}active{% endif %}" href="/relatorios">
+      <i class="bi bi-person-x me-1"></i> Inadimplentes
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if doc %}active{% endif %}" href="#"
+       data-bs-toggle="collapse" data-bs-target="#collapseExtrato">
+      <i class="bi bi-file-person me-1"></i> Extrato por Hóspede
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if mes %}active{% endif %}" href="#"
+       data-bs-toggle="collapse" data-bs-target="#collapseMensal">
+      <i class="bi bi-calendar3 me-1"></i> Resumo Mensal
+    </a>
+  </li>
+</ul>
+
+<!-- Filtro Extrato -->
+<div class="collapse {% if doc %}show{% endif %} mb-3" id="collapseExtrato">
+  <form method="get" action="/relatorios" class="form-card">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-sm-6 col-md-4">
+        <label class="form-label">CPF / CNPJ do hóspede</label>
+        <input type="text" name="doc" class="form-control" placeholder="000.000.000-00"
+               value="{{ doc }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-search me-1"></i> Gerar Extrato
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Filtro Mensal -->
+<div class="collapse {% if mes %}show{% endif %} mb-3" id="collapseMensal">
+  <form method="get" action="/relatorios" class="form-card">
+    <div class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label">Mês / Ano</label>
+        <input type="month" name="mes" class="form-control" value="{{ mes }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-search me-1"></i> Gerar Resumo
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Resultado: Extrato -->
+{% if doc and hospede_extrato %}
+<div class="table-card mb-4">
+  <div class="table-header">
+    <h6>Extrato — {{ hospede_extrato.nome }}</h6>
+    <span class="text-muted" style="font-size:0.8rem">{{ doc }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Categoria</th><th>Obs</th></tr>
+      </thead>
+      <tbody>
+        {% for e in extrato %}
+        <tr>
+          <td style="font-size:0.82rem; white-space:nowrap">{{ e.data_acao }}</td>
+          <td>
+            <span class="badge rounded-pill
+              {% if e.tipo == 'ENTRADA' %}badge-entrada
+              {% elif e.tipo == 'SAIDA' %}badge-saida
+              {% elif e.tipo == 'MULTA' %}badge-multa
+              {% else %}badge-pagamento{% endif %}">{{ e.tipo }}</span>
+          </td>
+          <td class="fw-semibold">R$ {{ "%.2f"|format(e.valor) }}</td>
+          <td style="font-size:0.82rem">{{ e.categoria or '—' }}</td>
+          <td style="font-size:0.82rem; color:#64748b">{{ e.obs or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted py-4">Nenhuma movimentação</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% elif doc and not hospede_extrato %}
+<div class="alert alert-warning">Hóspede não encontrado para o documento informado.</div>
+{% endif %}
+
+<!-- Resultado: Mensal -->
+{% if mes and mensal %}
+<div class="table-card mb-4">
+  <div class="table-header">
+    <h6>Resumo — {{ mes }}</h6>
+    <span class="fw-bold">Total: R$ {{ "%.2f"|format(mensal|sum(attribute='valor')) }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr><th>Data</th><th>Hóspede</th><th>Tipo</th><th>Valor</th><th>Categoria</th></tr>
+      </thead>
+      <tbody>
+        {% for m in mensal %}
+        <tr>
+          <td style="font-size:0.82rem; white-space:nowrap">{{ m.data_acao }}</td>
+          <td><a href="/hospedes/{{ m.documento }}" class="text-decoration-none fw-medium">{{ m.nome }}</a></td>
+          <td>
+            <span class="badge rounded-pill
+              {% if m.tipo == 'ENTRADA' %}badge-entrada
+              {% elif m.tipo == 'SAIDA' %}badge-saida
+              {% elif m.tipo == 'MULTA' %}badge-multa
+              {% else %}badge-pagamento{% endif %}">{{ m.tipo }}</span>
+          </td>
+          <td class="fw-semibold">R$ {{ "%.2f"|format(m.valor) }}</td>
+          <td style="font-size:0.82rem">{{ m.categoria or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% elif mes %}
+<div class="alert alert-info">Nenhuma movimentação no período {{ mes }}.</div>
+{% endif %}
+
+<!-- Inadimplentes (padrão) -->
+{% if not doc and not mes %}
+<div class="table-card">
+  <div class="table-header">
+    <h6><i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+      Inadimplentes — {{ inadimplentes|length }} hóspede(s)
+    </h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr><th>Nome</th><th>Documento</th><th>Saldo Vencido</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for h in inadimplentes %}
+        <tr>
+          <td class="fw-medium">{{ h.nome }}</td>
+          <td style="font-family:monospace; font-size:0.82rem">{{ h.documento }}</td>
+          <td class="saldo-bloqueado">R$ {{ "%.2f"|format(h.saldo) }}</td>
+          <td>
+            <a href="/hospedes/{{ h.documento }}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye"></i>
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-5">
+            <i class="bi bi-check-circle display-6 d-block mb-2 text-success opacity-75"></i>
+            Nenhum inadimplente
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

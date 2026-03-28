@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Hóspedes — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="page-title"><i class="bi bi-people-fill me-2" style="color:#16a34a"></i>Hóspedes</h1>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoHospede">
+    <i class="bi bi-plus-lg me-1"></i> Novo Hóspede
+  </button>
+</div>
+
+<!-- Filtros -->
+<form method="get" action="/hospedes" class="form-card mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-sm-6 col-md-5">
+      <label class="form-label">Buscar</label>
+      <input type="text" name="q" class="form-control" placeholder="Nome ou documento..." value="{{ q }}">
+    </div>
+    <div class="col-12 col-sm-4 col-md-3">
+      <label class="form-label">Filtro</label>
+      <select name="filtro" class="form-select">
+        <option value="todos"    {% if filtro == 'todos'    %}selected{% endif %}>Todos</option>
+        <option value="vencidos" {% if filtro == 'vencidos' %}selected{% endif %}>Vencidos</option>
+        <option value="vencendo" {% if filtro == 'vencendo' %}selected{% endif %}>Vencendo</option>
+        <option value="com_multa"{% if filtro == 'com_multa'%}selected{% endif %}>Com multa</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-search me-1"></i> Buscar
+      </button>
+      {% if q or filtro != 'todos' %}
+      <a href="/hospedes" class="btn btn-outline-secondary ms-1">Limpar</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+<!-- Tabela -->
+<div class="table-card">
+  <div class="table-header">
+    <h6>{{ hospedes|length }} hóspede(s) encontrado(s)</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Documento</th>
+          <th>Saldo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in hospedes %}
+        <tr>
+          <td class="fw-medium">{{ h.nome }}</td>
+          <td style="font-family:monospace; font-size:0.82rem">{{ h.documento }}</td>
+          <td>
+            {% if h.saldo > 0 %}
+              <span class="saldo-positivo">R$ {{ "%.2f"|format(h.saldo) }}</span>
+            {% else %}
+              <span class="text-muted">R$ 0,00</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/hospedes/{{ h.documento }}" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye me-1"></i> Ver ficha
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-5">
+            <i class="bi bi-people display-6 d-block mb-2 text-muted opacity-50"></i>
+            Nenhum hóspede encontrado
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal novo hóspede -->
+<div class="modal fade" id="modalNovoHospede" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:14px; border:none">
+      <form method="post" action="/hospedes">
+        <div class="modal-header" style="border-bottom:1px solid #f1f5f9">
+          <h5 class="modal-title fw-bold">Novo Hóspede</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nome completo *</label>
+            <input type="text" name="nome" class="form-control" required placeholder="Ex: João da Silva">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">CPF ou CNPJ *</label>
+            <input type="text" name="documento" class="form-control" required placeholder="000.000.000-00">
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Telefone</label>
+              <input type="text" name="telefone" class="form-control" placeholder="(19) 99999-9999">
+            </div>
+            <div class="col-6">
+              <label class="form-label">E-mail</label>
+              <input type="email" name="email" class="form-control" placeholder="email@exemplo.com">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #f1f5f9">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i> Cadastrar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

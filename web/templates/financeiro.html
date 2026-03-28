@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Financeiro — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="page-title"><i class="bi bi-cash-stack me-2" style="color:#7c3aed"></i>Financeiro</h1>
+</div>
+
+<!-- Filtros -->
+<form method="get" action="/financeiro" class="form-card mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-sm-6 col-md-3">
+      <label class="form-label">Buscar hóspede</label>
+      <input type="text" name="filtro" class="form-control" placeholder="Nome ou documento..."
+             value="{{ filtro }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label">Tipo</label>
+      <select name="tipo" class="form-select">
+        <option value="">Todos</option>
+        <option value="ENTRADA"  {% if tipo == 'ENTRADA'  %}selected{% endif %}>Entrada</option>
+        <option value="SAIDA"    {% if tipo == 'SAIDA'    %}selected{% endif %}>Saída</option>
+        <option value="MULTA"    {% if tipo == 'MULTA'    %}selected{% endif %}>Multa</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label">De</label>
+      <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label">Até</label>
+      <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-search me-1"></i> Filtrar
+      </button>
+      <a href="/financeiro" class="btn btn-outline-secondary ms-1">Limpar</a>
+    </div>
+  </div>
+</form>
+
+<!-- Tabela -->
+<div class="table-card">
+  <div class="table-header">
+    <h6>{{ movimentos|length }} movimentação(ões)</h6>
+    {% if movimentos %}
+    <span class="text-muted" style="font-size:0.8rem">
+      Total: R$ {{ "%.2f"|format(movimentos|sum(attribute='valor')) }}
+    </span>
+    {% endif %}
+  </div>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Hóspede</th>
+          <th>Tipo</th>
+          <th>Valor</th>
+          <th>Categoria</th>
+          <th>Obs</th>
+          <th>Usuário</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in movimentos %}
+        <tr>
+          <td style="white-space:nowrap; font-size:0.82rem">{{ m.data_acao }}</td>
+          <td>
+            <a href="/hospedes/{{ m.documento }}" class="text-decoration-none fw-medium">
+              {{ m.nome }}
+            </a>
+          </td>
+          <td>
+            <span class="badge rounded-pill
+              {% if m.tipo == 'ENTRADA' %}badge-entrada
+              {% elif m.tipo == 'SAIDA' %}badge-saida
+              {% elif m.tipo == 'MULTA' %}badge-multa
+              {% else %}badge-pagamento{% endif %}">
+              {{ m.tipo }}
+            </span>
+          </td>
+          <td class="fw-semibold">R$ {{ "%.2f"|format(m.valor) }}</td>
+          <td style="font-size:0.82rem">{{ m.categoria or '—' }}</td>
+          <td style="font-size:0.82rem; color:#64748b">{{ m.obs or '—' }}</td>
+          <td style="font-size:0.78rem; color:#94a3b8">{{ m.usuario or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+            Nenhuma movimentação encontrada
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

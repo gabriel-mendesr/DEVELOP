@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}{{ hospede.nome }} — Hotel Santos{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-4">
+  <a href="/hospedes" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h1 class="page-title mb-0">{{ hospede.nome }}</h1>
+</div>
+
+<div class="row g-4">
+
+  <!-- Coluna esquerda: info + saldo + movimentação -->
+  <div class="col-12 col-lg-4">
+
+    <!-- Card info -->
+    <div class="info-card mb-3">
+      <h6 class="fw-bold mb-3" style="color:#0f172a">
+        <i class="bi bi-person-badge me-2 text-primary"></i>Dados do Hóspede
+      </h6>
+      <div class="info-row">
+        <span class="label">Documento</span>
+        <span class="value" style="font-family:monospace">{{ hospede.documento }}</span>
+      </div>
+      {% if hospede.telefone %}
+      <div class="info-row">
+        <span class="label">Telefone</span>
+        <span class="value">{{ hospede.telefone }}</span>
+      </div>
+      {% endif %}
+      {% if hospede.email %}
+      <div class="info-row">
+        <span class="label">E-mail</span>
+        <span class="value">{{ hospede.email }}</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Card saldo -->
+    <div class="info-card mb-3
+      {% if bloqueado %}border-danger{% elif saldo > 0 %}border-success{% endif %}"
+      style="{% if bloqueado %}border-color:#dc2626!important{% elif saldo > 0 %}border-color:#16a34a!important{% endif %}">
+      <h6 class="fw-bold mb-3">
+        <i class="bi bi-wallet2 me-2"></i>Situação Financeira
+      </h6>
+      <div class="info-row">
+        <span class="label">Saldo</span>
+        <span class="value {% if saldo > 0 %}saldo-positivo{% else %}text-muted{% endif %}">
+          R$ {{ "%.2f"|format(saldo) }}
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="label">Vencimento</span>
+        <span class="value {% if bloqueado %}saldo-bloqueado{% endif %}">
+          {% if bloqueado %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% endif %}
+          {{ vencimento }}
+        </span>
+      </div>
+      {% if multa > 0 %}
+      <div class="info-row">
+        <span class="label">Multa pendente</span>
+        <span class="value" style="color:#ea580c">R$ {{ "%.2f"|format(multa) }}</span>
+      </div>
+      {% endif %}
+      {% if bloqueado %}
+      <div class="alert alert-danger py-2 mt-2 mb-0" style="font-size:0.8rem; border-radius:8px">
+        <i class="bi bi-lock-fill me-1"></i> Crédito vencido — saídas bloqueadas
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Nova movimentação -->
+    <div class="form-card mb-3">
+      <h6 class="fw-bold mb-3">
+        <i class="bi bi-plus-circle me-2 text-primary"></i>Nova Movimentação
+      </h6>
+      <form method="post" action="/hospedes/{{ hospede.documento }}/movimentacao">
+        <div class="mb-2">
+          <label class="form-label">Tipo</label>
+          <select name="tipo" class="form-select">
+            <option value="ENTRADA">ENTRADA (crédito)</option>
+            <option value="SAIDA">SAÍDA (uso)</option>
+            <option value="MULTA">MULTA</option>
+            {% if multa > 0 %}
+            <option value="PAGAMENTO_MULTA">PAGAMENTO DE MULTA</option>
+            {% endif %}
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Valor (R$)</label>
+          <input type="text" name="valor" class="form-control" placeholder="0,00" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Categoria</label>
+          <input type="text" name="categoria" class="form-control" list="lista-categorias"
+                 placeholder="Ex: Diária, Refeição...">
+          <datalist id="lista-categorias">
+            {% for c in categorias %}<option value="{{ c }}">{% endfor %}
+          </datalist>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Observação</label>
+          <input type="text" name="obs" class="form-control" placeholder="Opcional">
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-check-lg me-1"></i> Registrar
+        </button>
+      </form>
+    </div>
+
+    <!-- Anotação -->
+    <div class="form-card">
+      <h6 class="fw-bold mb-3">
+        <i class="bi bi-journal-text me-2" style="color:#7c3aed"></i>Anotações
+      </h6>
+      <form method="post" action="/hospedes/{{ hospede.documento }}/anotacao">
+        <textarea name="texto" class="form-control mb-2" rows="3"
+                  placeholder="Anotações sobre o hóspede...">{{ anotacao }}</textarea>
+        <button type="submit" class="btn btn-outline-secondary w-100 btn-sm">
+          <i class="bi bi-save me-1"></i> Salvar
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Coluna direita: histórico -->
+  <div class="col-12 col-lg-8">
+    <div class="table-card">
+      <div class="table-header">
+        <h6><i class="bi bi-clock-history me-2 text-primary"></i>Histórico de Movimentações</h6>
+        <span class="badge bg-secondary">{{ historico|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Valor</th>
+              <th>Categoria</th>
+              <th>Obs</th>
+              <th>Usuário</th>
+              {% if user and user.get('can_change_dates') %}<th></th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in historico %}
+            <tr>
+              <td style="white-space:nowrap; font-size:0.8rem">{{ h.data_acao }}</td>
+              <td>
+                <span class="badge rounded-pill
+                  {% if h.tipo == 'ENTRADA' %}badge-entrada
+                  {% elif h.tipo == 'SAIDA' %}badge-saida
+                  {% elif h.tipo == 'MULTA' %}badge-multa
+                  {% else %}badge-pagamento{% endif %}">
+                  {{ h.tipo }}
+                </span>
+              </td>
+              <td class="fw-semibold">R$ {{ "%.2f"|format(h.valor) }}</td>
+              <td style="font-size:0.82rem">{{ h.categoria or '—' }}</td>
+              <td style="font-size:0.82rem; color:#64748b">{{ h.obs or '—' }}</td>
+              <td style="font-size:0.78rem; color:#94a3b8">{{ h.usuario or '—' }}</td>
+              {% if user and user.get('can_change_dates') %}
+              <td>
+                {% if h.tipo == 'ENTRADA' %}
+                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2"
+                        style="font-size:0.75rem"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalVenc{{ h.id }}">
+                  <i class="bi bi-calendar-event me-1"></i>Venc.
+                </button>
+
+                <!-- Modal alterar vencimento -->
+                <div class="modal fade" id="modalVenc{{ h.id }}" tabindex="-1">
+                  <div class="modal-dialog modal-dialog-centered modal-sm">
+                    <div class="modal-content" style="border-radius:12px; border:none">
+                      <form method="post"
+                            action="/hospedes/{{ hospede.documento }}/movimentacao/{{ h.id }}/vencimento">
+                        <div class="modal-header pb-2" style="border-bottom:1px solid #f1f5f9">
+                          <h6 class="modal-title fw-bold" style="font-size:0.9rem">
+                            <i class="bi bi-calendar-event me-2 text-primary"></i>Alterar Vencimento
+                          </h6>
+                          <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                          <p class="text-muted mb-2" style="font-size:0.8rem">
+                            Entrada de R$ {{ "%.2f"|format(h.valor) }} — {{ h.data_acao }}
+                          </p>
+                          <label class="form-label">Nova data de vencimento</label>
+                          <input type="text" name="nova_data" class="form-control"
+                                 placeholder="DD/MM/AAAA" required
+                                 pattern="\d{2}/\d{2}/\d{4}">
+                          <small class="text-muted">Formato: DD/MM/AAAA</small>
+                        </div>
+                        <div class="modal-footer pt-2" style="border-top:1px solid #f1f5f9">
+                          <button type="button" class="btn btn-sm btn-outline-secondary"
+                                  data-bs-dismiss="modal">Cancelar</button>
+                          <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Salvar
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-5">
+                Nenhuma movimentação registrada
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
