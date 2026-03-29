@@ -2,213 +2,120 @@
 {% block title %}Agenda — Hotel Santos{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
+<div class="d-flex align-items-center justify-content-between mb-3">
   <h1 class="page-title">
     <i class="bi bi-calendar3 me-2" style="color:#4338ca"></i>Agenda de Turnos
   </h1>
+  <div class="d-flex align-items-center gap-2">
+    <a href="{{ mes_ant }}" class="btn btn-sm btn-outline-secondary px-2">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+    <span class="fw-bold" style="font-size:1rem; min-width:160px; text-align:center">
+      {{ mes_nome }} {{ ano }}
+    </span>
+    <a href="{{ mes_prox }}" class="btn btn-sm btn-outline-secondary px-2">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="/agenda" class="btn btn-sm btn-outline-primary ms-1">Hoje</a>
+  </div>
 </div>
 
-<div class="row g-4">
+<div class="agenda-layout">
 
-  <!-- ── Mini calendário ─────────────────────────────────────────────── -->
-  <div class="col-12 col-lg-3">
-    <div class="form-card p-3">
-      <div class="d-flex align-items-center justify-content-between mb-3">
-        <a href="/agenda/{{ mes_ant }}" class="btn btn-sm btn-outline-secondary py-0 px-2">
-          <i class="bi bi-chevron-left"></i>
-        </a>
-        <span class="fw-bold" style="font-size:0.9rem">{{ mes_nome }} {{ ano }}</span>
-        <a href="/agenda/{{ mes_prox }}" class="btn btn-sm btn-outline-secondary py-0 px-2">
-          <i class="bi bi-chevron-right"></i>
-        </a>
-      </div>
-
-      <table class="mini-cal">
-        <thead>
-          <tr>
-            {% for d in ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'] %}
-            <th>{{ d }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for semana in cal_grid %}
-          <tr>
-            {% for celula in semana %}
-            <td>
-              {% if celula %}
-              <a href="/agenda/{{ celula.data }}"
-                 class="cal-day
-                   {% if celula.data == hoje %}hoje
-                   {% elif celula.data == data %}selecionado
-                   {% elif celula.data in dias_com_escala %}tem-escala
-                   {% endif %}">
-                {{ celula.dia }}
-              </a>
-              {% endif %}
-            </td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <div class="mt-3 pt-2 border-top" style="font-size:0.75rem; color:#64748b">
-        <div class="d-flex gap-3 flex-wrap">
-          <span style="display:flex;align-items:center;gap:4px">
-            <span style="width:12px;height:12px;border-radius:4px;background:#dbeafe;display:inline-block"></span>
-            Com escala
-          </span>
-          <span style="display:flex;align-items:center;gap:4px">
-            <span style="width:12px;height:12px;border-radius:4px;background:#1e40af;display:inline-block"></span>
-            Hoje
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── Dia selecionado ─────────────────────────────────────────────── -->
-  <div class="col-12 col-lg-9">
-
-    <!-- Navegação dia -->
-    <div class="d-flex align-items-center gap-2 mb-3">
-      <a href="/agenda/{{ data_prev }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-chevron-left"></i>
-      </a>
-      <div class="flex-grow-1 text-center">
-        <span class="fw-bold" style="font-size:1.15rem; color:#0f172a">
-          {{ dia_semana }}, {{ data_fmt }}
-        </span>
-        {% if data == hoje %}
-        <span class="badge rounded-pill ms-2"
-              style="background:#dbeafe;color:#1e40af;font-size:0.65rem;vertical-align:middle">
-          HOJE
-        </span>
-        {% endif %}
-      </div>
-      <a href="/agenda/{{ data_next }}" class="btn btn-sm btn-outline-secondary">
-        <i class="bi bi-chevron-right"></i>
-      </a>
-    </div>
-
-    <!-- 3 turnos -->
-    <div class="row g-3">
-      {% for turno_key, turno_label, turno_hora, turno_icon in [
-        ('manha', 'Manhã',  '06h – 14h', 'bi-sun-fill'),
-        ('tarde', 'Tarde',  '14h – 22h', 'bi-cloud-sun-fill'),
-        ('noite', 'Noite',  '22h – 06h', 'bi-moon-stars-fill')
-      ] %}
-      <div class="col-12 col-md-4 d-flex">
-        <div class="turno-card turno-{{ turno_key }} w-100">
-
-          <!-- Header -->
-          <div class="turno-header">
-            <i class="bi {{ turno_icon }}"></i>
-            {{ turno_label }}
-            <span class="turno-hora">{{ turno_hora }}</span>
-          </div>
-
-          <!-- Funcionários escalados -->
-          <div class="turno-body">
-            {% if escala[turno_key] %}
-              {% for func in escala[turno_key] %}
-              <div class="func-card">
-                <div class="func-nome">
-                  <span>
-                    <i class="bi bi-person-fill me-1 text-muted" style="font-size:0.8rem"></i>
-                    {{ func.nome }}
-                  </span>
-                  <form method="post" action="/agenda/escala/{{ func.id }}/excluir"
-                        onsubmit="return confirm('Remover {{ func.nome }} deste turno?')"
-                        class="d-inline m-0">
-                    <input type="hidden" name="data" value="{{ data }}">
-                    <button type="submit"
-                            class="btn p-0 border-0 text-muted"
-                            style="font-size:0.8rem; line-height:1" title="Remover do turno">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                  </form>
-                </div>
-
-                <!-- Tarefas -->
-                {% for tarefa in func.tarefas %}
-                <div class="tarefa-item {% if tarefa.concluida %}concluida{% endif %}">
-                  <form method="post" action="/agenda/tarefa/{{ tarefa.id }}/concluir"
-                        class="d-inline m-0">
-                    <input type="hidden" name="data" value="{{ data }}">
-                    <button type="submit" class="btn p-0 border-0"
-                            style="font-size:0.9rem; color:{% if tarefa.concluida %}#16a34a{% else %}#cbd5e1{% endif %}">
-                      <i class="bi bi-{% if tarefa.concluida %}check-circle-fill{% else %}circle{% endif %}"></i>
-                    </button>
-                  </form>
-                  <span class="tarefa-texto">{{ tarefa.descricao }}</span>
-                  <form method="post" action="/agenda/tarefa/{{ tarefa.id }}/excluir"
-                        class="d-inline m-0">
-                    <input type="hidden" name="data" value="{{ data }}">
-                    <button type="submit" class="btn p-0 border-0 text-muted"
-                            style="font-size:0.75rem" title="Remover tarefa">
-                      <i class="bi bi-trash3"></i>
-                    </button>
-                  </form>
-                </div>
-                {% endfor %}
-
-                <!-- Adicionar tarefa -->
-                <form method="post" action="/agenda/escala/{{ func.id }}/tarefa"
-                      class="d-flex gap-1 mt-2">
-                  <input type="hidden" name="data" value="{{ data }}">
-                  <input type="text" name="descricao" class="form-control form-control-sm"
-                         placeholder="Nova tarefa..." required
-                         style="font-size:0.78rem">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary px-2"
-                          title="Adicionar tarefa">
-                    <i class="bi bi-plus-lg"></i>
-                  </button>
-                </form>
-              </div>
-              {% endfor %}
-            {% else %}
-            <div class="text-center py-3 text-muted" style="font-size:0.82rem">
-              <i class="bi bi-person-dash d-block mb-1 opacity-40"
-                 style="font-size:1.8rem"></i>
-              Ninguém escalado
-            </div>
-            {% endif %}
-          </div>
-
-          <!-- Escalar funcionário -->
-          <div class="turno-add-func">
-            {% if funcionarios %}
-            <form method="post" action="/agenda/{{ data }}/{{ turno_key }}/escalar"
-                  class="d-flex gap-1">
-              <select name="funcionario_id" class="form-select form-select-sm" required
-                      style="font-size:0.8rem">
-                <option value="">Escalar funcionário...</option>
-                {% for f in funcionarios %}
-                <option value="{{ f.id }}">{{ f.nome }}</option>
-                {% endfor %}
-              </select>
-              <button type="submit" class="btn btn-sm btn-primary px-2"
-                      title="Escalar">
-                <i class="bi bi-plus-lg"></i>
-              </button>
-            </form>
-            {% else %}
-            <p class="text-muted mb-0" style="font-size:0.78rem">
-              <i class="bi bi-info-circle me-1"></i>
-              <a href="/ajustes?tab=funcionarios" class="text-primary">
-                Cadastre funcionários
-              </a> em Ajustes
-            </p>
-            {% endif %}
-          </div>
-
-        </div>
-      </div>
+  <!-- ── Calendário mensal ──────────────────────────────────────────────── -->
+  <div class="agenda-cal">
+    <!-- Cabeçalho dias da semana -->
+    <div class="cal-header-row">
+      {% for d in ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] %}
+      <div class="cal-header-cell">{{ d }}</div>
       {% endfor %}
     </div>
 
+    <!-- Semanas -->
+    {% for semana in cal_grid %}
+    <div class="cal-week-row">
+      {% for celula in semana %}
+      <div class="cal-cell {% if celula and celula.data == hoje %}cal-hoje{% endif %}"
+           {% if celula %}data-date="{{ celula.data }}" onclick="selecionarDia(this)"{% endif %}>
+        {% if celula %}
+        <span class="cal-num">{{ celula.dia }}</span>
+        <div class="cal-indicadores" id="ind-{{ celula.data }}">
+          <!-- preenchido pelo JS via resumo_json -->
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
   </div>
+
+  <!-- ── Painel lateral do dia ──────────────────────────────────────────── -->
+  <div class="agenda-painel" id="painel-dia">
+    <div class="text-center text-muted py-5" style="font-size:0.875rem">
+      <i class="bi bi-hand-index d-block mb-2" style="font-size:2rem; opacity:0.3"></i>
+      Clique em um dia para ver os turnos
+    </div>
+  </div>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const RESUMO = {{ resumo_json | safe }};
+const HOJE   = "{{ hoje }}";
+
+const TURNO_COR = {
+  manha: { bg: '#e0f2fe', text: '#0369a1', dot: '#0284c7' },
+  tarde: { bg: '#fef3c7', text: '#92400e', dot: '#d97706' },
+  noite: { bg: '#ede9fe', text: '#4c1d95', dot: '#7c3aed' },
+};
+const TURNO_LABEL = { manha: '☀ Manhã', tarde: '⛅ Tarde', noite: '🌙 Noite' };
+
+// Preenche indicadores de todos os dias do calendário
+function preencherIndicadores() {
+  for (const [data, turnos] of Object.entries(RESUMO)) {
+    const cont = document.getElementById('ind-' + data);
+    if (!cont) continue;
+    cont.innerHTML = '';
+    for (const [turno, nomes] of Object.entries(turnos)) {
+      if (!nomes.length) continue;
+      const cor = TURNO_COR[turno];
+      const pill = document.createElement('span');
+      pill.className = 'cal-pill';
+      pill.style.cssText = `background:${cor.bg};color:${cor.text};border-left:3px solid ${cor.dot}`;
+      // Mostra até 2 nomes, abreviados
+      const label = nomes.slice(0, 2).map(n => n.split(' ')[0]).join(', ')
+                   + (nomes.length > 2 ? ` +${nomes.length - 2}` : '');
+      pill.textContent = label;
+      cont.appendChild(pill);
+    }
+  }
+}
+
+// Carrega o painel do dia selecionado via fetch
+async function selecionarDia(el) {
+  const data = el.dataset.date;
+  if (!data) return;
+
+  // Destaca a célula
+  document.querySelectorAll('.cal-cell').forEach(c => c.classList.remove('cal-selecionado'));
+  el.classList.add('cal-selecionado');
+
+  const painel = document.getElementById('painel-dia');
+  painel.innerHTML = '<div class="text-center py-5"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+
+  const resp = await fetch(`/agenda/painel/${data}`);
+  if (resp.ok) {
+    painel.innerHTML = await resp.text();
+  } else {
+    painel.innerHTML = '<p class="text-danger p-3">Erro ao carregar o dia.</p>';
+  }
+}
+
+// Ao carregar: preenche indicadores e seleciona hoje
+preencherIndicadores();
+const celHoje = document.querySelector(`.cal-cell[data-date="${HOJE}"]`);
+if (celHoje) selecionarDia(celHoje);
+</script>
 {% endblock %}

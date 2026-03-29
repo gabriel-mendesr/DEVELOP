@@ -792,57 +792,84 @@ def _cal_grid(ano: int, mes: int) -> list:
 
 
 @app.get("/agenda", response_class=HTMLResponse)
-async def agenda_hoje(request: Request):
+async def agenda_index(request: Request):
     if not _user(request):
         return _redirect_login()
     from datetime import datetime as _dt
 
-    return RedirectResponse(f"/agenda/{_dt.now().strftime('%Y-%m-%d')}", status_code=302)
+    now = _dt.now()
+    return RedirectResponse(f"/agenda/{now.year}/{now.month:02d}", status_code=302)
 
 
-@app.get("/agenda/{data}", response_class=HTMLResponse)
-async def agenda_dia(request: Request, data: str):
+@app.get("/agenda/{ano}/{mes}", response_class=HTMLResponse)
+async def agenda_mes(request: Request, ano: int, mes: int):
     u = _user(request)
     if not u:
         return _redirect_login()
     from datetime import datetime as _dt
-    from datetime import timedelta as _td
 
-    try:
-        dt = _dt.strptime(data, "%Y-%m-%d")
-    except ValueError:
-        return RedirectResponse("/agenda", status_code=302)
-
-    ano, mes = dt.year, dt.month
     hoje = _dt.now().strftime("%Y-%m-%d")
-    data_prev = (dt - _td(days=1)).strftime("%Y-%m-%d")
-    data_next = (dt + _td(days=1)).strftime("%Y-%m-%d")
-    mes_ant = f"{ano - 1:04d}-12-01" if mes == 1 else f"{ano:04d}-{mes - 1:02d}-01"
-    mes_prox = f"{ano + 1:04d}-01-01" if mes == 12 else f"{ano:04d}-{mes + 1:02d}-01"
+    mes_ant_ano, mes_ant_mes = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+    mes_prox_ano, mes_prox_mes = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+    import json as _json
 
+    resumo = sistema.get_resumo_mes(ano, mes)
     return templates.TemplateResponse(
         request,
         "agenda.html",
         _ctx(
             request,
-            data=data,
-            data_fmt=dt.strftime("%d/%m/%Y"),
-            data_prev=data_prev,
-            data_next=data_next,
-            dia_semana=_DIAS_PT[dt.weekday()],
             ano=ano,
             mes=mes,
             mes_nome=_MESES_PT[mes - 1],
-            mes_ant=mes_ant,
-            mes_prox=mes_prox,
+            mes_ant=f"/agenda/{mes_ant_ano}/{mes_ant_mes:02d}",
+            mes_prox=f"/agenda/{mes_prox_ano}/{mes_prox_mes:02d}",
             cal_grid=_cal_grid(ano, mes),
-            dias_com_escala=sistema.get_dias_com_escala(ano, mes),
             hoje=hoje,
-            escala=sistema.get_escala_dia(data),
+            resumo_json=_json.dumps(resumo),
             funcionarios=sistema.get_funcionarios(),
             active="agenda",
         ),
     )
+
+
+@app.get("/agenda/painel/{data}", response_class=HTMLResponse)
+async def agenda_painel(request: Request, data: str):
+    """Retorna o HTML do painel de um dia — chamado via fetch() pelo JS."""
+    u = _user(request)
+    if not u:
+        return HTMLResponse("", status_code=401)
+    from datetime import datetime as _dt
+
+    try:
+        dt = _dt.strptime(data, "%Y-%m-%d")
+    except ValueError:
+        return HTMLResponse("", status_code=400)
+    return templates.TemplateResponse(
+        request,
+        "agenda_painel.html",
+        {
+            "request": request,
+            "data": data,
+            "data_fmt": dt.strftime("%d/%m/%Y"),
+            "dia_semana": _DIAS_PT[dt.weekday()],
+            "escala": sistema.get_escala_dia(data),
+            "funcionarios": sistema.get_funcionarios(),
+            "user": u,
+        },
+    )
+
+
+@app.get("/agenda/{data}", response_class=HTMLResponse)
+async def agenda_dia_redirect(request: Request, data: str):
+    """Compatibilidade: /agenda/YYYY-MM-DD redireciona para o mês correto."""
+    from datetime import datetime as _dt
+
+    try:
+        dt = _dt.strptime(data, "%Y-%m-%d")
+        return RedirectResponse(f"/agenda/{dt.year}/{dt.month:02d}", status_code=302)
+    except ValueError:
+        return RedirectResponse("/agenda", status_code=302)
 
 
 @app.post("/agenda/{data}/{turno}/escalar")

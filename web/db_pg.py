@@ -997,6 +997,25 @@ class SistemaCreditos:
                 turnos[r["turno"]].append(entry)
         return turnos
 
+    def get_resumo_mes(self, ano: int, mes: int) -> dict:
+        """Retorna {data: {manha:[nomes], tarde:[nomes], noite:[nomes]}} para o mês."""
+        inicio = f"{ano:04d}-{mes:02d}-01"
+        fim = f"{ano:04d}-{mes:02d}-31"
+        rows = self._fetch(
+            """SELECT e.data, e.turno, f.nome
+               FROM escala e JOIN funcionarios f ON f.id = e.funcionario_id
+               WHERE e.data >= %s AND e.data <= %s ORDER BY e.data, e.turno, f.nome""",
+            (inicio, fim),
+        )
+        resultado: dict = {}
+        for r in rows:
+            d = r["data"]
+            if d not in resultado:
+                resultado[d] = {"manha": [], "tarde": [], "noite": []}
+            if r["turno"] in resultado[d]:
+                resultado[d][r["turno"]].append(r["nome"])
+        return resultado
+
     def get_dias_com_escala(self, ano: int, mes: int) -> set:
         inicio = f"{ano:04d}-{mes:02d}-01"
         fim = f"{ano:04d}-{mes:02d}-31"

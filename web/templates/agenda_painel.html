@@ -1,0 +1,106 @@
+<div class="painel-header">
+  <div class="painel-titulo">
+    <span class="painel-dianum">{{ data_fmt.split('/')[0] }}</span>
+    <div>
+      <div class="painel-diasem">{{ dia_semana }}</div>
+      <div class="painel-mes">{{ data_fmt[3:] }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="painel-turnos">
+  {% for turno_key, turno_label, turno_hora, turno_icon, turno_cls in [
+    ('manha', 'Manhã',  '06h – 14h', 'bi-sun-fill',         'painel-manha'),
+    ('tarde', 'Tarde',  '14h – 22h', 'bi-cloud-sun-fill',   'painel-tarde'),
+    ('noite', 'Noite',  '22h – 06h', 'bi-moon-stars-fill',  'painel-noite')
+  ] %}
+  <div class="painel-turno {{ turno_cls }}">
+    <div class="painel-turno-hdr">
+      <i class="bi {{ turno_icon }}"></i>
+      {{ turno_label }}
+      <span class="painel-turno-hora">{{ turno_hora }}</span>
+    </div>
+
+    <div class="painel-turno-body">
+      {% if escala[turno_key] %}
+        {% for func in escala[turno_key] %}
+        <div class="painel-func">
+          <div class="painel-func-hdr">
+            <div class="painel-func-avatar">{{ func.nome[0] }}</div>
+            <span class="painel-func-nome">{{ func.nome }}</span>
+            <form method="post" action="/agenda/escala/{{ func.id }}/excluir" class="ms-auto">
+              <input type="hidden" name="data" value="{{ data }}">
+              <button type="submit" class="btn p-0 border-0 text-muted" style="font-size:0.85rem"
+                      onclick="return confirm('Remover {{ func.nome }} deste turno?')"
+                      title="Remover">
+                <i class="bi bi-person-dash"></i>
+              </button>
+            </form>
+          </div>
+
+          <!-- Tarefas -->
+          {% for tarefa in func.tarefas %}
+          <div class="painel-tarefa">
+            <form method="post" action="/agenda/tarefa/{{ tarefa.id }}/concluir" class="d-inline">
+              <input type="hidden" name="data" value="{{ data }}">
+              <button type="submit" class="btn p-0 border-0"
+                      style="color:{% if tarefa.concluida %}#16a34a{% else %}#cbd5e1{% endif %}; font-size:1rem">
+                <i class="bi bi-{% if tarefa.concluida %}check-circle-fill{% else %}circle{% endif %}"></i>
+              </button>
+            </form>
+            <span class="painel-tarefa-txt {% if tarefa.concluida %}concluida{% endif %}">
+              {{ tarefa.descricao }}
+            </span>
+            <form method="post" action="/agenda/tarefa/{{ tarefa.id }}/excluir" class="ms-auto d-inline">
+              <input type="hidden" name="data" value="{{ data }}">
+              <button type="submit" class="btn p-0 border-0 text-muted" style="font-size:0.75rem"
+                      title="Remover">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+
+          <!-- Adicionar tarefa -->
+          <form method="post" action="/agenda/escala/{{ func.id }}/tarefa"
+                class="painel-add-tarefa mt-1">
+            <input type="hidden" name="data" value="{{ data }}">
+            <input type="text" name="descricao" class="form-control form-control-sm"
+                   placeholder="Adicionar tarefa..." required style="font-size:0.78rem">
+            <button type="submit" class="btn btn-sm btn-outline-secondary px-2">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="painel-vazio">
+        <i class="bi bi-person-dash" style="font-size:1.5rem; opacity:0.25"></i>
+        <span>Ninguém escalado</span>
+      </div>
+      {% endif %}
+
+      <!-- Escalar funcionário -->
+      {% if funcionarios %}
+      <form method="post" action="/agenda/{{ data }}/{{ turno_key }}/escalar"
+            class="painel-escalar">
+        <select name="funcionario_id" class="form-select form-select-sm" required
+                style="font-size:0.8rem">
+          <option value="">Escalar funcionário...</option>
+          {% for f in funcionarios %}
+          <option value="{{ f.id }}">{{ f.nome }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary px-3">
+          <i class="bi bi-plus-lg"></i>
+        </button>
+      </form>
+      {% else %}
+      <p class="text-muted mb-0" style="font-size:0.78rem; padding:0.5rem 0">
+        <a href="/ajustes?tab=funcionarios" class="text-primary">Cadastre funcionários</a>
+      </p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>

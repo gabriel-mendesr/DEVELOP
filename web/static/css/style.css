@@ -689,70 +689,136 @@ body {
   border-left: 4px solid #7c3aed;
 }
 
-/* ── Agenda / Turnos ────────────────────────────────────────────────────── */
+/* ── Agenda — Google Calendar style ────────────────────────────────────── */
 
-.mini-cal { width: 100%; border-collapse: collapse; }
-.mini-cal th {
-  text-align: center; font-size: 0.68rem; color: #94a3b8;
-  padding: 0.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+.agenda-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.25rem;
+  align-items: start;
 }
-.mini-cal td { text-align: center; padding: 0.15rem; }
-.cal-day {
-  width: 30px; height: 30px; border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.78rem; margin: 0 auto; cursor: pointer;
-  text-decoration: none; color: #334155;
-  transition: background 0.1s;
+@media (max-width: 1100px) {
+  .agenda-layout { grid-template-columns: 1fr; }
 }
-.cal-day:hover { background: #f1f5f9; color: #334155; }
-.cal-day.tem-escala { background: #dbeafe; color: #1e40af; font-weight: 700; }
-.cal-day.hoje { background: #1e40af !important; color: #fff !important; font-weight: 700; }
-.cal-day.selecionado { background: #0f172a !important; color: #fff !important; font-weight: 700; }
 
-.turno-card {
+/* Calendário principal */
+.agenda-cal {
   background: #fff;
   border-radius: 14px;
   border: 1px solid #e2e8f0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
-.turno-header {
-  padding: 0.85rem 1rem;
-  display: flex; align-items: center; gap: 0.5rem;
-  font-weight: 700; font-size: 0.9rem; color: #fff;
+.cal-header-row {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  background: #f8fafc; border-bottom: 1px solid #e2e8f0;
 }
-.turno-hora { font-size: 0.7rem; font-weight: 500; opacity: 0.85; margin-left: auto; }
-.turno-manha .turno-header { background: linear-gradient(135deg, #0284c7, #0369a1); }
-.turno-tarde  .turno-header { background: linear-gradient(135deg, #d97706, #b45309); }
-.turno-noite  .turno-header { background: linear-gradient(135deg, #4338ca, #3730a3); }
-
-.turno-body { padding: 0.75rem; flex-grow: 1; }
-.turno-add-func {
-  padding: 0.65rem 0.75rem;
-  border-top: 1px solid #f1f5f9;
-  background: #fafafa;
+.cal-header-cell {
+  text-align: center; padding: 0.6rem 0;
+  font-size: 0.72rem; font-weight: 700; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.4px;
 }
-
-.func-card {
-  background: #f8fafc;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  padding: 0.65rem 0.75rem;
-  margin-bottom: 0.5rem;
-}
-.func-nome {
-  font-weight: 700; font-size: 0.82rem; color: #0f172a;
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 0.4rem;
-}
-.tarefa-item {
-  display: flex; align-items: center; gap: 0.4rem;
-  font-size: 0.78rem; padding: 0.2rem 0;
+.cal-week-row {
+  display: grid; grid-template-columns: repeat(7, 1fr);
   border-bottom: 1px solid #f1f5f9;
 }
-.tarefa-item:last-of-type { border-bottom: none; }
-.tarefa-texto { flex-grow: 1; color: #334155; }
-.tarefa-item.concluida .tarefa-texto {
-  text-decoration: line-through; color: #94a3b8;
+.cal-week-row:last-child { border-bottom: none; }
+.cal-cell {
+  min-height: 90px; padding: 0.5rem;
+  border-right: 1px solid #f1f5f9;
+  cursor: pointer; transition: background 0.1s;
+  position: relative;
+}
+.cal-cell:last-child { border-right: none; }
+.cal-cell:empty { background: #fafafa; cursor: default; }
+.cal-cell:not(:empty):hover { background: #f8fafc; }
+.cal-cell.cal-selecionado { background: #eff6ff !important; }
+.cal-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 0.82rem; font-weight: 600; color: #334155;
+  margin-bottom: 0.25rem;
+}
+.cal-hoje .cal-num {
+  background: #1e40af; color: #fff;
+}
+.cal-selecionado .cal-num {
+  background: #dbeafe; color: #1e40af;
+}
+.cal-indicadores { display: flex; flex-direction: column; gap: 2px; }
+.cal-pill {
+  display: block; padding: 1px 5px;
+  border-radius: 4px; font-size: 0.68rem; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.5;
+}
+
+/* Painel lateral do dia */
+.agenda-painel {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+.painel-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+.painel-titulo {
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.painel-dianum {
+  font-size: 2.2rem; font-weight: 800; color: #0f172a; line-height: 1;
+}
+.painel-diasem { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+.painel-mes { font-size: 0.78rem; color: #64748b; }
+.painel-turnos { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.painel-turno { border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
+.painel-turno-hdr {
+  padding: 0.55rem 0.85rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  font-weight: 700; font-size: 0.85rem; color: #fff;
+}
+.painel-turno-hora { font-size: 0.68rem; font-weight: 500; opacity: 0.85; margin-left: auto; }
+.painel-manha .painel-turno-hdr { background: linear-gradient(135deg, #0284c7, #0369a1); }
+.painel-tarde  .painel-turno-hdr { background: linear-gradient(135deg, #d97706, #b45309); }
+.painel-noite  .painel-turno-hdr { background: linear-gradient(135deg, #4338ca, #3730a3); }
+.painel-turno-body { padding: 0.65rem 0.75rem; }
+
+.painel-func {
+  background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.65rem; margin-bottom: 0.5rem;
+}
+.painel-func-hdr {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;
+}
+.painel-func-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: #dbeafe; color: #1e40af;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 800; flex-shrink: 0;
+}
+.painel-func-nome { font-weight: 700; font-size: 0.82rem; color: #0f172a; }
+
+.painel-tarefa {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.78rem; padding: 0.18rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.painel-tarefa:last-of-type { border-bottom: none; }
+.painel-tarefa-txt { flex-grow: 1; color: #334155; }
+.painel-tarefa-txt.concluida { text-decoration: line-through; color: #94a3b8; }
+.painel-add-tarefa { display: flex; gap: 0.35rem; margin-top: 0.4rem; }
+.painel-vazio {
+  text-align: center; padding: 0.75rem 0; color: #94a3b8;
+  font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+}
+.painel-escalar {
+  display: flex; gap: 0.35rem; padding-top: 0.5rem;
+  border-top: 1px solid #f1f5f9; margin-top: 0.4rem;
 }
