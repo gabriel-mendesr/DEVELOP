@@ -20,7 +20,7 @@ from pathlib import Path
 
 from exporters import pdf_extrato, pdf_inadimplentes, pdf_mensal
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -82,6 +82,17 @@ def _redirect_login() -> RedirectResponse:
 # =============================================================================
 # Autenticação
 # =============================================================================
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.svg", include_in_schema=False)
+async def favicon():
+    return FileResponse(BASE_DIR / "static" / "favicon.svg", media_type="image/svg+xml")
+
+
+@app.get("/manifest.json", include_in_schema=False)
+async def manifest():
+    return FileResponse(BASE_DIR / "static" / "manifest.json", media_type="application/json")
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_get(request: Request):
     if _user(request):
