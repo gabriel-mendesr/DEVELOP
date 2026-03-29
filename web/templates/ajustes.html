@@ -439,6 +439,29 @@
         </div>
       </div>
 
+      <div class="col-12">
+        <div class="form-card" style="border-left:3px solid #dc2626">
+          <h6 class="fw-bold mb-1 text-danger">
+            <i class="bi bi-trash me-2"></i>Excluir Hóspede por Documento
+          </h6>
+          <p class="text-muted mb-3" style="font-size:0.85rem">
+            Use para remover cadastros com documentos mal formatados (ex: CNPJ com pontos/barras)
+            que não conseguem ser acessados pela listagem.
+            <strong>Ação irreversível — apaga hóspede e todo o histórico.</strong>
+          </p>
+          <form method="post" action="/ajustes/hospede-excluir"
+                onsubmit="return confirm('Excluir permanentemente o hóspede com esse documento? Todo o histórico será apagado.')">
+            <div class="input-group" style="max-width:420px">
+              <input type="text" name="documento" class="form-control"
+                     placeholder="Ex: 62765634000192 ou 62.765.634/0001-92" required>
+              <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash me-1"></i> Excluir
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     </div>
   </div>
 

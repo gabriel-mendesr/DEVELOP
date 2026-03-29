@@ -206,38 +206,7 @@ async def hospedes_create(
     return RedirectResponse("/hospedes", status_code=302)
 
 
-@app.get("/hospedes/{doc}", response_class=HTMLResponse)
-async def hospede_detalhe(request: Request, doc: str):
-    if not _user(request):
-        return _redirect_login()
-    hospede = sistema.get_hospede(doc)
-    if not hospede:
-        _flash(request, "Hóspede não encontrado.", "warning")
-        return RedirectResponse("/hospedes", status_code=302)
-    saldo, vencimento, bloqueado = sistema.get_saldo_info(doc)
-    historico = sistema.get_historico_detalhado(doc)
-    multa = sistema.get_divida_multas(doc)
-    anotacao = sistema.get_anotacao(doc)
-    categorias = sistema.get_categorias()
-    return templates.TemplateResponse(
-        request,
-        "hospede_detalhe.html",
-        _ctx(
-            request,
-            hospede=dict(hospede),
-            saldo=saldo,
-            vencimento=vencimento,
-            bloqueado=bloqueado,
-            historico=historico,
-            multa=multa,
-            anotacao=anotacao,
-            categorias=categorias,
-            active="hospedes",
-        ),
-    )
-
-
-@app.post("/hospedes/{doc}/movimentacao")
+@app.post("/hospedes/{doc:path}/movimentacao")
 async def hospede_mov(
     request: Request,
     doc: str,
@@ -262,7 +231,7 @@ async def hospede_mov(
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc}/movimentacao/{id_mov}/vencimento")
+@app.post("/hospedes/{doc:path}/movimentacao/{id_mov}/vencimento")
 async def hospede_alterar_vencimento(
     request: Request,
     doc: str,
@@ -283,7 +252,7 @@ async def hospede_alterar_vencimento(
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc}/anotacao")
+@app.post("/hospedes/{doc:path}/anotacao")
 async def hospede_anotacao(request: Request, doc: str, texto: str = Form("")):
     if not _user(request):
         return _redirect_login()
@@ -292,7 +261,7 @@ async def hospede_anotacao(request: Request, doc: str, texto: str = Form("")):
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc}/inativar")
+@app.post("/hospedes/{doc:path}/inativar")
 async def hospede_inativar(request: Request, doc: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -303,7 +272,7 @@ async def hospede_inativar(request: Request, doc: str):
     return RedirectResponse("/hospedes", status_code=302)
 
 
-@app.post("/hospedes/{doc}/reativar")
+@app.post("/hospedes/{doc:path}/reativar")
 async def hospede_reativar(request: Request, doc: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -314,7 +283,7 @@ async def hospede_reativar(request: Request, doc: str):
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc}/excluir")
+@app.post("/hospedes/{doc:path}/excluir")
 async def hospede_excluir(request: Request, doc: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -698,6 +667,23 @@ async def banco_otimizar(request: Request):
     return RedirectResponse("/ajustes?tab=banco", status_code=302)
 
 
+# ── Limpeza de hóspede por documento (bypassa problemas de URL) ───────────────
+@app.post("/ajustes/hospede-excluir")
+async def ajustes_hospede_excluir(request: Request, documento: str = Form(...)):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        return _redirect_login()
+    doc = documento.strip()
+    hospede = sistema.get_hospede(doc)
+    if not hospede:
+        _flash(request, f"Hóspede com documento '{doc}' não encontrado.", "warning")
+        return RedirectResponse("/ajustes?tab=banco", status_code=302)
+    nome = hospede.get("nome", doc)
+    sistema.excluir_hospede(doc, usuario_acao=u["username"])
+    _flash(request, f"Hóspede '{nome}' excluído com sucesso.", "success")
+    return RedirectResponse("/ajustes?tab=banco", status_code=302)
+
+
 # ── Logs ──────────────────────────────────────────────────────────────────────
 @app.post("/ajustes/logs/limpar")
 async def logs_limpar(request: Request):
@@ -751,7 +737,7 @@ async def ajustes_minha_senha(
 # =============================================================================
 
 
-@app.get("/hospedes/{doc}/extrato.pdf")
+@app.get("/hospedes/{doc:path}/extrato.pdf")
 async def hospede_extrato_pdf(request: Request, doc: str):
     if not _user(request):
         return _redirect_login()
@@ -766,6 +752,38 @@ async def hospede_extrato_pdf(request: Request, doc: str):
         content=data,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=extrato_{nome}.pdf"},
+    )
+
+
+# Rota de detalhe APÓS extrato.pdf para que {doc:path} não engula o sufixo /extrato.pdf
+@app.get("/hospedes/{doc:path}", response_class=HTMLResponse)
+async def hospede_detalhe(request: Request, doc: str):
+    if not _user(request):
+        return _redirect_login()
+    hospede = sistema.get_hospede(doc)
+    if not hospede:
+        _flash(request, "Hóspede não encontrado.", "warning")
+        return RedirectResponse("/hospedes", status_code=302)
+    saldo, vencimento, bloqueado = sistema.get_saldo_info(doc)
+    historico = sistema.get_historico_detalhado(doc)
+    multa = sistema.get_divida_multas(doc)
+    anotacao = sistema.get_anotacao(doc)
+    categorias = sistema.get_categorias()
+    return templates.TemplateResponse(
+        request,
+        "hospede_detalhe.html",
+        _ctx(
+            request,
+            hospede=dict(hospede),
+            saldo=saldo,
+            vencimento=vencimento,
+            bloqueado=bloqueado,
+            historico=historico,
+            multa=multa,
+            anotacao=anotacao,
+            categorias=categorias,
+            active="hospedes",
+        ),
     )
 
 

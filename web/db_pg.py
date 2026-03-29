@@ -420,7 +420,8 @@ class SistemaCreditos:
     def cadastrar_hospede(
         self, nome: str, doc: str, telefone: str = "", email: str = "", usuario_acao: str = "Sistema"
     ) -> None:
-        doc_limpo = str(doc).strip()
+        # Normaliza: mantém apenas dígitos (remove pontos, traços, barras)
+        doc_limpo = "".join(filter(str.isdigit, str(doc)))
         if not self._validar_cpf_cnpj(doc_limpo):
             raise ValueError("Documento inválido (CPF/CNPJ incorreto). Verifique os dígitos.")
         with self._tx() as conn:
