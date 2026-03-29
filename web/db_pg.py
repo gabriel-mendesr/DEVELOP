@@ -4,6 +4,11 @@ Implementa a mesma interface de core.models.SistemaCreditos
 usando psycopg2 em vez de SQLite.
 
 Ativado automaticamente quando a variável DATABASE_URL estiver definida.
+
+CORREÇÃO APLICADA: Substituída conexão única por pool de conexões com
+reconexão automática (pool_pre_ping equivalente via psycopg2.pool).
+Isso resolve o erro 'connection already closed' causado pela hibernação
+do banco no Render/Neon.
 """
 
 import hashlib
@@ -16,10 +21,12 @@ from typing import Any
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 
 # =============================================================================
 # Schema PostgreSQL
 # =============================================================================
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS hospedes (
     id BIGSERIAL PRIMARY KEY,
@@ -28,7 +35,9 @@ CREATE TABLE IF NOT EXISTS hospedes (
     telefone TEXT,
     email TEXT
 );
+
 CREATE TABLE IF NOT EXISTS categorias (nome TEXT PRIMARY KEY);
+
 CREATE TABLE IF NOT EXISTS historico_zebra (
     id BIGSERIAL PRIMARY KEY,
     documento TEXT REFERENCES hospedes(documento),
@@ -41,8 +50,10 @@ CREATE TABLE IF NOT EXISTS historico_zebra (
     usuario TEXT,
     quarto TEXT
 );
+
 CREATE TABLE IF NOT EXISTS configs (chave TEXT PRIMARY KEY, valor INTEGER);
 CREATE TABLE IF NOT EXISTS anotacoes (documento TEXT PRIMARY KEY, texto TEXT);
+
 CREATE TABLE IF NOT EXISTS usuarios (
     username TEXT PRIMARY KEY,
     password TEXT,
@@ -56,6 +67,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     can_access_dash INTEGER DEFAULT 1,
     can_access_relatorios INTEGER DEFAULT 1
 );
+
 CREATE TABLE IF NOT EXISTS logs_auditoria (
     id BIGSERIAL PRIMARY KEY,
     data_hora TEXT,
@@ -64,6 +76,7 @@ CREATE TABLE IF NOT EXISTS logs_auditoria (
     detalhes TEXT,
     maquina TEXT
 );
+
 CREATE TABLE IF NOT EXISTS compras (
     id BIGSERIAL PRIMARY KEY,
     data_compra TEXT,
@@ -75,6 +88,7 @@ CREATE TABLE IF NOT EXISTS compras (
     obs TEXT,
     lista_id INTEGER
 );
+
 CREATE TABLE IF NOT EXISTS listas_compras (
     id BIGSERIAL PRIMARY KEY,
     data_criacao TEXT,
@@ -82,6 +96,7 @@ CREATE TABLE IF NOT EXISTS listas_compras (
     usuario TEXT,
     obs TEXT
 );
+
 CREATE TABLE IF NOT EXISTS produtos (nome TEXT PRIMARY KEY);
 
 -- índices
@@ -103,6 +118,15 @@ def _q(sql: str) -> str:
     return sql.replace("?", "%s")
 
 
+def _nova_conexao(url: str) -> psycopg2.extensions.connection:
+    """Cria uma nova conexão com o banco, com timeout de conexão."""
+    return psycopg2.connect(
+        url,
+        cursor_factory=psycopg2.extras.RealDictCursor,
+        connect_timeout=10,
+    )
+
+
 class SistemaCreditos:
     """Interface idêntica à core.models.SistemaCreditos, mas sobre PostgreSQL."""
 
@@ -114,32 +138,76 @@ class SistemaCreditos:
         "contato": "Tel: (19) 3651-3297 / Whats: (19) 99759-7503",
         "email": "hotelsantoss@hotmail.com",
     }
+
     versao_atual = os.getenv("APP_VERSION", "web")
 
     def __init__(self, database_url: str):
         self._url = database_url
-        self.conn = psycopg2.connect(database_url, cursor_factory=psycopg2.extras.RealDictCursor)
-        self.conn.autocommit = False
+        # Pool com mínimo 1 e máximo 5 conexões simultâneas
+        self._pool = psycopg2.pool.ThreadedConnectionPool(
+            minconn=1,
+            maxconn=5,
+            dsn=database_url,
+            cursor_factory=psycopg2.extras.RealDictCursor,
+            connect_timeout=10,
+        )
         self._setup_schema()
 
+    # ------------------------------------------------------------------
+    # Gerenciamento de conexão com reconexão automática
+    # ------------------------------------------------------------------
+
+    @contextmanager
+    def _get_conn(self):
+        """
+        Obtém uma conexão do pool. Se estiver morta (hibernação do Render/Neon),
+        fecha e reabre automaticamente antes de devolver.
+        """
+        conn = self._pool.getconn()
+        try:
+            # Testa se a conexão ainda está viva
+            if conn.closed:
+                raise psycopg2.InterfaceError("connection closed")
+            conn.cursor().execute("SELECT 1")
+        except Exception:
+            # Conexão morta: descarta e cria uma nova
+            try:
+                self._pool.putconn(conn, close=True)
+            except Exception:
+                pass
+            conn = _nova_conexao(self._url)
+            conn.autocommit = False
+
+        try:
+            yield conn
+        finally:
+            try:
+                self._pool.putconn(conn)
+            except Exception:
+                pass
+
     def _setup_schema(self) -> None:
-        with self.conn.cursor() as cur:
-            cur.execute(_SCHEMA)
-            # Admin padrão
-            cur.execute("SELECT 1 FROM usuarios WHERE username = 'admin'")
-            if not cur.fetchone():
-                salt = secrets.token_hex(16)
-                phash = self._hash_password("admin", salt)
-                cur.execute(
-                    "INSERT INTO usuarios (username, password, is_admin, can_change_dates, salt) "
-                    "VALUES (%s, %s, 1, 1, %s) ON CONFLICT DO NOTHING",
-                    ("admin", phash, salt),
-                )
-            # Categorias padrão
-            cur.execute("SELECT 1 FROM categorias LIMIT 1")
-            if not cur.fetchone():
-                cur.executemany("INSERT INTO categorias VALUES (%s) ON CONFLICT DO NOTHING", _CATEGORIAS_PADRAO)
-        self.conn.commit()
+        with self._get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(_SCHEMA)
+                # Admin padrão
+                cur.execute("SELECT 1 FROM usuarios WHERE username = 'admin'")
+                if not cur.fetchone():
+                    salt = secrets.token_hex(16)
+                    phash = self._hash_password("admin", salt)
+                    cur.execute(
+                        "INSERT INTO usuarios (username, password, is_admin, can_change_dates, salt) "
+                        "VALUES (%s, %s, 1, 1, %s) ON CONFLICT DO NOTHING",
+                        ("admin", phash, salt),
+                    )
+                # Categorias padrão
+                cur.execute("SELECT 1 FROM categorias LIMIT 1")
+                if not cur.fetchone():
+                    cur.executemany(
+                        "INSERT INTO categorias VALUES (%s) ON CONFLICT DO NOTHING",
+                        _CATEGORIAS_PADRAO,
+                    )
+            conn.commit()
 
     # ------------------------------------------------------------------
     # helpers internos
@@ -147,37 +215,52 @@ class SistemaCreditos:
 
     @contextmanager
     def _tx(self):
-        try:
-            yield
-            self.conn.commit()
-        except Exception:
-            self.conn.rollback()
-            raise
+        with self._get_conn() as conn:
+            try:
+                yield conn
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
     def _fetch(self, sql: str, params: tuple = ()) -> list[dict]:
-        with self.conn.cursor() as cur:
-            cur.execute(_q(sql), params)
-            return [dict(r) for r in cur.fetchall()]
+        with self._get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(_q(sql), params)
+                return [dict(r) for r in cur.fetchall()]
 
     def _fetchone(self, sql: str, params: tuple = ()) -> dict | None:
-        with self.conn.cursor() as cur:
-            cur.execute(_q(sql), params)
-            row = cur.fetchone()
-            return dict(row) if row else None
+        with self._get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(_q(sql), params)
+                row = cur.fetchone()
+                return dict(row) if row else None
 
-    def _execute(self, sql: str, params: tuple = ()) -> None:
-        with self.conn.cursor() as cur:
-            cur.execute(_q(sql), params)
+    def _execute(self, sql: str, params: tuple = (), conn=None) -> None:
+        if conn:
+            with conn.cursor() as cur:
+                cur.execute(_q(sql), params)
+        else:
+            with self._get_conn() as conn_:
+                with conn_.cursor() as cur:
+                    cur.execute(_q(sql), params)
 
-    def _insert_returning(self, sql: str, params: tuple = ()) -> int:
+    def _insert_returning(self, sql: str, params: tuple = (), conn=None) -> int:
         """INSERT … RETURNING id → retorna o id gerado."""
         pg_sql = _q(sql)
         if "returning" not in pg_sql.lower():
             pg_sql += " RETURNING id"
-        with self.conn.cursor() as cur:
-            cur.execute(pg_sql, params)
-            row = cur.fetchone()
-            return int(row["id"]) if row else 0
+
+        def _run(c):
+            with c.cursor() as cur:
+                cur.execute(pg_sql, params)
+                row = cur.fetchone()
+                return int(row["id"]) if row else 0
+
+        if conn:
+            return _run(conn)
+        with self._get_conn() as conn_:
+            return _run(conn_)
 
     # ------------------------------------------------------------------
     # Utilitários de valor
@@ -205,10 +288,11 @@ class SistemaCreditos:
             if hashlib.sha256(str(password).encode()).hexdigest() == row["password"]:
                 new_salt = secrets.token_hex(16)
                 new_hash = self._hash_password(password, new_salt)
-                with self._tx():
+                with self._tx() as conn:
                     self._execute(
                         "UPDATE usuarios SET password = ?, salt = ? WHERE username = ?",
                         (new_hash, new_salt, username),
+                        conn=conn,
                     )
                 return self._fetchone("SELECT * FROM usuarios WHERE username = ?", (username,))
             return None
@@ -235,12 +319,12 @@ class SistemaCreditos:
     ) -> None:
         salt = secrets.token_hex(16)
         phash = self._hash_password(password, salt)
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 """INSERT INTO usuarios
-                    (username, password, is_admin, can_change_dates, can_manage_products,
-                     can_access_hospedes, can_access_financeiro, can_access_compras,
-                     can_access_dash, can_access_relatorios, salt)
+                   (username, password, is_admin, can_change_dates, can_manage_products,
+                    can_access_hospedes, can_access_financeiro, can_access_compras,
+                    can_access_dash, can_access_relatorios, salt)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT (username) DO UPDATE SET
                      password=EXCLUDED.password, is_admin=EXCLUDED.is_admin,
@@ -253,18 +337,12 @@ class SistemaCreditos:
                      can_access_relatorios=EXCLUDED.can_access_relatorios,
                      salt=EXCLUDED.salt""",
                 (
-                    username,
-                    phash,
-                    int(is_admin),
-                    int(can_change_dates),
-                    int(can_manage_products),
-                    int(can_access_hospedes),
-                    int(can_access_financeiro),
-                    int(can_access_compras),
-                    int(can_access_dash),
-                    int(can_access_relatorios),
-                    salt,
+                    username, phash, int(is_admin), int(can_change_dates),
+                    int(can_manage_products), int(can_access_hospedes),
+                    int(can_access_financeiro), int(can_access_compras),
+                    int(can_access_dash), int(can_access_relatorios), salt,
                 ),
+                conn=conn,
             )
         self.registrar_log(usuario_acao, "SALVAR_USUARIO", f"Usuario alvo: {username}")
 
@@ -281,30 +359,26 @@ class SistemaCreditos:
         can_access_relatorios: int,
         usuario_acao: str = "Sistema",
     ) -> None:
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 """UPDATE usuarios SET
-                    is_admin=?, can_change_dates=?, can_manage_products=?,
-                    can_access_hospedes=?, can_access_financeiro=?,
-                    can_access_compras=?, can_access_dash=?, can_access_relatorios=?
+                   is_admin=?, can_change_dates=?, can_manage_products=?,
+                   can_access_hospedes=?, can_access_financeiro=?,
+                   can_access_compras=?, can_access_dash=?, can_access_relatorios=?
                    WHERE username=?""",
                 (
-                    is_admin,
-                    can_change_dates,
-                    can_manage_products,
-                    can_access_hospedes,
-                    can_access_financeiro,
-                    can_access_compras,
-                    can_access_dash,
-                    can_access_relatorios,
+                    is_admin, can_change_dates, can_manage_products,
+                    can_access_hospedes, can_access_financeiro,
+                    can_access_compras, can_access_dash, can_access_relatorios,
                     username,
                 ),
+                conn=conn,
             )
         self.registrar_log(usuario_acao, "EDITAR_USUARIO", f"Usuario alvo: {username}")
 
     def excluir_usuario(self, username: str, usuario_acao: str = "Sistema") -> None:
-        with self._tx():
-            self._execute("DELETE FROM usuarios WHERE username = ?", (username,))
+        with self._tx() as conn:
+            self._execute("DELETE FROM usuarios WHERE username = ?", (username,), conn=conn)
         self.registrar_log(usuario_acao, "EXCLUIR_USUARIO", f"Usuario alvo: {username}")
 
     # ------------------------------------------------------------------
@@ -324,18 +398,20 @@ class SistemaCreditos:
         doc_limpo = str(doc).strip()
         if not self._validar_cpf_cnpj(doc_limpo):
             raise ValueError("Documento inválido (CPF/CNPJ incorreto). Verifique os dígitos.")
-        with self._tx():
+        with self._tx() as conn:
             existing = self._fetchone("SELECT 1 FROM hospedes WHERE documento = ?", (doc_limpo,))
             if existing:
                 self._execute(
                     "UPDATE hospedes SET nome = ?, telefone = ?, email = ? WHERE documento = ?",
                     (nome.upper().strip(), telefone, email, doc_limpo),
+                    conn=conn,
                 )
                 self.registrar_log(usuario_acao, "ATUALIZAR_HOSPEDE", f"Doc: {doc_limpo}")
             else:
                 self._execute(
                     "INSERT INTO hospedes (nome, documento, telefone, email) VALUES (?, ?, ?, ?)",
                     (nome.upper().strip(), doc_limpo, telefone, email),
+                    conn=conn,
                 )
                 self.registrar_log(usuario_acao, "CADASTRAR_HOSPEDE", f"Doc: {doc_limpo}")
 
@@ -410,7 +486,7 @@ class SistemaCreditos:
                 raise ValueError(f"BLOQUEIO: Crédito vencido em {venc}!")
             if v_float > saldo:
                 raise ValueError("Saldo insuficiente!")
-        with self._tx():
+        with self._tx() as conn:
             venc_str = ""
             data_hj = datetime.now()
             if tipo == "ENTRADA":
@@ -421,18 +497,20 @@ class SistemaCreditos:
                 "(documento, tipo, valor, categoria, data_acao, data_vencimento, obs, usuario) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (doc_limpo, tipo, v_float, categoria, data_hj.strftime("%Y-%m-%d"), venc_str, obs, usuario),
+                conn=conn,
             )
         self.registrar_log(usuario, f"ADD_MOV_{tipo}", f"Doc: {doc_limpo}, Valor: {v_float}")
 
     def adicionar_multa(self, doc: str, valor: Any, motivo: str, obs: str = "", usuario: str = "Sistema") -> None:
         v_float = self.limpar_valor(valor)
         doc_limpo = str(doc).strip()
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO historico_zebra "
                 "(documento, tipo, valor, categoria, data_acao, obs, usuario) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (doc_limpo, "MULTA", v_float, motivo, datetime.now().strftime("%Y-%m-%d"), obs, usuario),
+                conn=conn,
             )
         self.registrar_log(usuario, "ADD_MULTA", f"Doc: {doc_limpo}, Valor: {v_float}")
 
@@ -444,20 +522,16 @@ class SistemaCreditos:
             raise ValueError("Valor deve ser maior que zero.")
         if v_float > divida:
             raise ValueError(f"Valor (R$ {v_float:.2f}) excede a dívida atual (R$ {divida:.2f})")
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO historico_zebra "
                 "(documento, tipo, valor, categoria, data_acao, obs, usuario) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
-                    doc_limpo,
-                    "PAGAMENTO_MULTA",
-                    v_float,
-                    forma_pagamento,
-                    datetime.now().strftime("%Y-%m-%d"),
-                    obs,
-                    usuario,
+                    doc_limpo, "PAGAMENTO_MULTA", v_float, forma_pagamento,
+                    datetime.now().strftime("%Y-%m-%d"), obs, usuario,
                 ),
+                conn=conn,
             )
         self.registrar_log(usuario, "PAGAR_MULTA", f"Doc: {doc_limpo}, Valor: {v_float}")
 
@@ -511,14 +585,15 @@ class SistemaCreditos:
             sql += " WHERE " + " AND ".join(conditions)
         sql += " ORDER BY h.id DESC LIMIT %s"
         params.append(int(limite))
-        with self.conn.cursor() as cur:
-            cur.execute(sql, params)
-            return [dict(r) for r in cur.fetchall()]
+        with self._get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                return [dict(r) for r in cur.fetchall()]
 
     def atualizar_data_vencimento_manual(self, id_mov: int, data_br: str, usuario_acao: str = "Sistema") -> None:
         d_iso = datetime.strptime(data_br, "%d/%m/%Y").strftime("%Y-%m-%d")
-        with self._tx():
-            self._execute("UPDATE historico_zebra SET data_vencimento = ? WHERE id = ?", (d_iso, id_mov))
+        with self._tx() as conn:
+            self._execute("UPDATE historico_zebra SET data_vencimento = ? WHERE id = ?", (d_iso, id_mov), conn=conn)
         self.registrar_log(usuario_acao, "ALTERAR_VENCIMENTO", f"ID Mov: {id_mov} | Nova Data: {data_br}")
 
     # ------------------------------------------------------------------
@@ -542,27 +617,29 @@ class SistemaCreditos:
             data_iso = datetime.strptime(data_compra, "%d/%m/%Y").strftime("%Y-%m-%d")
         except ValueError:
             data_iso = datetime.now().strftime("%Y-%m-%d")
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO compras "
                 "(data_compra, produto, quantidade, valor_unitario, valor_total, usuario, obs, lista_id) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (data_iso, produto.upper().strip(), qtd_float, unit_float, total, usuario, obs, lista_id),
+                conn=conn,
             )
         self.registrar_log(usuario, "ADD_COMPRA", f"Prod: {produto} | Total: {total}")
 
     def criar_lista_compras(self, usuario: str, obs: str = "") -> int:
         data_hj = datetime.now().strftime("%Y-%m-%d")
-        with self._tx():
+        with self._tx() as conn:
             lista_id = self._insert_returning(
                 "INSERT INTO listas_compras (data_criacao, status, usuario, obs) VALUES (?, ?, ?, ?)",
                 (data_hj, "ABERTA", usuario, obs),
+                conn=conn,
             )
         return lista_id
 
     def fechar_lista_compras(self, lista_id: int) -> None:
-        with self._tx():
-            self._execute("UPDATE listas_compras SET status = 'FECHADA' WHERE id = ?", (lista_id,))
+        with self._tx() as conn:
+            self._execute("UPDATE listas_compras SET status = 'FECHADA' WHERE id = ?", (lista_id,), conn=conn)
 
     def get_listas_resumo(self) -> list[dict]:
         return self._fetch("""
@@ -595,27 +672,27 @@ class SistemaCreditos:
     def adicionar_produto_predefinido(self, nome: str) -> None:
         if not nome:
             return
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO produtos (nome) VALUES (?) ON CONFLICT DO NOTHING",
                 (nome.upper().strip(),),
+                conn=conn,
             )
 
     def remover_produto_predefinido(self, nome: str) -> None:
-        with self._tx():
-            self._execute("DELETE FROM produtos WHERE nome = ?", (nome,))
+        with self._tx() as conn:
+            self._execute("DELETE FROM produtos WHERE nome = ?", (nome,), conn=conn)
 
     def get_produtos_predefinidos(self) -> list[str]:
         rows = self._fetch("SELECT nome FROM produtos ORDER BY nome")
         return [r["nome"] for r in rows]
 
     def get_historico_precos(self, produtos: list[str]) -> dict[str, list[dict]]:
-        """Retorna histórico de preços por produto para exibir gráfico de variação."""
         if not produtos:
             return {}
         placeholders = ", ".join("%s" for _ in produtos)
         rows = self._fetch(
-            f"SELECT produto, data_compra, valor_unitario FROM compras "  # noqa: S608
+            f"SELECT produto, data_compra, valor_unitario FROM compras "
             f"WHERE produto IN ({placeholders}) ORDER BY produto, data_compra",
             tuple(produtos),
         )
@@ -652,7 +729,6 @@ class SistemaCreditos:
         return total_saldo, total_vencido, total_a_vencer, len(docs), total_multas
 
     def get_devedores_multas(self) -> list[tuple[str, str, str, float]]:
-        """Retorna lista de (nome, documento, telefone, saldo) de hóspedes inadimplentes."""
         hospedes = self._fetch("SELECT nome, documento, telefone FROM hospedes")
         resultado = []
         for h in hospedes:
@@ -684,11 +760,12 @@ class SistemaCreditos:
 
     def set_config(self, chave: str, valor: int, usuario_acao: str = "Sistema") -> None:
         antigo = self.get_config(chave)
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO configs (chave, valor) VALUES (?, ?) "
                 "ON CONFLICT (chave) DO UPDATE SET valor=EXCLUDED.valor",
                 (chave, valor),
+                conn=conn,
             )
         self.registrar_log(usuario_acao, "ALTERAR_CONFIG", f"Chave: {chave} | De: {antigo} Para: {valor}")
 
@@ -699,23 +776,24 @@ class SistemaCreditos:
     def adicionar_categoria(self, nome: str) -> None:
         if not nome:
             return
-        with self._tx():
-            self._execute("INSERT INTO categorias VALUES (?) ON CONFLICT DO NOTHING", (nome,))
+        with self._tx() as conn:
+            self._execute("INSERT INTO categorias VALUES (?) ON CONFLICT DO NOTHING", (nome,), conn=conn)
 
     def remover_categoria(self, nome: str) -> None:
-        with self._tx():
-            self._execute("DELETE FROM categorias WHERE nome = ?", (nome,))
+        with self._tx() as conn:
+            self._execute("DELETE FROM categorias WHERE nome = ?", (nome,), conn=conn)
 
     def get_anotacao(self, doc: str) -> str:
         row = self._fetchone("SELECT texto FROM anotacoes WHERE documento = ?", (doc,))
         return row["texto"] if row else ""
 
     def salvar_anotacao(self, doc: str, texto: str) -> None:
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO anotacoes (documento, texto) VALUES (?, ?) "
                 "ON CONFLICT (documento) DO UPDATE SET texto=EXCLUDED.texto",
                 (doc, texto),
+                conn=conn,
             )
 
     # ------------------------------------------------------------------
@@ -728,18 +806,19 @@ class SistemaCreditos:
         except Exception:
             maquina = "Desconhecido"
         dh = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with self._tx():
+        with self._tx() as conn:
             self._execute(
                 "INSERT INTO logs_auditoria (data_hora, usuario, acao, detalhes, maquina) VALUES (?,?,?,?,?)",
                 (dh, usuario, acao, detalhes, maquina),
+                conn=conn,
             )
 
     def get_logs(self) -> list[dict]:
         return self._fetch("SELECT * FROM logs_auditoria ORDER BY id DESC LIMIT 100")
 
     def limpar_logs_auditoria(self, usuario_acao: str = "Sistema") -> None:
-        with self._tx():
-            self._execute("DELETE FROM logs_auditoria")
+        with self._tx() as conn:
+            self._execute("DELETE FROM logs_auditoria", conn=conn)
         self.registrar_log(usuario_acao, "LIMPEZA_LOGS", "Histórico de auditoria apagado.")
 
     # ------------------------------------------------------------------
@@ -748,11 +827,12 @@ class SistemaCreditos:
 
     def otimizar_banco(self) -> None:
         """VACUUM no PostgreSQL."""
-        old_autocommit = self.conn.autocommit
-        self.conn.autocommit = True
-        with self.conn.cursor() as cur:
-            cur.execute("VACUUM ANALYZE")
-        self.conn.autocommit = old_autocommit
+        with self._get_conn() as conn:
+            old_autocommit = conn.autocommit
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute("VACUUM ANALYZE")
+            conn.autocommit = old_autocommit
 
     def fazer_backup(self) -> str:
         return "Backup via pg_dump recomendado para PostgreSQL. Acesse o painel do Neon.tech."
