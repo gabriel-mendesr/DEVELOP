@@ -476,6 +476,7 @@ async def ajustes(request: Request, tab: str = ""):
             categorias=sistema.get_categorias(),
             produtos=sistema.get_produtos_predefinidos(),
             funcionarios=sistema.get_funcionarios(),
+            escala_padrao_all=sistema.get_escala_padrao_all(),
             config_validade=sistema.get_config("validade_meses"),
             config_alerta=sistema.get_config("alerta_dias"),
         )
@@ -758,6 +759,22 @@ async def ajustes_funcionario_excluir(request: Request, func_id: int):
     return RedirectResponse("/ajustes?tab=funcionarios", status_code=302)
 
 
+@app.post("/ajustes/funcionario/{func_id}/escala-padrao")
+async def ajustes_funcionario_escala(request: Request, func_id: int):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        return _redirect_login()
+    form = await request.form()
+    # Cada dia de semana pode ter um turno (manha/tarde/noite) ou vazio
+    dias_turnos = {}
+    for dia in range(7):
+        turno = form.get(f"dia_{dia}", "")
+        dias_turnos[dia] = turno
+    sistema.set_escala_padrao(func_id, dias_turnos, usuario_acao=u["username"])
+    _flash(request, "Escala padrão atualizada.", "success")
+    return RedirectResponse("/ajustes?tab=funcionarios", status_code=302)
+
+
 # =============================================================================
 # Agenda / Turnos
 # =============================================================================
@@ -780,7 +797,7 @@ _DIAS_PT = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Doming
 
 def _cal_grid(ano: int, mes: int) -> list:
     semanas = []
-    for semana in _cal.monthcalendar(ano, mes):
+    for semana in _cal.Calendar(firstweekday=6).monthdayscalendar(ano, mes):
         row = []
         for dia in semana:
             if dia == 0:
@@ -799,38 +816,6 @@ async def agenda_index(request: Request):
 
     now = _dt.now()
     return RedirectResponse(f"/agenda/{now.year}/{now.month:02d}", status_code=302)
-
-
-@app.get("/agenda/{ano}/{mes}", response_class=HTMLResponse)
-async def agenda_mes(request: Request, ano: int, mes: int):
-    u = _user(request)
-    if not u:
-        return _redirect_login()
-    from datetime import datetime as _dt
-
-    hoje = _dt.now().strftime("%Y-%m-%d")
-    mes_ant_ano, mes_ant_mes = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
-    mes_prox_ano, mes_prox_mes = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
-    import json as _json
-
-    resumo = sistema.get_resumo_mes(ano, mes)
-    return templates.TemplateResponse(
-        request,
-        "agenda.html",
-        _ctx(
-            request,
-            ano=ano,
-            mes=mes,
-            mes_nome=_MESES_PT[mes - 1],
-            mes_ant=f"/agenda/{mes_ant_ano}/{mes_ant_mes:02d}",
-            mes_prox=f"/agenda/{mes_prox_ano}/{mes_prox_mes:02d}",
-            cal_grid=_cal_grid(ano, mes),
-            hoje=hoje,
-            resumo_json=_json.dumps(resumo),
-            funcionarios=sistema.get_funcionarios(),
-            active="agenda",
-        ),
-    )
 
 
 @app.get("/agenda/painel/{data}", response_class=HTMLResponse)
@@ -857,6 +842,40 @@ async def agenda_painel(request: Request, data: str):
             "funcionarios": sistema.get_funcionarios(),
             "user": u,
         },
+    )
+
+
+@app.get("/agenda/{ano}/{mes}", response_class=HTMLResponse)
+async def agenda_mes(request: Request, ano: int, mes: int):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    from datetime import datetime as _dt
+
+    hoje = _dt.now().strftime("%Y-%m-%d")
+    mes_ant_ano, mes_ant_mes = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+    mes_prox_ano, mes_prox_mes = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+    import json as _json
+
+    resumo = sistema.get_resumo_mes(ano, mes)
+    escala_padrao = sistema.get_escala_padrao_all()
+    return templates.TemplateResponse(
+        request,
+        "agenda.html",
+        _ctx(
+            request,
+            ano=ano,
+            mes=mes,
+            mes_nome=_MESES_PT[mes - 1],
+            mes_ant=f"/agenda/{mes_ant_ano}/{mes_ant_mes:02d}",
+            mes_prox=f"/agenda/{mes_prox_ano}/{mes_prox_mes:02d}",
+            cal_grid=_cal_grid(ano, mes),
+            hoje=hoje,
+            resumo_json=_json.dumps(resumo),
+            funcionarios=sistema.get_funcionarios(),
+            escala_padrao=escala_padrao,
+            active="agenda",
+        ),
     )
 
 

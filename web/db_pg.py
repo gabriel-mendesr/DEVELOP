@@ -117,6 +117,12 @@ CREATE TABLE IF NOT EXISTS tarefas_turno (
     descricao TEXT NOT NULL,
     concluida INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS funcionario_escala_padrao (
+    funcionario_id INTEGER REFERENCES funcionarios(id) ON DELETE CASCADE,
+    dia_semana INTEGER NOT NULL,
+    turno TEXT NOT NULL,
+    PRIMARY KEY (funcionario_id, dia_semana)
+);
 
 -- índices
 CREATE INDEX IF NOT EXISTS idx_hospedes_nome ON hospedes(nome);
@@ -973,6 +979,44 @@ class SistemaCreditos:
         with self._tx() as conn:
             self._execute("DELETE FROM funcionarios WHERE id = ?", (func_id,), conn=conn)
         self.registrar_log(usuario_acao, "REM_FUNCIONARIO", f"ID: {func_id}")
+
+    def get_escala_padrao(self, func_id: int) -> dict:
+        """Retorna {dia_semana: turno} para o funcionário."""
+        rows = self._fetch(
+            "SELECT dia_semana, turno FROM funcionario_escala_padrao WHERE funcionario_id = ?",
+            (func_id,),
+        )
+        return {r["dia_semana"]: r["turno"] for r in rows}
+
+    def set_escala_padrao(self, func_id: int, dias_turnos: dict, usuario_acao: str = "Sistema") -> None:
+        """Substitui a escala padrão do funcionário. dias_turnos: {dia_semana: turno|''}"""
+        with self._tx() as conn:
+            self._execute(
+                "DELETE FROM funcionario_escala_padrao WHERE funcionario_id = ?",
+                (func_id,),
+                conn=conn,
+            )
+            for dia, turno in dias_turnos.items():
+                if turno in ("manha", "tarde", "noite"):
+                    self._execute(
+                        "INSERT INTO funcionario_escala_padrao (funcionario_id, dia_semana, turno) VALUES (?, ?, ?)",
+                        (func_id, int(dia), turno),
+                        conn=conn,
+                    )
+        self.registrar_log(usuario_acao, "SET_ESCALA_PADRAO", f"Func ID: {func_id}")
+
+    def get_escala_padrao_all(self) -> dict:
+        """Retorna {funcionario_id: {dia_semana: turno}} para todos os funcionários."""
+        rows = self._fetch(
+            "SELECT funcionario_id, dia_semana, turno FROM funcionario_escala_padrao ORDER BY funcionario_id, dia_semana"
+        )
+        result: dict = {}
+        for r in rows:
+            fid = r["funcionario_id"]
+            if fid not in result:
+                result[fid] = {}
+            result[fid][r["dia_semana"]] = r["turno"]
+        return result
 
     def get_escala_dia(self, data_iso: str) -> dict:
         turnos: dict = {"manha": [], "tarde": [], "noite": []}

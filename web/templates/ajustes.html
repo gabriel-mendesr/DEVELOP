@@ -438,16 +438,86 @@
           {% if funcionarios %}
           <ul class="list-group list-group-flush">
             {% for f in funcionarios %}
-            <li class="list-group-item d-flex justify-content-between align-items-center px-4"
-                style="font-size:0.875rem">
-              <span><i class="bi bi-person me-2 text-muted"></i>{{ f.nome }}</span>
-              <form method="post" action="/ajustes/funcionario/{{ f.id }}/excluir"
-                    onsubmit="return confirm('Remover {{ f.nome }}? Todas as escalas serão apagadas.')">
-                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </form>
+            {% set ep = escala_padrao_all.get(f.id, {}) %}
+            <li class="list-group-item px-4 py-2" style="font-size:0.875rem">
+              <div class="d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-person me-2 text-muted"></i>{{ f.nome }}</span>
+                <div class="d-flex gap-1">
+                  <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
+                          data-bs-toggle="modal" data-bs-target="#modalEscala_{{ f.id }}"
+                          title="Configurar escala padrão">
+                    <i class="bi bi-calendar-week"></i>
+                  </button>
+                  <form method="post" action="/ajustes/funcionario/{{ f.id }}/excluir"
+                        onsubmit="return confirm('Remover {{ f.nome }}? Todas as escalas serão apagadas.')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+              {% if ep %}
+              <div class="mt-1 d-flex flex-wrap gap-1">
+                {% set dias_nomes = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'] %}
+                {% set turno_cores = {'manha': '#0369a1', 'tarde': '#92400e', 'noite': '#4c1d95'} %}
+                {% set turno_bg = {'manha': '#e0f2fe', 'tarde': '#fef3c7', 'noite': '#ede9fe'} %}
+                {% for dia in range(7) %}
+                  {% if ep.get(dia) %}
+                  <span class="badge rounded-pill"
+                        style="background:{{ turno_bg[ep[dia]] }};color:{{ turno_cores[ep[dia]] }};font-size:0.68rem">
+                    {{ dias_nomes[dia] }}
+                  </span>
+                  {% endif %}
+                {% endfor %}
+              </div>
+              {% endif %}
             </li>
+
+            <!-- Modal escala padrão -->
+            <div class="modal fade" id="modalEscala_{{ f.id }}" tabindex="-1">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius:14px;border:none">
+                  <form method="post" action="/ajustes/funcionario/{{ f.id }}/escala-padrao">
+                    <div class="modal-header" style="border-bottom:1px solid #f1f5f9">
+                      <h5 class="modal-title fw-bold">
+                        <i class="bi bi-calendar-week me-2 text-primary"></i>Escala — {{ f.nome }}
+                      </h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p class="text-muted mb-3" style="font-size:0.82rem">
+                        Defina o turno padrão para cada dia da semana. Deixe em branco para dias de folga.
+                      </p>
+                      {% set dias_nomes_full = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'] %}
+                      {% for dia in range(7) %}
+                      <div class="row align-items-center mb-2 g-2">
+                        <div class="col-4">
+                          <label class="form-label mb-0 fw-medium" style="font-size:0.82rem">
+                            {{ dias_nomes_full[dia] }}
+                          </label>
+                        </div>
+                        <div class="col-8">
+                          <select name="dia_{{ dia }}" class="form-select form-select-sm">
+                            <option value="">— Folga —</option>
+                            <option value="manha" {% if ep.get(dia) == 'manha' %}selected{% endif %}>☀ Manhã (06h–14h)</option>
+                            <option value="tarde" {% if ep.get(dia) == 'tarde' %}selected{% endif %}>⛅ Tarde (14h–22h)</option>
+                            <option value="noite" {% if ep.get(dia) == 'noite' %}selected{% endif %}>🌙 Noite (22h–06h)</option>
+                          </select>
+                        </div>
+                      </div>
+                      {% endfor %}
+                    </div>
+                    <div class="modal-footer" style="border-top:1px solid #f1f5f9">
+                      <button type="button" class="btn btn-outline-secondary"
+                              data-bs-dismiss="modal">Cancelar</button>
+                      <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i> Salvar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
             {% endfor %}
           </ul>
           {% else %}
