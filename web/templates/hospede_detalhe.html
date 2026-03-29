@@ -6,7 +6,14 @@
   <a href="/hospedes" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i>
   </a>
-  <h1 class="page-title mb-0 me-auto">{{ hospede.nome }}</h1>
+  <h1 class="page-title mb-0 me-auto">
+    {{ hospede.nome }}
+    {% if not hospede.get('ativo', 1) %}
+    <span class="badge rounded-pill ms-2" style="background:#fef2f2;color:#b91c1c;font-size:0.6rem;vertical-align:middle">
+      INATIVO
+    </span>
+    {% endif %}
+  </h1>
   <a href="/hospedes/{{ hospede.documento }}/extrato.pdf"
      class="btn btn-sm btn-outline-danger">
     <i class="bi bi-file-earmark-pdf me-1"></i>PDF
@@ -15,6 +22,43 @@
   <button id="btn-wpp-voucher" class="btn btn-sm btn-success">
     <i class="bi bi-whatsapp me-1"></i>Voucher
   </button>
+  {% endif %}
+  {% if user.is_admin %}
+  <div class="dropdown">
+    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+            data-bs-toggle="dropdown">
+      <i class="bi bi-three-dots-vertical"></i>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      {% if hospede.get('ativo', 1) %}
+      <li>
+        <form method="post" action="/hospedes/{{ hospede.documento }}/inativar"
+              onsubmit="return confirm('Inativar {{ hospede.nome }}? O hóspede não aparecerá nas listagens, mas o histórico será mantido.')">
+          <button type="submit" class="dropdown-item text-warning">
+            <i class="bi bi-person-slash me-2"></i>Inativar hóspede
+          </button>
+        </form>
+      </li>
+      {% else %}
+      <li>
+        <form method="post" action="/hospedes/{{ hospede.documento }}/reativar">
+          <button type="submit" class="dropdown-item text-success">
+            <i class="bi bi-person-check me-2"></i>Reativar hóspede
+          </button>
+        </form>
+      </li>
+      {% endif %}
+      <li><hr class="dropdown-divider"></li>
+      <li>
+        <form method="post" action="/hospedes/{{ hospede.documento }}/excluir"
+              onsubmit="return confirm('ATENÇÃO: Excluir {{ hospede.nome }} permanentemente? Todo o histórico financeiro será apagado e não poderá ser recuperado.')">
+          <button type="submit" class="dropdown-item text-danger">
+            <i class="bi bi-trash me-2"></i>Excluir permanentemente
+          </button>
+        </form>
+      </li>
+    </ul>
+  </div>
   {% endif %}
 </div>
 

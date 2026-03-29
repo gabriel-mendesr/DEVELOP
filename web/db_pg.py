@@ -33,8 +33,10 @@ CREATE TABLE IF NOT EXISTS hospedes (
     nome TEXT NOT NULL,
     documento TEXT UNIQUE NOT NULL,
     telefone TEXT,
-    email TEXT
+    email TEXT,
+    ativo INTEGER DEFAULT 1
 );
+ALTER TABLE hospedes ADD COLUMN IF NOT EXISTS ativo INTEGER DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS categorias (nome TEXT PRIMARY KEY);
 
@@ -337,10 +339,17 @@ class SistemaCreditos:
                      can_access_relatorios=EXCLUDED.can_access_relatorios,
                      salt=EXCLUDED.salt""",
                 (
-                    username, phash, int(is_admin), int(can_change_dates),
-                    int(can_manage_products), int(can_access_hospedes),
-                    int(can_access_financeiro), int(can_access_compras),
-                    int(can_access_dash), int(can_access_relatorios), salt,
+                    username,
+                    phash,
+                    int(is_admin),
+                    int(can_change_dates),
+                    int(can_manage_products),
+                    int(can_access_hospedes),
+                    int(can_access_financeiro),
+                    int(can_access_compras),
+                    int(can_access_dash),
+                    int(can_access_relatorios),
+                    salt,
                 ),
                 conn=conn,
             )
@@ -367,9 +376,14 @@ class SistemaCreditos:
                    can_access_compras=?, can_access_dash=?, can_access_relatorios=?
                    WHERE username=?""",
                 (
-                    is_admin, can_change_dates, can_manage_products,
-                    can_access_hospedes, can_access_financeiro,
-                    can_access_compras, can_access_dash, can_access_relatorios,
+                    is_admin,
+                    can_change_dates,
+                    can_manage_products,
+                    can_access_hospedes,
+                    can_access_financeiro,
+                    can_access_compras,
+                    can_access_dash,
+                    can_access_relatorios,
                     username,
                 ),
                 conn=conn,
@@ -380,6 +394,17 @@ class SistemaCreditos:
         with self._tx() as conn:
             self._execute("DELETE FROM usuarios WHERE username = ?", (username,), conn=conn)
         self.registrar_log(usuario_acao, "EXCLUIR_USUARIO", f"Usuario alvo: {username}")
+
+    def alterar_senha(self, username: str, nova_senha: str, usuario_acao: str = "Sistema") -> None:
+        salt = secrets.token_hex(16)
+        phash = self._hash_password(nova_senha, salt)
+        with self._tx() as conn:
+            self._execute(
+                "UPDATE usuarios SET password = ?, salt = ? WHERE username = ?",
+                (phash, salt, username),
+                conn=conn,
+            )
+        self.registrar_log(usuario_acao, "ALTERAR_SENHA", f"Usuario alvo: {username}")
 
     # ------------------------------------------------------------------
     # Hóspedes
@@ -415,10 +440,27 @@ class SistemaCreditos:
                 )
                 self.registrar_log(usuario_acao, "CADASTRAR_HOSPEDE", f"Doc: {doc_limpo}")
 
+    def inativar_hospede(self, doc: str, usuario_acao: str = "Sistema") -> None:
+        with self._tx() as conn:
+            self._execute("UPDATE hospedes SET ativo = 0 WHERE documento = ?", (doc,), conn=conn)
+        self.registrar_log(usuario_acao, "INATIVAR_HOSPEDE", f"Doc: {doc}")
+
+    def reativar_hospede(self, doc: str, usuario_acao: str = "Sistema") -> None:
+        with self._tx() as conn:
+            self._execute("UPDATE hospedes SET ativo = 1 WHERE documento = ?", (doc,), conn=conn)
+        self.registrar_log(usuario_acao, "REATIVAR_HOSPEDE", f"Doc: {doc}")
+
+    def excluir_hospede(self, doc: str, usuario_acao: str = "Sistema") -> None:
+        with self._tx() as conn:
+            self._execute("DELETE FROM historico_zebra WHERE documento = ?", (doc,), conn=conn)
+            self._execute("DELETE FROM anotacoes WHERE documento = ?", (doc,), conn=conn)
+            self._execute("DELETE FROM hospedes WHERE documento = ?", (doc,), conn=conn)
+        self.registrar_log(usuario_acao, "EXCLUIR_HOSPEDE", f"Doc: {doc}")
+
     def buscar_filtrado(self, termo: str = "", filtro: str = "todos") -> list[tuple[str, str, float]]:
         termo_limpo = str(termo).strip()
         hospedes = self._fetch(
-            "SELECT nome, documento FROM hospedes WHERE nome ILIKE ? OR documento LIKE ?",
+            "SELECT nome, documento FROM hospedes WHERE (nome ILIKE ? OR documento LIKE ?) AND ativo = 1",
             (f"%{termo_limpo}%", f"%{termo_limpo}%"),
         )
         hoje = datetime.now().strftime("%Y-%m-%d")
@@ -528,8 +570,13 @@ class SistemaCreditos:
                 "(documento, tipo, valor, categoria, data_acao, obs, usuario) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
-                    doc_limpo, "PAGAMENTO_MULTA", v_float, forma_pagamento,
-                    datetime.now().strftime("%Y-%m-%d"), obs, usuario,
+                    doc_limpo,
+                    "PAGAMENTO_MULTA",
+                    v_float,
+                    forma_pagamento,
+                    datetime.now().strftime("%Y-%m-%d"),
+                    obs,
+                    usuario,
                 ),
                 conn=conn,
             )

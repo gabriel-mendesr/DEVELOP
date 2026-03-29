@@ -281,6 +281,39 @@ async def hospede_anotacao(request: Request, doc: str, texto: str = Form("")):
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
+@app.post("/hospedes/{doc}/inativar")
+async def hospede_inativar(request: Request, doc: str):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        _flash(request, "Apenas administradores podem inativar hóspedes.", "warning")
+        return RedirectResponse(f"/hospedes/{doc}", status_code=302)
+    sistema.inativar_hospede(doc, usuario_acao=u["username"])
+    _flash(request, "Hóspede inativado.", "success")
+    return RedirectResponse("/hospedes", status_code=302)
+
+
+@app.post("/hospedes/{doc}/reativar")
+async def hospede_reativar(request: Request, doc: str):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        _flash(request, "Apenas administradores podem reativar hóspedes.", "warning")
+        return RedirectResponse(f"/hospedes/{doc}", status_code=302)
+    sistema.reativar_hospede(doc, usuario_acao=u["username"])
+    _flash(request, "Hóspede reativado.", "success")
+    return RedirectResponse(f"/hospedes/{doc}", status_code=302)
+
+
+@app.post("/hospedes/{doc}/excluir")
+async def hospede_excluir(request: Request, doc: str):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        _flash(request, "Apenas administradores podem excluir hóspedes.", "warning")
+        return RedirectResponse(f"/hospedes/{doc}", status_code=302)
+    sistema.excluir_hospede(doc, usuario_acao=u["username"])
+    _flash(request, "Hóspede e todo o histórico excluídos.", "success")
+    return RedirectResponse("/hospedes", status_code=302)
+
+
 # =============================================================================
 # Financeiro
 # =============================================================================
@@ -437,32 +470,30 @@ async def relatorios(request: Request, doc: str = "", mes: str = ""):
 # Ajustes
 # =============================================================================
 @app.get("/ajustes", response_class=HTMLResponse)
-async def ajustes(request: Request, tab: str = "geral"):
+async def ajustes(request: Request, tab: str = ""):
     u = _user(request)
     if not u:
         return _redirect_login()
-    if not u.get("is_admin"):
-        _flash(request, "Acesso restrito a administradores.", "warning")
-        return RedirectResponse("/", status_code=302)
-    can_manage = u.get("is_admin") or u.get("can_manage_products")
-    return templates.TemplateResponse(
-        request,
-        "ajustes.html",
-        _ctx(
-            request,
-            empresa=sistema.empresa,
-            versao=sistema.versao_atual,
+    is_admin = u.get("is_admin")
+    default_tab = "geral" if is_admin else "senha"
+    can_manage = is_admin or u.get("can_manage_products")
+    ctx: dict = dict(
+        tab=tab or default_tab,
+        active="ajustes",
+        can_manage=can_manage,
+        empresa=sistema.empresa,
+        versao=sistema.versao_atual,
+    )
+    if is_admin:
+        ctx.update(
             usuarios=sistema.get_usuarios(),
             logs=sistema.get_logs(),
             categorias=sistema.get_categorias(),
             produtos=sistema.get_produtos_predefinidos(),
             config_validade=sistema.get_config("validade_meses"),
             config_alerta=sistema.get_config("alerta_dias"),
-            can_manage=can_manage,
-            tab=tab,
-            active="ajustes",
-        ),
-    )
+        )
+    return templates.TemplateResponse(request, "ajustes.html", _ctx(request, **ctx))
 
 
 @app.post("/ajustes/usuario")
@@ -678,6 +709,30 @@ async def ajustes_usuario_excluir(request: Request, username: str):
     sistema.excluir_usuario(username, usuario_acao=u["username"])
     _flash(request, f"Usuário '{username}' excluído.", "success")
     return RedirectResponse("/ajustes", status_code=302)
+
+
+@app.post("/ajustes/minha-senha")
+async def ajustes_minha_senha(
+    request: Request,
+    senha_atual: str = Form(...),
+    nova_senha: str = Form(...),
+    confirmar_senha: str = Form(...),
+):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    if nova_senha != confirmar_senha:
+        _flash(request, "As senhas não coincidem.", "danger")
+        return RedirectResponse("/ajustes?tab=senha", status_code=302)
+    if len(nova_senha) < 4:
+        _flash(request, "A senha deve ter pelo menos 4 caracteres.", "danger")
+        return RedirectResponse("/ajustes?tab=senha", status_code=302)
+    if not sistema.verificar_login(u["username"], senha_atual):
+        _flash(request, "Senha atual incorreta.", "danger")
+        return RedirectResponse("/ajustes?tab=senha", status_code=302)
+    sistema.alterar_senha(u["username"], nova_senha, usuario_acao=u["username"])
+    _flash(request, "Senha alterada com sucesso.", "success")
+    return RedirectResponse("/ajustes?tab=senha", status_code=302)
 
 
 # =============================================================================

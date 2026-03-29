@@ -92,7 +92,7 @@
         </li>
         {% endif %}
 
-        {% if user and user.get('is_admin') %}
+        {% if user %}
         <li class="nav-item">
           <a href="/ajustes" class="nav-link {% if active == 'ajustes' %}active{% endif %}">
             <span class="nav-icon icon-ajustes"><i class="bi bi-gear-fill"></i></span>

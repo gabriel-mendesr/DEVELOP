@@ -9,6 +9,12 @@
 <!-- Tabs nav -->
 <ul class="nav nav-tabs mb-4" id="tabsAjustes">
   <li class="nav-item">
+    <a class="nav-link" data-tab="senha" href="#">
+      <i class="bi bi-key me-1"></i> Minha Senha
+    </a>
+  </li>
+  {% if user.is_admin %}
+  <li class="nav-item">
     <a class="nav-link" data-tab="geral" href="#">
       <i class="bi bi-sliders me-1"></i> Geral
     </a>
@@ -43,9 +49,36 @@
       <i class="bi bi-info-circle me-1"></i> Sobre
     </a>
   </li>
+  {% endif %}
 </ul>
 
 <div id="tab-content">
+
+  <!-- ═══════════════════════════════════════════════════════ MINHA SENHA -->
+  <div class="tab-pane" data-pane="senha">
+    <div class="form-card" style="max-width:440px">
+      <h6 class="fw-bold mb-4"><i class="bi bi-key me-2 text-primary"></i>Alterar Minha Senha</h6>
+      <form method="post" action="/ajustes/minha-senha">
+        <div class="mb-3">
+          <label class="form-label">Senha atual</label>
+          <input type="password" name="senha_atual" class="form-control" required autocomplete="current-password">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Nova senha</label>
+          <input type="password" name="nova_senha" class="form-control" required autocomplete="new-password"
+                 minlength="4">
+        </div>
+        <div class="mb-4">
+          <label class="form-label">Confirmar nova senha</label>
+          <input type="password" name="confirmar_senha" class="form-control" required autocomplete="new-password"
+                 minlength="4">
+        </div>
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="bi bi-check-lg me-1"></i> Alterar senha
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- ═══════════════════════════════════════════════════════ GERAL -->
   <div class="tab-pane" data-pane="geral">
