@@ -764,6 +764,46 @@ class SistemaCreditos:
     # Dashboard
     # ------------------------------------------------------------------
 
+    def get_movimentos_mensais(self, meses: int = 6) -> dict:
+        """Retorna entradas e saídas agrupadas por mês (últimos N meses)."""
+        inicio = (datetime.now().replace(day=1) - timedelta(days=meses * 30)).strftime("%Y-%m-01")
+        rows = self._fetch(
+            """
+            SELECT LEFT(data_acao, 7) AS mes, tipo, COALESCE(SUM(valor), 0)::float AS total
+            FROM historico_zebra
+            WHERE data_acao >= %s AND tipo IN ('ENTRADA', 'SAIDA')
+            GROUP BY mes, tipo
+            ORDER BY mes
+            """,
+            (inicio,),
+        )
+        # Garante todos os meses no intervalo, mesmo sem movimentos
+        meses_labels = []
+        cur = datetime.now().replace(day=1)
+        for _ in range(meses):
+            meses_labels.insert(0, cur.strftime("%Y-%m"))
+            if cur.month == 1:
+                cur = cur.replace(year=cur.year - 1, month=12)
+            else:
+                cur = cur.replace(month=cur.month - 1)
+
+        entradas = {m: 0.0 for m in meses_labels}
+        saidas = {m: 0.0 for m in meses_labels}
+        for r in rows:
+            mes = r["mes"]
+            if mes in entradas:
+                if r["tipo"] == "ENTRADA":
+                    entradas[mes] = round(float(r["total"]), 2)
+                else:
+                    saidas[mes] = round(float(r["total"]), 2)
+
+        labels = [f"{m[5:]}/{m[:4]}" for m in meses_labels]  # MM/AAAA
+        return {
+            "labels": labels,
+            "entradas": list(entradas.values()),
+            "saidas": list(saidas.values()),
+        }
+
     def get_dados_dash(self) -> tuple[float, float, float, int, float]:
         docs_rows = self._fetch("SELECT documento FROM hospedes")
         docs = [r["documento"] for r in docs_rows]

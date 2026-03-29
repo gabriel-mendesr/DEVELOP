@@ -145,9 +145,13 @@ async def home(request: Request):
 async def dashboard(request: Request):
     if not _user(request):
         return _redirect_login()
+    import json as _json
+
     total_saldo, total_vencido, total_a_vencer, total_hospedes, total_multas = sistema.get_dados_dash()
     vencendo = sistema.get_hospedes_vencendo_em_breve()
     movimentos = sistema.get_historico_global(limite=10)
+    graf_mensal = sistema.get_movimentos_mensais(6)
+    saldo_valido = round(total_saldo - total_vencido - total_a_vencer, 2)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -160,6 +164,8 @@ async def dashboard(request: Request):
             total_multas=total_multas,
             vencendo=vencendo,
             movimentos=movimentos,
+            graf_mensal=_json.dumps(graf_mensal),
+            saldo_valido=saldo_valido,
             active="dashboard",
         ),
     )
