@@ -172,8 +172,7 @@ async def dashboard(request: Request):
 async def hospedes_list(request: Request, q: str = "", filtro: str = "todos"):
     if not _user(request):
         return _redirect_login()
-    raw = sistema.buscar_filtrado(q, filtro)
-    hospedes = [{"nome": h[0], "documento": h[1], "saldo": h[2]} for h in raw]
+    hospedes = sistema.buscar_filtrado(q, filtro)
     return templates.TemplateResponse(
         request,
         "hospedes.html",
@@ -420,8 +419,7 @@ async def compras_fechar(request: Request, lista_id: int):
 async def relatorios(request: Request, doc: str = "", mes: str = ""):
     if not _user(request):
         return _redirect_login()
-    inadimplentes_raw = sistema.buscar_filtrado("", "vencidos")
-    inadimplentes = [{"nome": h[0], "documento": h[1], "saldo": h[2]} for h in inadimplentes_raw]
+    inadimplentes = sistema.buscar_filtrado("", "vencidos")
     extrato: list = []
     hospede_extrato = None
     if doc:
@@ -834,10 +832,9 @@ async def hospedes_csv(request: Request):
     output = io.StringIO()
     w = _csv.writer(output)
     w.writerow(["Nome", "Documento", "Saldo", "Vencimento", "Status"])
-    for nome, doc, saldo in hospedes_raw:
-        _, venc, bloqueado = sistema.get_saldo_info(doc)
-        status = "VENCIDO" if bloqueado else ("ATIVO" if saldo > 0 else "SEM SALDO")
-        w.writerow([nome, doc, f"{saldo:.2f}", venc, status])
+    for h in hospedes_raw:
+        status = "VENCIDO" if h["bloqueado"] else ("ATIVO" if h["saldo"] > 0 else "SEM SALDO")
+        w.writerow([h["nome"], h["documento"], f"{h['saldo']:.2f}", h["vencimento"], status])
     return Response(
         content=output.getvalue().encode("utf-8-sig"),
         media_type="text/csv",

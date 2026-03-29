@@ -528,3 +528,162 @@ body {
 .home-card:hover .home-card-arrow {
   color: #94a3b8;
 }
+
+/* ── Guest list cards ───────────────────────────────────────────────────── */
+
+.hospedes-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.hospede-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #e2e8f0;
+  padding: 0.875rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.1s;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.hospede-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  transform: translateX(2px);
+  color: inherit;
+}
+.hospede-card.st-ativo   { border-left-color: #16a34a; }
+.hospede-card.st-vencido { border-left-color: #dc2626; }
+.hospede-card.st-vencendo { border-left-color: #d97706; }
+.hospede-card.st-sem-saldo { border-left-color: #94a3b8; }
+
+.hospede-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+.av-ativo    { background: #dcfce7; color: #16a34a; }
+.av-vencido  { background: #fee2e2; color: #dc2626; }
+.av-vencendo { background: #fef3c7; color: #d97706; }
+.av-sem-saldo { background: #f1f5f9; color: #94a3b8; }
+
+.hospede-info { flex-grow: 1; min-width: 0; }
+.hospede-nome {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hospede-doc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+.hospede-saldo-col { text-align: right; flex-shrink: 0; }
+.hospede-saldo-val {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.hospede-saldo-val.sv-ativo    { color: #16a34a; }
+.hospede-saldo-val.sv-vencido  { color: #dc2626; }
+.hospede-saldo-val.sv-vencendo { color: #d97706; }
+.hospede-saldo-val.sv-zero     { color: #94a3b8; }
+
+.hospede-status-pill {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.sp-ativo    { background: #dcfce7; color: #166534; }
+.sp-vencido  { background: #fee2e2; color: #991b1b; }
+.sp-vencendo { background: #fef3c7; color: #92400e; }
+.sp-sem-saldo { background: #f1f5f9; color: #64748b; }
+
+/* ── Saldo hero card (detalhe do hóspede) ───────────────────────────────── */
+
+.saldo-hero {
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+.saldo-hero::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  opacity: 0.12;
+}
+.saldo-hero.sh-ativo {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 1px solid #86efac;
+}
+.saldo-hero.sh-ativo::before { background: #16a34a; }
+.saldo-hero.sh-vencido {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fca5a5;
+}
+.saldo-hero.sh-vencido::before { background: #dc2626; }
+.saldo-hero.sh-neutro {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.saldo-hero-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  opacity: 0.7;
+  margin-bottom: 0.25rem;
+}
+.saldo-hero-valor {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.saldo-hero.sh-ativo .saldo-hero-label,
+.saldo-hero.sh-ativo .saldo-hero-valor { color: #14532d; }
+.saldo-hero.sh-vencido .saldo-hero-label,
+.saldo-hero.sh-vencido .saldo-hero-valor { color: #7f1d1d; }
+.saldo-hero.sh-neutro .saldo-hero-label,
+.saldo-hero.sh-neutro .saldo-hero-valor { color: #475569; }
+
+/* ── História com bordas coloridas ──────────────────────────────────────── */
+
+.table tbody tr.mov-entrada td:first-child { border-left: 3px solid #16a34a; }
+.table tbody tr.mov-saida   td:first-child { border-left: 3px solid #dc2626; }
+.table tbody tr.mov-multa   td:first-child { border-left: 3px solid #d97706; }
+.table tbody tr.mov-pagamento td:first-child { border-left: 3px solid #2563eb; }
+
+.table tbody tr.mov-entrada:hover td { background: #f0fdf4; }
+.table tbody tr.mov-saida:hover   td { background: #fef2f2; }
+.table tbody tr.mov-multa:hover   td { background: #fffbeb; }
+.table tbody tr.mov-pagamento:hover td { background: #eff6ff; }
+
+/* ── Form card com accent color ─────────────────────────────────────────── */
+.form-card-accent {
+  border-left: 4px solid var(--primary);
+}
+.form-card-financeiro {
+  border-left: 4px solid #7c3aed;
+}

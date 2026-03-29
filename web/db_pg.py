@@ -481,7 +481,15 @@ class SistemaCreditos:
                 continue
             if saldo <= 0 and filtro not in ("todos", "com_multa"):
                 continue
-            resultado.append((h["nome"], h["documento"], saldo))
+            resultado.append(
+                {
+                    "nome": h["nome"],
+                    "documento": h["documento"],
+                    "saldo": saldo,
+                    "vencimento": venc,
+                    "bloqueado": bloqueado,
+                }
+            )
         return resultado
 
     # ------------------------------------------------------------------
