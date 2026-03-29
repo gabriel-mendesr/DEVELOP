@@ -35,6 +35,11 @@
     </a>
   </li>
   <li class="nav-item">
+    <a class="nav-link" data-tab="funcionarios" href="#">
+      <i class="bi bi-person-badge me-1"></i> Funcionários
+    </a>
+  </li>
+  <li class="nav-item">
     <a class="nav-link" data-tab="banco" href="#">
       <i class="bi bi-database me-1"></i> Banco de Dados
     </a>
@@ -400,6 +405,54 @@
               <i class="bi bi-check-lg me-1"></i> Criar Usuário
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ FUNCIONÁRIOS -->
+  <div class="tab-pane" data-pane="funcionarios">
+    <div class="row g-4">
+      <div class="col-12 col-md-5">
+        <div class="form-card">
+          <h6 class="fw-bold mb-3">
+            <i class="bi bi-person-plus me-2 text-primary"></i>Novo Funcionário
+          </h6>
+          <form method="post" action="/ajustes/funcionario">
+            <div class="mb-3">
+              <label class="form-label">Nome</label>
+              <input type="text" name="nome" class="form-control"
+                     placeholder="Ex: João da Silva" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-check-lg me-1"></i> Adicionar
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="col-12 col-md-7">
+        <div class="table-card">
+          <div class="table-header">
+            <h6>{{ funcionarios|length }} funcionário(s)</h6>
+          </div>
+          {% if funcionarios %}
+          <ul class="list-group list-group-flush">
+            {% for f in funcionarios %}
+            <li class="list-group-item d-flex justify-content-between align-items-center px-4"
+                style="font-size:0.875rem">
+              <span><i class="bi bi-person me-2 text-muted"></i>{{ f.nome }}</span>
+              <form method="post" action="/ajustes/funcionario/{{ f.id }}/excluir"
+                    onsubmit="return confirm('Remover {{ f.nome }}? Todas as escalas serão apagadas.')">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-center text-muted py-4">Nenhum funcionário cadastrado</p>
+          {% endif %}
         </div>
       </div>
     </div>

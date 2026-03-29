@@ -101,10 +101,28 @@ CREATE TABLE IF NOT EXISTS listas_compras (
 
 CREATE TABLE IF NOT EXISTS produtos (nome TEXT PRIMARY KEY);
 
+CREATE TABLE IF NOT EXISTS funcionarios (
+    id BIGSERIAL PRIMARY KEY,
+    nome TEXT UNIQUE NOT NULL
+);
+CREATE TABLE IF NOT EXISTS escala (
+    id BIGSERIAL PRIMARY KEY,
+    data TEXT NOT NULL,
+    turno TEXT NOT NULL,
+    funcionario_id INTEGER REFERENCES funcionarios(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS tarefas_turno (
+    id BIGSERIAL PRIMARY KEY,
+    escala_id INTEGER REFERENCES escala(id) ON DELETE CASCADE,
+    descricao TEXT NOT NULL,
+    concluida INTEGER DEFAULT 0
+);
+
 -- índices
 CREATE INDEX IF NOT EXISTS idx_hospedes_nome ON hospedes(nome);
 CREATE INDEX IF NOT EXISTS idx_historico_doc ON historico_zebra(documento);
 CREATE INDEX IF NOT EXISTS idx_compras_prod ON compras(produto);
+CREATE INDEX IF NOT EXISTS idx_escala_data ON escala(data);
 
 -- configs padrão
 INSERT INTO configs (chave, valor) VALUES ('validade_meses', 6) ON CONFLICT DO NOTHING;
@@ -932,3 +950,101 @@ class SistemaCreditos:
 
     def fazer_backup(self) -> str:
         return "Backup via pg_dump recomendado para PostgreSQL. Acesse o painel do Neon.tech."
+
+    # ------------------------------------------------------------------
+    # Agenda / Turnos
+    # ------------------------------------------------------------------
+
+    def get_funcionarios(self) -> list[dict]:
+        return self._fetch("SELECT id, nome FROM funcionarios ORDER BY nome")
+
+    def adicionar_funcionario(self, nome: str, usuario_acao: str = "Sistema") -> None:
+        if not nome:
+            return
+        with self._tx() as conn:
+            self._execute(
+                "INSERT INTO funcionarios (nome) VALUES (?) ON CONFLICT DO NOTHING",
+                (nome.upper().strip(),),
+                conn=conn,
+            )
+        self.registrar_log(usuario_acao, "ADD_FUNCIONARIO", f"Nome: {nome.upper().strip()}")
+
+    def remover_funcionario(self, func_id: int, usuario_acao: str = "Sistema") -> None:
+        with self._tx() as conn:
+            self._execute("DELETE FROM funcionarios WHERE id = ?", (func_id,), conn=conn)
+        self.registrar_log(usuario_acao, "REM_FUNCIONARIO", f"ID: {func_id}")
+
+    def get_escala_dia(self, data_iso: str) -> dict:
+        turnos: dict = {"manha": [], "tarde": [], "noite": []}
+        rows = self._fetch(
+            """SELECT e.id, e.turno, e.funcionario_id, f.nome
+               FROM escala e JOIN funcionarios f ON f.id = e.funcionario_id
+               WHERE e.data = ? ORDER BY f.nome""",
+            (data_iso,),
+        )
+        for r in rows:
+            tarefas = self._fetch(
+                "SELECT id, descricao, concluida FROM tarefas_turno WHERE escala_id = ? ORDER BY id",
+                (r["id"],),
+            )
+            entry = {
+                "id": r["id"],
+                "funcionario_id": r["funcionario_id"],
+                "nome": r["nome"],
+                "tarefas": [dict(t) for t in tarefas],
+            }
+            if r["turno"] in turnos:
+                turnos[r["turno"]].append(entry)
+        return turnos
+
+    def get_dias_com_escala(self, ano: int, mes: int) -> set:
+        inicio = f"{ano:04d}-{mes:02d}-01"
+        fim = f"{ano:04d}-{mes:02d}-31"
+        rows = self._fetch(
+            "SELECT DISTINCT data FROM escala WHERE data >= ? AND data <= ?",
+            (inicio, fim),
+        )
+        return {r["data"] for r in rows}
+
+    def escalar_funcionario(self, data_iso: str, turno: str, funcionario_id: int, usuario_acao: str = "Sistema") -> int:
+        with self._tx() as conn:
+            esc_id = self._insert_returning(
+                "INSERT INTO escala (data, turno, funcionario_id) VALUES (?, ?, ?)",
+                (data_iso, turno, funcionario_id),
+                conn=conn,
+            )
+        self.registrar_log(usuario_acao, "ADD_ESCALA", f"Data: {data_iso} Turno: {turno}")
+        return esc_id
+
+    def remover_escala(self, escala_id: int, usuario_acao: str = "Sistema") -> None:
+        with self._tx() as conn:
+            self._execute("DELETE FROM escala WHERE id = ?", (escala_id,), conn=conn)
+        self.registrar_log(usuario_acao, "REM_ESCALA", f"ID: {escala_id}")
+
+    def adicionar_tarefa_turno(self, escala_id: int, descricao: str, usuario_acao: str = "Sistema") -> None:
+        if not descricao:
+            return
+        with self._tx() as conn:
+            self._execute(
+                "INSERT INTO tarefas_turno (escala_id, descricao) VALUES (?, ?)",
+                (escala_id, descricao.strip()),
+                conn=conn,
+            )
+        self.registrar_log(usuario_acao, "ADD_TAREFA", f"Escala: {escala_id}")
+
+    def remover_tarefa_turno(self, tarefa_id: int, usuario_acao: str = "Sistema") -> None:
+        with self._tx() as conn:
+            self._execute("DELETE FROM tarefas_turno WHERE id = ?", (tarefa_id,), conn=conn)
+        self.registrar_log(usuario_acao, "REM_TAREFA", f"ID: {tarefa_id}")
+
+    def concluir_tarefa_turno(self, tarefa_id: int, usuario_acao: str = "Sistema") -> None:
+        row = self._fetchone("SELECT concluida FROM tarefas_turno WHERE id = ?", (tarefa_id,))
+        if row:
+            novo = 0 if row["concluida"] else 1
+            with self._tx() as conn:
+                self._execute(
+                    "UPDATE tarefas_turno SET concluida = ? WHERE id = ?",
+                    (novo, tarefa_id),
+                    conn=conn,
+                )
+        self.registrar_log(usuario_acao, "TOGGLE_TAREFA", f"ID: {tarefa_id}")

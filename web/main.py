@@ -12,6 +12,7 @@ Variáveis de ambiente:
     SECRET_KEY   - chave para sessões (alterar em produção!)
 """
 
+import calendar as _cal
 import csv as _csv
 import io
 import os
@@ -474,6 +475,7 @@ async def ajustes(request: Request, tab: str = ""):
             logs=sistema.get_logs(),
             categorias=sistema.get_categorias(),
             produtos=sistema.get_produtos_predefinidos(),
+            funcionarios=sistema.get_funcionarios(),
             config_validade=sistema.get_config("validade_meses"),
             config_alerta=sistema.get_config("alerta_dias"),
         )
@@ -734,6 +736,159 @@ async def ajustes_minha_senha(
     sistema.alterar_senha(u["username"], nova_senha, usuario_acao=u["username"])
     _flash(request, "Senha alterada com sucesso.", "success")
     return RedirectResponse("/ajustes?tab=senha", status_code=302)
+
+
+@app.post("/ajustes/funcionario")
+async def ajustes_funcionario_add(request: Request, nome: str = Form(...)):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        return _redirect_login()
+    sistema.adicionar_funcionario(nome, usuario_acao=u["username"])
+    _flash(request, f"Funcionário '{nome.upper()}' adicionado.", "success")
+    return RedirectResponse("/ajustes?tab=funcionarios", status_code=302)
+
+
+@app.post("/ajustes/funcionario/{func_id}/excluir")
+async def ajustes_funcionario_excluir(request: Request, func_id: int):
+    u = _user(request)
+    if not u or not u.get("is_admin"):
+        return _redirect_login()
+    sistema.remover_funcionario(func_id, usuario_acao=u["username"])
+    _flash(request, "Funcionário removido.", "success")
+    return RedirectResponse("/ajustes?tab=funcionarios", status_code=302)
+
+
+# =============================================================================
+# Agenda / Turnos
+# =============================================================================
+_MESES_PT = [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+]
+_DIAS_PT = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+
+
+def _cal_grid(ano: int, mes: int) -> list:
+    semanas = []
+    for semana in _cal.monthcalendar(ano, mes):
+        row = []
+        for dia in semana:
+            if dia == 0:
+                row.append(None)
+            else:
+                row.append({"dia": dia, "data": f"{ano:04d}-{mes:02d}-{dia:02d}"})
+        semanas.append(row)
+    return semanas
+
+
+@app.get("/agenda", response_class=HTMLResponse)
+async def agenda_hoje(request: Request):
+    if not _user(request):
+        return _redirect_login()
+    from datetime import datetime as _dt
+
+    return RedirectResponse(f"/agenda/{_dt.now().strftime('%Y-%m-%d')}", status_code=302)
+
+
+@app.get("/agenda/{data}", response_class=HTMLResponse)
+async def agenda_dia(request: Request, data: str):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+
+    try:
+        dt = _dt.strptime(data, "%Y-%m-%d")
+    except ValueError:
+        return RedirectResponse("/agenda", status_code=302)
+
+    ano, mes = dt.year, dt.month
+    hoje = _dt.now().strftime("%Y-%m-%d")
+    data_prev = (dt - _td(days=1)).strftime("%Y-%m-%d")
+    data_next = (dt + _td(days=1)).strftime("%Y-%m-%d")
+    mes_ant = f"{ano - 1:04d}-12-01" if mes == 1 else f"{ano:04d}-{mes - 1:02d}-01"
+    mes_prox = f"{ano + 1:04d}-01-01" if mes == 12 else f"{ano:04d}-{mes + 1:02d}-01"
+
+    return templates.TemplateResponse(
+        request,
+        "agenda.html",
+        _ctx(
+            request,
+            data=data,
+            data_fmt=dt.strftime("%d/%m/%Y"),
+            data_prev=data_prev,
+            data_next=data_next,
+            dia_semana=_DIAS_PT[dt.weekday()],
+            ano=ano,
+            mes=mes,
+            mes_nome=_MESES_PT[mes - 1],
+            mes_ant=mes_ant,
+            mes_prox=mes_prox,
+            cal_grid=_cal_grid(ano, mes),
+            dias_com_escala=sistema.get_dias_com_escala(ano, mes),
+            hoje=hoje,
+            escala=sistema.get_escala_dia(data),
+            funcionarios=sistema.get_funcionarios(),
+            active="agenda",
+        ),
+    )
+
+
+@app.post("/agenda/{data}/{turno}/escalar")
+async def agenda_escalar(request: Request, data: str, turno: str, funcionario_id: int = Form(...)):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    if turno in ("manha", "tarde", "noite"):
+        sistema.escalar_funcionario(data, turno, funcionario_id, usuario_acao=u["username"])
+    return RedirectResponse(f"/agenda/{data}", status_code=302)
+
+
+@app.post("/agenda/escala/{escala_id}/excluir")
+async def agenda_escala_excluir(request: Request, escala_id: int, data: str = Form(...)):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    sistema.remover_escala(escala_id, usuario_acao=u["username"])
+    return RedirectResponse(f"/agenda/{data}", status_code=302)
+
+
+@app.post("/agenda/escala/{escala_id}/tarefa")
+async def agenda_tarefa_add(request: Request, escala_id: int, descricao: str = Form(...), data: str = Form(...)):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    sistema.adicionar_tarefa_turno(escala_id, descricao, usuario_acao=u["username"])
+    return RedirectResponse(f"/agenda/{data}", status_code=302)
+
+
+@app.post("/agenda/tarefa/{tarefa_id}/excluir")
+async def agenda_tarefa_excluir(request: Request, tarefa_id: int, data: str = Form(...)):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    sistema.remover_tarefa_turno(tarefa_id, usuario_acao=u["username"])
+    return RedirectResponse(f"/agenda/{data}", status_code=302)
+
+
+@app.post("/agenda/tarefa/{tarefa_id}/concluir")
+async def agenda_tarefa_concluir(request: Request, tarefa_id: int, data: str = Form(...)):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    sistema.concluir_tarefa_turno(tarefa_id, usuario_acao=u["username"])
+    return RedirectResponse(f"/agenda/{data}", status_code=302)
 
 
 # =============================================================================

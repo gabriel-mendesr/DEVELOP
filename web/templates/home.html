@@ -95,6 +95,23 @@
   </div>
   {% endif %}
 
+  {% if user %}
+  <div class="col-12 col-sm-6 col-lg-4">
+    <a href="/agenda" class="text-decoration-none">
+      <div class="home-card">
+        <div class="home-card-icon" style="background:rgba(67,56,202,0.12)">
+          <i class="bi bi-calendar3" style="color:#4338ca"></i>
+        </div>
+        <div class="home-card-body">
+          <div class="home-card-title">Agenda</div>
+          <div class="home-card-desc">Turnos e tarefas dos funcionários</div>
+        </div>
+        <i class="bi bi-chevron-right home-card-arrow"></i>
+      </div>
+    </a>
+  </div>
+  {% endif %}
+
   {% if user and user.get('is_admin') %}
   <div class="col-12 col-sm-6 col-lg-4">
     <a href="/ajustes" class="text-decoration-none">

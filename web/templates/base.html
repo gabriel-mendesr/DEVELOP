@@ -96,6 +96,15 @@
 
         {% if user %}
         <li class="nav-item">
+          <a href="/agenda" class="nav-link {% if active == 'agenda' %}active{% endif %}">
+            <span class="nav-icon icon-agenda"><i class="bi bi-calendar3"></i></span>
+            Agenda
+          </a>
+        </li>
+        {% endif %}
+
+        {% if user %}
+        <li class="nav-item">
           <a href="/ajustes" class="nav-link {% if active == 'ajustes' %}active{% endif %}">
             <span class="nav-icon icon-ajustes"><i class="bi bi-gear-fill"></i></span>
             Ajustes

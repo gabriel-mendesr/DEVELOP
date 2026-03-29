@@ -108,6 +108,7 @@ body {
 .icon-compras    { background: rgba(234, 88, 12, 0.25);  color: #fb923c; }
 .icon-relatorios { background: rgba(123, 31, 162, 0.25); color: #e879f9; }
 .icon-ajustes    { background: rgba(3, 105, 161, 0.25);  color: #38bdf8; }
+.icon-agenda     { background: rgba(67,  56, 202, 0.25); color: #818cf8; }
 
 .sidebar-user {
   padding: 1rem 1.25rem;
@@ -686,4 +687,72 @@ body {
 }
 .form-card-financeiro {
   border-left: 4px solid #7c3aed;
+}
+
+/* ── Agenda / Turnos ────────────────────────────────────────────────────── */
+
+.mini-cal { width: 100%; border-collapse: collapse; }
+.mini-cal th {
+  text-align: center; font-size: 0.68rem; color: #94a3b8;
+  padding: 0.2rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.mini-cal td { text-align: center; padding: 0.15rem; }
+.cal-day {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; margin: 0 auto; cursor: pointer;
+  text-decoration: none; color: #334155;
+  transition: background 0.1s;
+}
+.cal-day:hover { background: #f1f5f9; color: #334155; }
+.cal-day.tem-escala { background: #dbeafe; color: #1e40af; font-weight: 700; }
+.cal-day.hoje { background: #1e40af !important; color: #fff !important; font-weight: 700; }
+.cal-day.selecionado { background: #0f172a !important; color: #fff !important; font-weight: 700; }
+
+.turno-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.turno-header {
+  padding: 0.85rem 1rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  font-weight: 700; font-size: 0.9rem; color: #fff;
+}
+.turno-hora { font-size: 0.7rem; font-weight: 500; opacity: 0.85; margin-left: auto; }
+.turno-manha .turno-header { background: linear-gradient(135deg, #0284c7, #0369a1); }
+.turno-tarde  .turno-header { background: linear-gradient(135deg, #d97706, #b45309); }
+.turno-noite  .turno-header { background: linear-gradient(135deg, #4338ca, #3730a3); }
+
+.turno-body { padding: 0.75rem; flex-grow: 1; }
+.turno-add-func {
+  padding: 0.65rem 0.75rem;
+  border-top: 1px solid #f1f5f9;
+  background: #fafafa;
+}
+
+.func-card {
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.func-nome {
+  font-weight: 700; font-size: 0.82rem; color: #0f172a;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+.tarefa-item {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; padding: 0.2rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.tarefa-item:last-of-type { border-bottom: none; }
+.tarefa-texto { flex-grow: 1; color: #334155; }
+.tarefa-item.concluida .tarefa-texto {
+  text-decoration: line-through; color: #94a3b8;
 }
