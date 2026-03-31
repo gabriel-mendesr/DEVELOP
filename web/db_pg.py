@@ -67,8 +67,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
     can_access_financeiro INTEGER DEFAULT 1,
     can_access_compras INTEGER DEFAULT 1,
     can_access_dash INTEGER DEFAULT 1,
-    can_access_relatorios INTEGER DEFAULT 1
+    can_access_relatorios INTEGER DEFAULT 1,
+    can_access_treinamento INTEGER DEFAULT 1
 );
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS can_access_treinamento INTEGER DEFAULT 1;
 
 CREATE TABLE IF NOT EXISTS logs_auditoria (
     id BIGSERIAL PRIMARY KEY,
@@ -329,6 +331,10 @@ class SistemaCreditos:
     def get_usuarios(self) -> list[dict]:
         return self._fetch("SELECT * FROM usuarios")
 
+    def get_usuario(self, username: str) -> dict | None:
+        rows = self._fetch("SELECT * FROM usuarios WHERE username = %s", (username,))
+        return rows[0] if rows else None
+
     def salvar_usuario(
         self,
         username: str,
@@ -341,6 +347,7 @@ class SistemaCreditos:
         can_access_compras: bool = True,
         can_access_dash: bool = True,
         can_access_relatorios: bool = True,
+        can_access_treinamento: bool = True,
         usuario_acao: str = "Sistema",
     ) -> None:
         salt = secrets.token_hex(16)
@@ -350,8 +357,8 @@ class SistemaCreditos:
                 """INSERT INTO usuarios
                    (username, password, is_admin, can_change_dates, can_manage_products,
                     can_access_hospedes, can_access_financeiro, can_access_compras,
-                    can_access_dash, can_access_relatorios, salt)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    can_access_dash, can_access_relatorios, can_access_treinamento, salt)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT (username) DO UPDATE SET
                      password=EXCLUDED.password, is_admin=EXCLUDED.is_admin,
                      can_change_dates=EXCLUDED.can_change_dates,
@@ -361,6 +368,7 @@ class SistemaCreditos:
                      can_access_compras=EXCLUDED.can_access_compras,
                      can_access_dash=EXCLUDED.can_access_dash,
                      can_access_relatorios=EXCLUDED.can_access_relatorios,
+                     can_access_treinamento=EXCLUDED.can_access_treinamento,
                      salt=EXCLUDED.salt""",
                 (
                     username,
@@ -373,6 +381,7 @@ class SistemaCreditos:
                     int(can_access_compras),
                     int(can_access_dash),
                     int(can_access_relatorios),
+                    int(can_access_treinamento),
                     salt,
                 ),
                 conn=conn,
@@ -390,6 +399,7 @@ class SistemaCreditos:
         can_access_compras: int,
         can_access_dash: int,
         can_access_relatorios: int,
+        can_access_treinamento: int,
         usuario_acao: str = "Sistema",
     ) -> None:
         with self._tx() as conn:
@@ -397,7 +407,8 @@ class SistemaCreditos:
                 """UPDATE usuarios SET
                    is_admin=?, can_change_dates=?, can_manage_products=?,
                    can_access_hospedes=?, can_access_financeiro=?,
-                   can_access_compras=?, can_access_dash=?, can_access_relatorios=?
+                   can_access_compras=?, can_access_dash=?, can_access_relatorios=?,
+                   can_access_treinamento=?
                    WHERE username=?""",
                 (
                     is_admin,
@@ -408,6 +419,7 @@ class SistemaCreditos:
                     can_access_compras,
                     can_access_dash,
                     can_access_relatorios,
+                    can_access_treinamento,
                     username,
                 ),
                 conn=conn,
