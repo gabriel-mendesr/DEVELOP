@@ -173,6 +173,16 @@ async def dashboard(request: Request):
 
 
 # =============================================================================
+# Simulador de Treinamento
+# =============================================================================
+@app.get("/treinamento", response_class=HTMLResponse)
+async def simulador(request: Request):
+    if not _user(request):
+        return _redirect_login()
+    return templates.TemplateResponse(request, "simulador.html", {})
+
+
+# =============================================================================
 # Hóspedes
 # =============================================================================
 @app.get("/hospedes", response_class=HTMLResponse)

@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotel Santos — Simulador de Treinamento</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#00b4b4;--teal-dark:#009999;--teal-light:#e0f7f7;
+  --sidebar-bg:#2d3748;--sidebar-text:#a0aec0;--sidebar-active:#00b4b4;--sidebar-hover:#3d4f66;
+  --pink:#e91e8c;
+  --green:#4caf50;--orange:#ff9800;--blue:#2196f3;--gray:#9e9e9e;--red:#f44336;--purple:#9c27b0;
+  --border:#e0e0e0;--text:#333;--muted:#777;--bg:#f4f6f8;--surface:#fff;
+  --card-ocupado:#e57373;--card-disponivel:#81c784;--card-reservado:#9575cd;
+  --card-limpeza:#ffb74d;--card-bloqueado:#90a4ae;
+}
+html,body{height:100%}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;display:flex;flex-direction:column;height:100%}
+
+/* TOPBAR */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;position:sticky;top:0;z-index:200;box-shadow:0 1px 4px rgba(0,0,0,.07);flex-shrink:0}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-icons{display:flex;gap:4px;color:var(--muted)}
+.topbar-icons button{background:none;border:none;cursor:pointer;padding:5px 7px;border-radius:5px;color:var(--muted);font-size:16px;transition:background .15s}
+.topbar-icons button:hover{background:var(--bg)}
+.topbar-right{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--text)}
+.topbar-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--teal-dark));display:flex;align-items:center;justify-content:center;color:white;font-size:12px;font-weight:700}
+.badge-mode{background:#fff8dc;color:#b8860b;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #f0d060;display:flex;align-items:center;gap:4px}
+
+/* LAYOUT */
+.app-body{display:flex;flex:1;overflow:hidden;min-height:0}
+
+/* SIDEBAR */
+.sidebar{width:210px;min-width:210px;background:var(--sidebar-bg);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar-title{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--sidebar-text);padding:20px 18px 8px;opacity:.6;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:11px;padding:11px 18px;font-size:13px;color:var(--sidebar-text);cursor:pointer;font-weight:500;transition:background .15s;border-left:3px solid transparent;user-select:none}
+.nav-item:hover{background:var(--sidebar-hover);color:#e2e8f0}
+.nav-item.active{color:var(--sidebar-active);background:rgba(0,180,180,.1);border-left-color:var(--sidebar-active)}
+.nav-item i{font-size:16px;opacity:.8;flex-shrink:0}
+.nav-item.active i{opacity:1}
+.nav-item.help{color:#f6c90e;margin-top:auto}
+.nav-item.help:hover{background:rgba(246,201,14,.08)}
+.nav-sep{height:1px;background:rgba(255,255,255,.07);margin:6px 14px}
+
+/* MAIN CONTENT */
+.main-content{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+
+/* PAGE VIEWS */
+.page-view{display:none;flex:1;flex-direction:column;min-height:0}
+.page-view.active{display:flex}
+
+/* BREADCRUMB */
+.breadcrumb{padding:10px 20px;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.breadcrumb a{color:var(--teal);cursor:pointer;text-decoration:none;font-weight:500}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb i{font-size:10px;color:#ccc}
+
+/* HOME PAGE */
+.home-wrap{padding:16px 20px;flex:1;overflow-y:auto}
+.stats-strip{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 16px;display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.stat-badge{display:flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid transparent}
+.stat-badge.todos{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+.stat-badge.disponivel{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+.stat-badge.ocupado{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+.stat-badge.limpeza{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
+.stat-badge.bloqueado{background:#f1f5f9;color:#475569;border-color:#e2e8f0}
+.stat-sep{color:#ddd;margin:0 4px}
+.stat-info{font-size:12px;color:var(--muted);padding:3px 10px}
+.stat-info span{font-weight:700;color:var(--text)}
+.filter-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.filter-btn{padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--muted);cursor:pointer;font-weight:500;font-family:inherit;transition:all .15s}
+.filter-btn:hover{border-color:var(--teal);color:var(--teal)}
+.filter-btn.active{background:var(--teal);color:white;border-color:var(--teal)}
+.rooms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+
+/* ROOM CARD */
+.room-card{border-radius:8px;overflow:hidden;transition:box-shadow .2s,transform .15s;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+.room-card:hover{box-shadow:0 6px 20px rgba(0,0,0,.16);transform:translateY(-2px)}
+.room-card-top{padding:11px 14px 10px;color:white;display:flex;align-items:flex-start;justify-content:space-between}
+.room-card-top.disponivel{background:var(--card-disponivel)}
+.room-card-top.ocupado{background:var(--card-ocupado)}
+.room-card-top.reservado{background:var(--card-reservado)}
+.room-card-top.limpeza{background:var(--card-limpeza)}
+.room-card-top.bloqueado{background:var(--card-bloqueado)}
+.room-card-name{font-weight:700;font-size:13px;letter-spacing:.03em;text-transform:uppercase;line-height:1.3}
+.room-card-body{background:white;padding:10px 14px 6px}
+.room-card-row{display:flex;align-items:flex-start;gap:7px;font-size:12.5px;color:var(--text);margin-bottom:7px;line-height:1.3}
+.room-card-row i{color:var(--muted);flex-shrink:0;margin-top:1px;font-size:13px}
+.room-card-actions{background:white;border-top:1px solid #f0f0f0;padding:7px 12px;display:flex;gap:4px;align-items:center;min-height:38px}
+.rc-btn{background:none;border:none;cursor:pointer;padding:5px 7px;border-radius:5px;font-size:15px;transition:background .15s;color:var(--muted);display:flex;align-items:center;justify-content:center;position:relative}
+.rc-btn:hover{background:var(--bg)}
+.rc-btn.ok{color:#4caf50}.rc-btn.nok{color:#f44336}
+.rc-btn[title]:hover::after{content:attr(title);position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:#1e293b;color:white;font-size:11px;padding:3px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;z-index:99}
+.tag-hoje{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;display:inline-block;margin-left:4px;vertical-align:middle}
+.tag-entra{background:rgba(255,255,255,.35);color:white}
+.tag-sai{background:rgba(0,0,0,.18);color:white}
+.btn-hospedar-card{background:none;border:1px solid rgba(0,180,180,.35);color:var(--teal);border-radius:5px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;transition:all .15s}
+.btn-hospedar-card:hover{background:var(--teal-light)}
+
+/* FORM PAGES */
+.form-page-body{display:flex;flex:1;overflow:hidden;min-height:0}
+.form-main{flex:1;overflow-y:auto;padding:18px 20px}
+.form-side{width:280px;min-width:280px;padding:18px 20px 18px 0;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card-header{padding:13px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-title{font-weight:700;font-size:13px;letter-spacing:.05em}
+.reserva-num{font-size:15px;font-weight:700}
+.btn-checkin-online{background:transparent;border:1px solid var(--teal);color:var(--teal);border-radius:20px;padding:4px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:500;font-family:inherit}
+.form-row{display:flex;align-items:flex-start;padding:10px 18px;border-bottom:1px solid #f5f5f5}
+.form-row:last-child{border-bottom:none}
+.form-label-col{width:155px;min-width:155px;padding-top:9px;font-size:13px;color:var(--muted);flex-shrink:0}
+.req{color:var(--pink);font-size:11px;margin-right:2px}
+.form-control-col{flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.form-input,.form-select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus{border-color:var(--teal);box-shadow:0 0 0 2px rgba(0,180,180,.12)}
+.form-input.w-full,.form-select.w-full{width:100%}
+.form-input.w-200,.form-select.w-200{max-width:200px}
+.form-input.w-130{max-width:130px}
+.form-input.date-f{background:#fafafa;cursor:pointer;max-width:240px}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--teal);font-size:16px;padding:5px 6px;border-radius:5px;transition:background .15s;display:flex;align-items:center;justify-content:center}
+.icon-btn:hover{background:var(--teal-light)}
+.toggle{position:relative;width:42px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:22px;transition:.3s;cursor:pointer}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--teal)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(20px)}
+.num-wrap{display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;overflow:hidden;width:100px}
+.num-inp{border:none;width:60px;text-align:center;padding:7px 4px;font-size:13px;font-family:inherit;outline:none}
+.num-btn{background:#f5f5f5;border:none;width:20px;cursor:pointer;color:var(--muted);font-size:16px;height:35px;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0;line-height:1}
+.num-btn:hover{background:#e0e0e0}
+.form-textarea{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;min-height:72px;resize:vertical;outline:none}
+.form-textarea:focus{border-color:var(--teal)}
+.meta-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:7px 18px}
+.meta-icon{color:var(--teal)}
+.action-bar{padding:13px 18px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);background:#fafafa}
+.btn{padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-hospedar{background:var(--pink);color:white}.btn-hospedar:hover{background:#c41677}
+.btn-atualizar,.btn-salvar{background:var(--teal);color:white}.btn-atualizar:hover,.btn-salvar:hover{background:var(--teal-dark)}
+.btn-secondary{background:#f5f5f5;color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:#e8e8e8}
+.btn-link{background:none;border:none;cursor:pointer;color:var(--teal);font-size:13px;font-weight:500;font-family:inherit;padding:8px 4px}
+
+/* situação badges */
+.sit-badge{display:inline-block;padding:4px 12px;border-radius:4px;font-size:12px;font-weight:700;color:white;text-transform:lowercase}
+.sit-pre{background:#ff9800}.sit-hospedar{background:#00b4b4}.sit-reservar{background:#9c27b0}.sit-bloquear{background:#9e9e9e}
+.sit-hospedado{background:#00b4b4}.sit-reservado{background:#9c27b0}
+.situacao-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.radio-item{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px}
+.radio-item input[type=radio]{accent-color:var(--teal);width:15px;height:15px;cursor:pointer}
+
+/* side panels */
+.falta-card{background:var(--surface);border-radius:8px;border:1px solid var(--border);padding:16px;text-align:center}
+.falta-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;text-transform:uppercase}
+.falta-valor{font-size:26px;font-weight:700;color:var(--pink)}
+.resumo-card,.ativ-card,.dicas-card{background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden}
+.resumo-header,.ativ-header{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.resumo-title,.ativ-title{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.resumo-row{display:flex;justify-content:space-between;padding:7px 16px;border-bottom:1px solid #f5f5f5;font-size:13px}
+.resumo-row:last-child{border-bottom:none}
+.resumo-key{color:var(--muted)}.resumo-val{font-weight:600}
+.resumo-total .resumo-key,.resumo-total .resumo-val{font-weight:700;font-size:14px}
+.dicas-card{padding:14px 16px}
+.dicas-title{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.dicas-text{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* top action btns */
+.top-btns{display:flex;gap:8px;padding:14px 20px 0;flex-shrink:0}
+.btn-emitir,.btn-adicionar{background:var(--teal);color:white;padding:7px 14px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit}
+.btn-emitir:hover,.btn-adicionar:hover{background:var(--teal-dark)}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:white;border-radius:10px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.22);max-height:90vh;overflow-y:auto}
+.modal-close{background:none;border:none;cursor:pointer;color:#aaa;font-size:22px;line-height:1;padding:2px 4px;border-radius:4px;transition:color .15s}
+.modal-close:hover{color:var(--text)}
+
+/* Novo hóspede modal */
+.nh-modal-box{width:480px}
+.nh-title{font-weight:700;font-size:16px}
+.nh-field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:500}
+.nh-field label .req{color:var(--pink)}
+.phone-wrap{display:flex;gap:6px}
+.phone-cc{display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;cursor:pointer;white-space:nowrap;background:var(--surface);color:var(--text);font-family:inherit;font-weight:500}
+.phone-cc:hover{border-color:#bbb}
+.nh-footer{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* date picker modal */
+.dp-box{width:320px}
+
+/* TOAST */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:#1e293b;color:white;padding:11px 16px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.25);animation:tin .25s ease;max-width:300px}
+.toast.ok{border-left:3px solid #4caf50}.toast.err{border-left:3px solid #f44336}.toast.info{border-left:3px solid var(--teal)}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-icons">
+      <button title="Tela cheia" onclick="toggleFS()"><i class="bi bi-fullscreen"></i></button>
+      <button title="Buscar" onclick="showToast('Busca — em simulação','info')"><i class="bi bi-search"></i></button>
+      <button title="Mais opções" onclick="showToast('Menu — em simulação','info')"><i class="bi bi-three-dots-vertical"></i></button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-avatar">H</div>
+    Hotel Santos
+    <i class="bi bi-caret-down-fill" style="font-size:10px;color:#aaa"></i>
+    <span class="badge-mode"><i class="bi bi-joystick"></i> SIMULADOR DE TREINO</span>
+  </div>
+</div>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-title">Menu Principal</div>
+    <div class="nav-item active" onclick="goHome(this)">
+      <i class="bi bi-house-door"></i> Home
+    </div>
+    <div class="nav-item" onclick="goHome(this)">
+      <i class="bi bi-map"></i> Mapa
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" onclick="navClick(this,'Reservas')">
+      <i class="bi bi-calendar2-check"></i> Reservas
+    </div>
+    <div class="nav-item" onclick="navClick(this,'Hóspedes')">
+      <i class="bi bi-people"></i> Hóspedes
+    </div>
+    <div class="nav-item" onclick="navClick(this,'Day use')">
+      <i class="bi bi-sun"></i> Day use
+    </div>
+    <div class="nav-item" onclick="navClick(this,'Meu caixa')">
+      <i class="bi bi-cash-stack"></i> Meu caixa
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-item help" onclick="navClick(this,'Ajuda')">
+      <i class="bi bi-question-circle"></i> Ajuda
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- PAGE: HOME / MAPA -->
+    <div class="page-view active" id="page-home">
+      <div class="home-wrap">
+        <div class="stats-strip" id="stats-strip"></div>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="filterMap('todos',this)">Todos</button>
+          <button class="filter-btn" onclick="filterMap('disponivel',this)">Disponível</button>
+          <button class="filter-btn" onclick="filterMap('ocupado',this)">Ocupado</button>
+          <button class="filter-btn" onclick="filterMap('limpeza',this)">Em limpeza</button>
+          <button class="filter-btn" onclick="filterMap('reservado',this)">Reservado</button>
+          <button class="filter-btn" onclick="filterMap('bloqueado',this)">Bloqueado</button>
+        </div>
+        <div class="rooms-grid" id="rooms-grid"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: NOVA RESERVA -->
+    <div class="page-view" id="page-nova-reserva">
+      <div class="breadcrumb">
+        <a onclick="goHome()">HOME</a>
+        <i class="bi bi-chevron-right"></i>
+        <a onclick="goHome()">RESERVAS</a>
+        <i class="bi bi-chevron-right"></i>
+        <span style="color:var(--text);font-weight:600">NOVA RESERVA</span>
+      </div>
+      <div class="form-page-body">
+        <div class="form-main">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">NOVA RESERVA</span>
+              <i class="bi bi-chevron-up" style="color:var(--muted);cursor:pointer;font-size:13px"></i>
+            </div>
+            <div class="form-row" style="align-items:flex-start">
+              <div class="form-label-col" style="padding-top:6px"><span class="req">*</span> Situação</div>
+              <div class="form-control-col">
+                <div class="situacao-grid">
+                  <label class="radio-item"><input type="radio" name="nr-sit" value="pre"> <span class="sit-badge sit-pre">pré-reservar</span></label>
+                  <label class="radio-item"><input type="radio" name="nr-sit" value="hospedar" checked> <span class="sit-badge sit-hospedar">hospedar</span></label>
+                  <label class="radio-item"><input type="radio" name="nr-sit" value="reservar"> <span class="sit-badge sit-reservar">reservar</span></label>
+                  <label class="radio-item"><input type="radio" name="nr-sit" value="bloquear"> <span class="sit-badge sit-bloquear">bloquear datas</span></label>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Hóspede</div>
+              <div class="form-control-col">
+                <select class="form-select w-200" id="nr-hospede"><option value="">Selecione...</option></select>
+                <button class="icon-btn" title="Adicionar hóspede" onclick="openNovoHospede('nr')">
+                  <i class="bi bi-person-fill-add" style="font-size:18px"></i>
+                </button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Período</div>
+              <div class="form-control-col">
+                <input type="text" class="form-input date-f" id="nr-periodo" placeholder="DD/MM/AAAA - DD/MM/AAAA" readonly onclick="openDatePicker('nr')"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> UH</div>
+              <div class="form-control-col">
+                <select class="form-select w-200" id="nr-uh"></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Valor da diária</div>
+              <div class="form-control-col">
+                <input type="number" class="form-input w-130" id="nr-diaria" placeholder="0,00" min="0" step="0.01"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col">Café da manhã</div>
+              <div class="form-control-col"><label class="toggle"><input type="checkbox" id="nr-cafe"><span class="toggle-slider"></span></label></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col">Nº hóspedes</div>
+              <div class="form-control-col" style="gap:20px">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px"><span class="req">*</span> Nº adultos</div>
+                  <div class="num-wrap"><button class="num-btn" onclick="changeNum('nr-adultos',-1)">−</button><input class="num-inp" id="nr-adultos" value="1" type="number" min="1"/><button class="num-btn" onclick="changeNum('nr-adultos',1)">+</button></div>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px"><span class="req">*</span> Nº crianças</div>
+                  <div class="num-wrap"><button class="num-btn" onclick="changeNum('nr-criancas',-1)">−</button><input class="num-inp" id="nr-criancas" value="0" type="number" min="0"/><button class="num-btn" onclick="changeNum('nr-criancas',1)">+</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col">Observação</div>
+              <div class="form-control-col" style="width:100%"><textarea class="form-textarea" id="nr-obs" style="width:100%"></textarea></div>
+            </div>
+            <div class="action-bar">
+              <button class="btn btn-secondary" onclick="goHome()"><i class="bi bi-x-lg"></i> Cancelar</button>
+              <button class="btn btn-salvar" onclick="salvarNovaReserva()"><i class="bi bi-check-lg"></i> Salvar</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-side">
+          <div class="dicas-card">
+            <div class="dicas-title">Dicas</div>
+            <div class="dicas-text"><strong>Total:</strong> Valor total da reserva, incluindo diárias, produtos e serviços.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: ATUALIZAR RESERVA -->
+    <div class="page-view" id="page-atualizar">
+      <div class="breadcrumb">
+        <a onclick="goHome()">HOME</a>
+        <i class="bi bi-chevron-right"></i>
+        <a onclick="goHome()">RESERVAS</a>
+        <i class="bi bi-chevron-right"></i>
+        <span style="color:var(--text);font-weight:600">ATUALIZAR RESERVA</span>
+      </div>
+      <div class="top-btns">
+        <button class="btn-emitir"><i class="bi bi-printer"></i> Emitir <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
+        <button class="btn-adicionar"><i class="bi bi-plus-lg"></i> Adicionar <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
+      </div>
+      <div class="form-page-body" style="padding-top:14px">
+        <div class="form-main">
+          <div class="card">
+            <div class="card-header">
+              <div style="display:flex;align-items:center;gap:12px">
+                <span class="reserva-num" id="at-reserva-num">RESERVA HO:000000</span>
+                <button class="btn-checkin-online"><i class="bi bi-box-arrow-in-right" style="font-size:12px"></i> Check-in online</button>
+              </div>
+              <i class="bi bi-chevron-up" style="color:var(--muted);cursor:pointer;font-size:13px"></i>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Situação</div>
+              <div class="form-control-col"><span class="sit-badge" id="at-sit-badge">hospedado</span></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Hóspede</div>
+              <div class="form-control-col">
+                <select class="form-select w-200" id="at-hospede"></select>
+                <button class="icon-btn" title="Ver hóspede"><i class="bi bi-person"></i></button>
+                <button class="icon-btn" title="WhatsApp" onclick="showToast('WhatsApp — em simulação','info')"><i class="bi bi-whatsapp" style="color:#25d366"></i></button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Período</div>
+              <div class="form-control-col">
+                <input type="text" class="form-input date-f" id="at-periodo" readonly onclick="openDatePicker('at')"/>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> UH</div>
+              <div class="form-control-col">
+                <select class="form-select w-200" id="at-uh"></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col"><span class="req">*</span> Valor da diária</div>
+              <div class="form-control-col">
+                <input type="number" class="form-input w-130" id="at-diaria" min="0" step="0.01"/>
+                <button class="icon-btn" title="Editar valor"><i class="bi bi-pencil" style="color:#66bb6a"></i></button>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col">Café da manhã</div>
+              <div class="form-control-col"><label class="toggle"><input type="checkbox" id="at-cafe"><span class="toggle-slider"></span></label></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col">Nº hóspedes</div>
+              <div class="form-control-col" style="gap:20px">
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px"><span class="req">*</span> Nº adultos</div>
+                  <div class="num-wrap"><button class="num-btn" onclick="changeNum('at-adultos',-1)">−</button><input class="num-inp" id="at-adultos" value="2" type="number" min="1"/><button class="num-btn" onclick="changeNum('at-adultos',1)">+</button></div>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--muted);margin-bottom:4px"><span class="req">*</span> Nº crianças</div>
+                  <div class="num-wrap"><button class="num-btn" onclick="changeNum('at-criancas',-1)">−</button><input class="num-inp" id="at-criancas" value="0" type="number" min="0"/><button class="num-btn" onclick="changeNum('at-criancas',1)">+</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col">Observação</div>
+              <div class="form-control-col" style="width:100%"><textarea class="form-textarea" id="at-obs" style="width:100%"></textarea></div>
+            </div>
+            <div class="meta-row">
+              <i class="bi bi-clock meta-icon"></i> Criado em
+              <span id="at-criado" style="font-weight:600;color:var(--text);margin-left:4px"></span>
+            </div>
+            <div class="meta-row">
+              <i class="bi bi-pencil meta-icon"></i> Alterado em
+              <span id="at-alterado" style="font-weight:600;color:var(--text);margin-left:4px"></span>
+            </div>
+            <div class="action-bar">
+              <button class="btn btn-hospedar" id="btn-hospedar-at" onclick="fazerCheckin()" style="display:none">
+                <i class="bi bi-box-arrow-in-right"></i> Hospedar
+              </button>
+              <button class="btn btn-atualizar" onclick="atualizarReserva()">
+                <i class="bi bi-arrow-repeat"></i> Atualizar Reserva
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="form-side">
+          <div class="falta-card">
+            <div class="falta-label">Falta Lançar</div>
+            <div class="falta-valor" id="at-falta-val">R$ 0,00</div>
+          </div>
+          <div class="resumo-card">
+            <div class="resumo-header">
+              <span class="resumo-title">Resumo</span>
+              <i class="bi bi-chevron-up" style="color:var(--muted);cursor:pointer;font-size:12px"></i>
+            </div>
+            <div class="resumo-row"><span class="resumo-key">Nº diárias</span><span class="resumo-val" id="res-diarias">0</span></div>
+            <div class="resumo-row"><span class="resumo-key">Diária Média</span><span class="resumo-val" id="res-media">R$ 0,00</span></div>
+            <div class="resumo-row"><span class="resumo-key">Diárias</span><span class="resumo-val" id="res-total-d">R$ 0,00</span></div>
+            <div class="resumo-row"><span class="resumo-key">Desconto</span><span class="resumo-val" id="res-desc">R$ 0,00</span></div>
+            <div class="resumo-row"><span class="resumo-key">Produtos</span><span class="resumo-val">R$ 0,00</span></div>
+            <div class="resumo-row"><span class="resumo-key">Serviços</span><span class="resumo-val">R$ 0,00</span></div>
+            <div class="resumo-row resumo-total"><span class="resumo-key">Total</span><span class="resumo-val" id="res-total">R$ 0,00</span></div>
+            <div class="resumo-row"><span class="resumo-key">Recebido</span><span class="resumo-val" id="res-recebido">R$ 0,00</span></div>
+          </div>
+          <div class="ativ-card">
+            <div class="ativ-header">
+              <span class="ativ-title">Atividades na Reserva</span>
+              <i class="bi bi-plus-lg" style="color:var(--muted);cursor:pointer"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-body -->
+
+<!-- MODAL: NOVO HÓSPEDE -->
+<div class="modal-overlay" id="modal-novo-hospede">
+  <div class="modal-box nh-modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <span class="nh-title">Novo hóspede</span>
+      <button class="modal-close" onclick="closeNovoHospede()">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="nh-field">
+        <label><span class="req">*</span> Nome completo</label>
+        <input type="text" class="form-input w-full" id="nh-nome" placeholder="" autocomplete="off">
+      </div>
+      <div class="nh-field">
+        <label>E-mail</label>
+        <input type="email" class="form-input w-full" id="nh-email" placeholder="" autocomplete="off">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="nh-field">
+          <label>Fone</label>
+          <div class="phone-wrap">
+            <button type="button" class="phone-cc" onclick="showToast('Seletor de país — em simulação','info')">
+              🇧🇷 +55 <i class="bi bi-caret-down-fill" style="font-size:9px;opacity:.6"></i>
+            </button>
+            <input type="tel" class="form-input" id="nh-fone" placeholder="(__) _____-____" style="flex:1;min-width:0" oninput="maskFone(this)">
+          </div>
+        </div>
+        <div class="nh-field">
+          <label>CPF</label>
+          <input type="text" class="form-input w-full" id="nh-cpf" placeholder="___.___.___-__" maxlength="14" oninput="maskCPF(this)">
+        </div>
+      </div>
+      <div class="nh-field">
+        <label>Passaporte</label>
+        <input type="text" class="form-input w-full" id="nh-passaporte" placeholder="">
+      </div>
+    </div>
+    <div class="nh-footer">
+      <button class="btn-link" onclick="closeNovoHospede()">Cadastro completo</button>
+      <button class="btn btn-salvar" onclick="salvarNovoHospede()">Adicionar Hóspede</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DATE PICKER -->
+<div class="modal-overlay" id="date-modal">
+  <div class="modal-box dp-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-weight:700;font-size:15px">Selecionar Período</span>
+      <button class="modal-close" onclick="closeDatePicker()">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Check-in</label>
+        <input type="date" class="form-input w-full" id="dp-in"/>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">Check-out</label>
+        <input type="date" class="form-input w-full" id="dp-out"/>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeDatePicker()">Cancelar</button>
+      <button class="btn btn-atualizar" onclick="confirmDate()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const TODAY = new Date().toISOString().split('T')[0];
+let reservaCounter = 17800;
+let activeRoomId = null;
+let dpTarget = null;
+let nhTarget = null; // qual dropdown de hóspede preencher após criar
+let currentFilter = 'todos';
+
+let guests = [
+  {id:1, nome:'OFR Comunicação Visual LTDA', cpf:'00.000.000/0001-00', tel:'(11) 3000-1234', email:'financeiro@ofr.com.br'},
+  {id:2, nome:'Eduardo Augusto Romão',        cpf:'987.654.321-00',     tel:'(35) 98765-4321', email:''},
+  {id:3, nome:'Diego José Dutra',             cpf:'111.222.333-44',     tel:'(35) 97654-3210', email:''},
+  {id:4, nome:'Nélio Dias de Almeida',        cpf:'333.444.555-66',     tel:'(35) 98888-7777', email:''},
+  {id:5, nome:'Fagner Tadeu Ferreira Silva',  cpf:'444.555.666-77',     tel:'(21) 99876-5432', email:''},
+  {id:6, nome:'Adriano Goncalves de SOUSA',   cpf:'222.333.444-55',     tel:'(35) 99123-4567', email:''},
+];
+
+let rooms = [
+  {id:1,  nome:'Apartamento 1',  tipo:'1 cama casal, 01 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:2,  nome:'Apartamento 2',  tipo:'1 cama casal, 01 solteiro', status:'ocupado',    guestId:1, checkin:'2026-03-30', checkout:'2026-04-02', diaria:160, adultos:2, criancas:0, obs:'Empresa — nota fiscal necessária', pago:true,  reservaNum:'HO:017789', criado:'27/03/2026 14:55:41 por Anderson', alterado:'30/03/2026 17:00:45 por Anderson', recebido:0},
+  {id:3,  nome:'Apartamento 3',  tipo:'1 cama casal, 01 solteiro', status:'ocupado',    guestId:1, checkin:'2026-03-30', checkout:'2026-04-02', diaria:160, adultos:2, criancas:0, obs:'', pago:false, reservaNum:'HO:017790', criado:'27/03/2026 10:00:00 por Anderson', alterado:'30/03/2026 09:00:00 por Anderson', recebido:0},
+  {id:4,  nome:'Quarto 4',       tipo:'1 cama casal, 01 solteiro', status:'ocupado',    guestId:2, checkin:'2026-03-30', checkout:'2026-04-02', diaria:120, adultos:2, criancas:0, obs:'', pago:false, reservaNum:'HO:017791', criado:'28/03/2026 11:20:00 por Anderson', alterado:'30/03/2026 08:30:00 por Anderson', recebido:0},
+  {id:5,  nome:'Quarto 5',       tipo:'1 cama casal, 01 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:6,  nome:'Quarto 6',       tipo:'03 camas de solteiro',      status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:7,  nome:'Quarto 7',       tipo:'1 cama casal, 02 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:8,  nome:'Quarto 8',       tipo:'1 cama casal, 02 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:9,  nome:'Quarto 9',       tipo:'02 camas de solteiro',      status:'ocupado',    guestId:3, checkin:'2026-03-30', checkout:'2026-04-02', diaria:90, adultos:2, criancas:0, obs:'Alérgico a amendoim', pago:false, reservaNum:'HO:017792', criado:'29/03/2026 08:00:00 por Anderson', alterado:'30/03/2026 08:00:00 por Anderson', recebido:0},
+  {id:10, nome:'Apartamento 10', tipo:'1 cama casal, 02 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:11, nome:'Quarto 11',      tipo:'04 camas de solteiro',      status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:12, nome:'Quarto 12',      tipo:'02 camas de solteiro',      status:'reservado',  guestId:6, checkin:'2026-03-31', checkout:'2026-04-06', diaria:75, adultos:1, criancas:0, obs:'', pago:false, reservaNum:'HO:017811', criado:'31/03/2026 11:13:45 por Giovanna', alterado:'31/03/2026 11:13:45 por Giovanna', recebido:0},
+  {id:13, nome:'Quarto 13',      tipo:'02 camas de solteiro',      status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:14, nome:'Quarto 14',      tipo:'03 camas de solteiro',      status:'bloqueado',  guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'Manutenção elétrica', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:15, nome:'Quarto 15',      tipo:'1 cama casal, 01 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:16, nome:'Apartamento 16', tipo:'1 cama casal, 01 solteiro', status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:17, nome:'Apartamento 17', tipo:'01 cama de casal',          status:'ocupado',    guestId:4, checkin:'2026-03-30', checkout:'2026-04-01', diaria:110, adultos:1, criancas:0, obs:'', pago:false, reservaNum:'HO:017794', criado:'29/03/2026 15:00:00 por Anderson', alterado:'30/03/2026 10:00:00 por Anderson', recebido:0},
+  {id:18, nome:'Apartamento 18', tipo:'01 cama de casal',          status:'disponivel', guestId:null, checkin:null, checkout:null, diaria:0, adultos:1, criancas:0, obs:'', pago:false, reservaNum:null, criado:null, alterado:null, recebido:0},
+  {id:19, nome:'Apartamento 19', tipo:'01 cama de casal',          status:'ocupado',    guestId:5, checkin:'2026-03-22', checkout:'2026-04-02', diaria:130, adultos:2, criancas:0, obs:'', pago:false, reservaNum:'HO:017795', criado:'21/03/2026 12:00:00 por Anderson', alterado:'22/03/2026 08:00:00 por Anderson', recebido:0},
+];
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function guestById(id){ return guests.find(g=>g.id===id)||null }
+function guestNome(id){ const g=guestById(id); return g?g.nome:'—' }
+function fmtDate(d){ if(!d)return'—'; const[y,m,day]=d.split('-'); return`${day}/${m}/${y}` }
+function fmtMoney(v){ return'R$ '+parseFloat(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.') }
+function calcDias(ci,co){ if(!ci||!co)return 0; return Math.round((new Date(co)-new Date(ci))/86400000) }
+function nowStr(){ const n=new Date(); return`${String(n.getDate()).padStart(2,'0')}/${String(n.getMonth()+1).padStart(2,'0')}/${n.getFullYear()} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')} por Você` }
+
+function showPage(id){
+  document.querySelectorAll('.page-view').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function navClick(el,name){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+  showToast(`Seção "${name}" — em simulação`,'info');
+}
+function goHome(el){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.nav-item').classList.add('active');
+  showPage('page-home');
+  renderMap();
+}
+function toggleFS(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+// ─── STATS ───────────────────────────────────────────────────────────────────
+function renderStats(){
+  const c={disponivel:0,ocupado:0,limpeza:0,reservado:0,bloqueado:0};
+  rooms.forEach(r=>c[r.status]=(c[r.status]||0)+1);
+  const entra=rooms.filter(r=>r.checkin===TODAY).length;
+  const sai=rooms.filter(r=>r.checkout===TODAY).length;
+  document.getElementById('stats-strip').innerHTML=`
+    <span class="stat-badge todos"><i class="bi bi-grid-3x3-gap"></i> todos: <strong>${rooms.length}</strong></span>
+    <span class="stat-badge disponivel"><i class="bi bi-circle-fill" style="font-size:7px"></i> disponível: <strong>${c.disponivel}</strong></span>
+    <span class="stat-badge ocupado"><i class="bi bi-circle-fill" style="font-size:7px"></i> ocupado: <strong>${c.ocupado}</strong></span>
+    <span class="stat-badge limpeza"><i class="bi bi-circle-fill" style="font-size:7px"></i> em limpeza: <strong>${c.limpeza}</strong></span>
+    <span class="stat-badge bloqueado"><i class="bi bi-circle-fill" style="font-size:7px"></i> bloqueado: <strong>${c.bloqueado}</strong></span>
+    <span class="stat-sep">|</span>
+    <span class="stat-info">entra hoje: <span>${entra}</span></span>
+    <span class="stat-info">sai hoje: <span>${sai}</span></span>
+    <span class="stat-info">atrasado: <span>0</span></span>
+    <span class="stat-info">vencido: <span>0</span></span>
+  `;
+}
+
+// ─── ROOM MAP ─────────────────────────────────────────────────────────────────
+function filterMap(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMap();
+}
+
+function renderMap(){
+  renderStats();
+  const list = currentFilter==='todos' ? rooms : rooms.filter(r=>r.status===currentFilter);
+  document.getElementById('rooms-grid').innerHTML = list.map(r=>{
+    const saiHoje = r.checkout===TODAY;
+    const entrouHoje = r.checkin===TODAY;
+    const gNome = r.guestId ? guestNome(r.guestId) : null;
+    const hasObs = r.obs && r.obs.trim().length>0;
+
+    let bodyExtra = '';
+    if(gNome){
+      bodyExtra += `
+        <div class="room-card-row"><i class="bi bi-person"></i><span title="${gNome}">${gNome.length>24?gNome.substring(0,24)+'…':gNome}</span></div>
+        <div class="room-card-row"><i class="bi bi-calendar3"></i><span>${fmtDate(r.checkin)} — ${fmtDate(r.checkout)}</span></div>`;
+    }
+
+    let actions = '';
+    if(r.status==='disponivel'){
+      actions=`<button class="btn-hospedar-card" onclick="openNovaReserva(${r.id})"><i class="bi bi-box-arrow-in-right"></i> hospedar</button>`;
+    } else if(r.status==='ocupado'||r.status==='reservado'){
+      const pagBtn = r.pago
+        ? `<button class="rc-btn ok" title="Pagamento recebido — clique para marcar pendente" onclick="togglePago(${r.id})"><i class="bi bi-hand-thumbs-up-fill"></i></button>`
+        : `<button class="rc-btn nok" title="Pagamento pendente — clique para marcar recebido" onclick="togglePago(${r.id})"><i class="bi bi-hand-thumbs-up"></i></button>`;
+      const obsBtn = `<button class="rc-btn" title="${hasObs?'Obs: '+r.obs:'Sem observação'}" onclick="showToast(${hasObs?`'${r.obs.replace(/'/g,"\\'")}'`:`'Sem observação cadastrada'`},'info')" style="color:${hasObs?'#1976d2':'#ccc'}"><i class="bi bi-chat-text"></i></button>`;
+      const fnrhBtn = `<button class="rc-btn" title="Ver FNRH" onclick="showToast('FNRH — em simulação','info')" style="color:#9e9e9e"><i class="bi bi-file-earmark-person"></i></button>`;
+      const infoBtn = `<button class="rc-btn" title="Informações do hóspede" onclick="openAtualizar(${r.id})" style="color:#5c6bc0"><i class="bi bi-person-lines-fill"></i></button>`;
+      const resBtn  = `<button class="rc-btn" title="Acessar reserva" onclick="openAtualizar(${r.id})" style="color:var(--teal)"><i class="bi bi-arrow-right-circle"></i></button>`;
+      actions = pagBtn+obsBtn+fnrhBtn+infoBtn+resBtn;
+    } else if(r.status==='limpeza'){
+      actions=`<button class="btn-hospedar-card" style="border-color:rgba(76,175,80,.4);color:#388e3c" onclick="marcarDisp(${r.id})"><i class="bi bi-check2"></i> Disponível</button>`;
+    } else if(r.status==='bloqueado'){
+      actions=`<button class="rc-btn" title="Desbloquear" onclick="desbloquear(${r.id})" style="color:var(--orange)"><i class="bi bi-lock" style="font-size:16px"></i></button>`;
+    }
+
+    return `
+      <div class="room-card">
+        <div class="room-card-top ${r.status}">
+          <div class="room-card-name">
+            ${r.nome}
+            ${entrouHoje?'<span class="tag-hoje tag-entra">↑ hoje</span>':''}
+            ${saiHoje?'<span class="tag-hoje tag-sai">↓ hoje</span>':''}
+          </div>
+        </div>
+        <div class="room-card-body">
+          <div class="room-card-row"><i class="bi bi-door-closed"></i><span>${r.tipo}</span></div>
+          ${bodyExtra}
+        </div>
+        <div class="room-card-actions">${actions}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── POPULATE GUEST DROPDOWNS ─────────────────────────────────────────────────
+function fillGuestSelect(selId, selectedName){
+  const sel = document.getElementById(selId);
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    guests.map(g=>`<option value="${g.id}" ${g.nome===selectedName?'selected':''}>${g.nome}</option>`).join('');
+}
+
+// ─── NOVA RESERVA ─────────────────────────────────────────────────────────────
+function openNovaReserva(roomId){
+  activeRoomId = roomId;
+  const uhSel = document.getElementById('nr-uh');
+  uhSel.innerHTML = rooms.filter(r=>r.status==='disponivel').map(r=>`<option value="${r.id}" ${r.id===roomId?'selected':''}>${r.nome}</option>`).join('');
+  fillGuestSelect('nr-hospede', '');
+  document.getElementById('nr-periodo').value='';
+  document.getElementById('nr-diaria').value='';
+  document.getElementById('nr-adultos').value=1;
+  document.getElementById('nr-criancas').value=0;
+  document.getElementById('nr-obs').value='';
+  document.getElementById('nr-cafe').checked=false;
+  document.querySelector('input[name="nr-sit"][value="hospedar"]').checked=true;
+  showPage('page-nova-reserva');
+}
+
+function salvarNovaReserva(){
+  const sit = document.querySelector('input[name="nr-sit"]:checked').value;
+  const hospedeId = parseInt(document.getElementById('nr-hospede').value);
+  const periodo = document.getElementById('nr-periodo').value;
+  const uhId = parseInt(document.getElementById('nr-uh').value);
+  const diaria = parseFloat(document.getElementById('nr-diaria').value||0);
+  const adultos = parseInt(document.getElementById('nr-adultos').value||1);
+  const criancas = parseInt(document.getElementById('nr-criancas').value||0);
+  const obs = document.getElementById('nr-obs').value;
+
+  if(!hospedeId){showToast('Selecione um hóspede','err');return}
+  if(!periodo){showToast('Selecione o período','err');return}
+
+  const parts = periodo.split(' - ');
+  if(parts.length<2){showToast('Período inválido','err');return}
+  const ci = parts[0].split('/').reverse().join('-');
+  const co = parts[1].split('/').reverse().join('-');
+
+  const room = rooms.find(r=>r.id===uhId);
+  if(!room){showToast('UH não encontrada','err');return}
+
+  reservaCounter++;
+  room.guestId=hospedeId; room.checkin=ci; room.checkout=co;
+  room.diaria=diaria; room.adultos=adultos; room.criancas=criancas; room.obs=obs;
+  room.reservaNum=`HO:0${reservaCounter}`;
+  room.criado=nowStr(); room.alterado=nowStr(); room.recebido=0; room.pago=false;
+  if(sit==='hospedar') room.status='ocupado';
+  else if(sit==='reservar'||sit==='pre') room.status='reservado';
+  else if(sit==='bloquear') room.status='bloqueado';
+
+  showToast(`✓ Reserva ${room.reservaNum} criada!`,'ok');
+  openAtualizar(uhId);
+}
+
+// ─── ATUALIZAR RESERVA ────────────────────────────────────────────────────────
+function openAtualizar(roomId){
+  activeRoomId = roomId;
+  const room = rooms.find(r=>r.id===roomId);
+  const isHospedado = room.status==='ocupado';
+  const isReservado = room.status==='reservado';
+
+  document.getElementById('at-reserva-num').textContent=`RESERVA ${room.reservaNum||'HO:000000'}`;
+  const badge = document.getElementById('at-sit-badge');
+  badge.textContent = isHospedado?'hospedado':'reservado';
+  badge.className = 'sit-badge '+(isHospedado?'sit-hospedado':'sit-reservado');
+
+  fillGuestSelect('at-hospede', guestNome(room.guestId));
+  document.getElementById('at-uh').innerHTML = rooms.map(r=>`<option value="${r.id}" ${r.id===roomId?'selected':''}>${r.nome}</option>`).join('');
+  document.getElementById('at-periodo').value = (room.checkin&&room.checkout)?`${fmtDate(room.checkin)} - ${fmtDate(room.checkout)}`:'';
+  document.getElementById('at-diaria').value = room.diaria||'';
+  document.getElementById('at-adultos').value = room.adultos||1;
+  document.getElementById('at-criancas').value = room.criancas||0;
+  document.getElementById('at-obs').value = room.obs||'';
+  document.getElementById('at-cafe').checked = false;
+  document.getElementById('at-criado').textContent = room.criado||'—';
+  document.getElementById('at-alterado').textContent = room.alterado||'—';
+
+  const dias = calcDias(room.checkin,room.checkout);
+  const total = dias*room.diaria;
+  document.getElementById('res-diarias').textContent = dias;
+  document.getElementById('res-media').textContent = fmtMoney(room.diaria);
+  document.getElementById('res-total-d').textContent = fmtMoney(total);
+  document.getElementById('res-desc').textContent = fmtMoney(0);
+  document.getElementById('res-total').textContent = fmtMoney(total);
+  document.getElementById('res-recebido').textContent = fmtMoney(room.recebido||0);
+  document.getElementById('at-falta-val').textContent = fmtMoney(total-(room.recebido||0));
+  document.getElementById('btn-hospedar-at').style.display = isReservado?'inline-flex':'none';
+
+  showPage('page-atualizar');
+}
+
+function atualizarReserva(){
+  const room = rooms.find(r=>r.id===activeRoomId);
+  room.diaria = parseFloat(document.getElementById('at-diaria').value||0);
+  room.adultos = parseInt(document.getElementById('at-adultos').value||1);
+  room.criancas = parseInt(document.getElementById('at-criancas').value||0);
+  room.obs = document.getElementById('at-obs').value;
+  room.alterado = nowStr();
+  const p = document.getElementById('at-periodo').value;
+  if(p){const pts=p.split(' - ');if(pts.length===2){room.checkin=pts[0].split('/').reverse().join('-');room.checkout=pts[1].split('/').reverse().join('-');}}
+  showToast('✓ Reserva atualizada com sucesso!','ok');
+  openAtualizar(activeRoomId);
+}
+
+function fazerCheckin(){
+  const room = rooms.find(r=>r.id===activeRoomId);
+  room.status='ocupado'; room.alterado=nowStr();
+  showToast(`✓ Check-in realizado — ${room.nome}`,'ok');
+  openAtualizar(activeRoomId);
+}
+
+// ─── CARD ACTIONS ─────────────────────────────────────────────────────────────
+function togglePago(roomId){
+  const room = rooms.find(r=>r.id===roomId);
+  room.pago=!room.pago;
+  showToast(room.pago?'✓ Pagamento marcado como recebido':'Pagamento marcado como pendente', room.pago?'ok':'info');
+  renderMap();
+}
+function marcarDisp(roomId){
+  rooms.find(r=>r.id===roomId).status='disponivel';
+  showToast('✓ Quarto disponível','ok'); renderMap();
+}
+function desbloquear(roomId){
+  rooms.find(r=>r.id===roomId).status='disponivel';
+  showToast('🔓 Quarto desbloqueado','info'); renderMap();
+}
+
+// ─── NOVO HÓSPEDE MODAL ───────────────────────────────────────────────────────
+function openNovoHospede(target){
+  nhTarget = target;
+  document.getElementById('nh-nome').value='';
+  document.getElementById('nh-email').value='';
+  document.getElementById('nh-fone').value='';
+  document.getElementById('nh-cpf').value='';
+  document.getElementById('nh-passaporte').value='';
+  document.getElementById('modal-novo-hospede').classList.add('open');
+  setTimeout(()=>document.getElementById('nh-nome').focus(),80);
+}
+function closeNovoHospede(){
+  document.getElementById('modal-novo-hospede').classList.remove('open');
+}
+function salvarNovoHospede(){
+  const nome = document.getElementById('nh-nome').value.trim();
+  if(!nome){showToast('Informe o nome completo','err');document.getElementById('nh-nome').focus();return}
+  const g = {
+    id: guests.length ? Math.max(...guests.map(g=>g.id))+1 : 1,
+    nome: nome.toUpperCase(),
+    cpf: document.getElementById('nh-cpf').value.trim(),
+    tel: document.getElementById('nh-fone').value.trim(),
+    email: document.getElementById('nh-email').value.trim(),
+  };
+  guests.push(g);
+  closeNovoHospede();
+  // preenche o select correspondente e seleciona o novo hóspede
+  if(nhTarget){
+    fillGuestSelect(nhTarget+'-hospede', g.nome);
+    document.getElementById(nhTarget+'-hospede').value = g.id;
+  }
+  showToast(`✓ Hóspede "${g.nome}" adicionado`,'ok');
+}
+
+// ─── MÁSCARAS ─────────────────────────────────────────────────────────────────
+function maskCPF(el){
+  let v = el.value.replace(/\D/g,'').substring(0,11);
+  if(v.length>9) v=v.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2}).*/,'$1.$2.$3-$4');
+  else if(v.length>6) v=v.replace(/^(\d{3})(\d{3})(\d{0,3}).*/,'$1.$2.$3');
+  else if(v.length>3) v=v.replace(/^(\d{3})(\d{0,3}).*/,'$1.$2');
+  el.value=v;
+}
+function maskFone(el){
+  let v = el.value.replace(/\D/g,'').substring(0,11);
+  if(v.length>10) v=v.replace(/^(\d{2})(\d{5})(\d{4}).*/,'($1) $2-$3');
+  else if(v.length>6) v=v.replace(/^(\d{2})(\d{4,5})(\d{0,4}).*/,'($1) $2-$3');
+  else if(v.length>2) v=v.replace(/^(\d{2})(\d{0,5}).*/,'($1) $2');
+  else if(v.length) v=v.replace(/^(\d{0,2}).*/,'($1');
+  el.value=v;
+}
+
+// ─── DATE PICKER ──────────────────────────────────────────────────────────────
+function openDatePicker(target){
+  dpTarget=target;
+  document.getElementById('dp-in').value=TODAY;
+  document.getElementById('dp-out').value='';
+  document.getElementById('date-modal').classList.add('open');
+}
+function closeDatePicker(){ document.getElementById('date-modal').classList.remove('open') }
+function confirmDate(){
+  const ci=document.getElementById('dp-in').value;
+  const co=document.getElementById('dp-out').value;
+  if(!ci||!co){showToast('Selecione check-in e check-out','err');return}
+  if(new Date(co)<=new Date(ci)){showToast('Check-out deve ser após o check-in','err');return}
+  document.getElementById(dpTarget+'-periodo').value=`${fmtDate(ci)} - ${fmtDate(co)}`;
+  closeDatePicker();
+}
+
+// ─── MISC ─────────────────────────────────────────────────────────────────────
+function changeNum(id,d){
+  const el=document.getElementById(id);
+  el.value=Math.max(parseInt(el.min||0),parseInt(el.value||0)+d);
+}
+function showToast(msg,type='info'){
+  const el=document.createElement('div');
+  el.className=`toast ${type}`; el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(),3600);
+}
+
+// fechar modais clicando no overlay
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click', e=>{
+    if(e.target===overlay){
+      overlay.classList.remove('open');
+    }
+  });
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+renderMap();
+</script>
+</body>
+</html>

@@ -107,6 +107,15 @@
 
         {% if user %}
         <li class="nav-item">
+          <a href="/treinamento" class="nav-link {% if active == 'treinamento' %}active{% endif %}">
+            <span class="nav-icon" style="background:rgba(246,201,14,.18);color:#b8860b"><i class="bi bi-joystick"></i></span>
+            Treinamento
+          </a>
+        </li>
+        {% endif %}
+
+        {% if user %}
+        <li class="nav-item">
           <a href="/ajustes" class="nav-link {% if active == 'ajustes' %}active{% endif %}">
             <span class="nav-icon icon-ajustes"><i class="bi bi-gear-fill"></i></span>
             Ajustes
