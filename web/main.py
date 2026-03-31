@@ -68,7 +68,14 @@ def _pop_flashes(request: Request) -> list:
 
 
 def _user(request: Request) -> dict | None:
-    return request.session.get("user")
+    session_user = request.session.get("user")
+    if not session_user:
+        return None
+    # Recarrega do banco para garantir permissões atualizadas
+    fresh = sistema.get_usuario(session_user["username"])
+    if fresh:
+        request.session["user"] = fresh
+    return fresh
 
 
 def _ctx(request: Request, **kwargs) -> dict:
@@ -144,8 +151,12 @@ async def home(request: Request):
 # =============================================================================
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    if not _user(request):
+    u = _user(request)
+    if not u:
         return _redirect_login()
+    if not u.get("can_access_dash", 1):
+        _flash(request, "Sem permissão para acessar o Dashboard.", "danger")
+        return RedirectResponse("/", status_code=302)
     import json as _json
 
     total_saldo, total_vencido, total_a_vencer, total_hospedes, total_multas = sistema.get_dados_dash()
@@ -177,8 +188,12 @@ async def dashboard(request: Request):
 # =============================================================================
 @app.get("/treinamento", response_class=HTMLResponse)
 async def simulador(request: Request):
-    if not _user(request):
+    u = _user(request)
+    if not u:
         return _redirect_login()
+    if not u.get("can_access_treinamento", 1):
+        _flash(request, "Sem permissão para acessar o Treinamento.", "danger")
+        return RedirectResponse("/", status_code=302)
     return templates.TemplateResponse(request, "simulador.html", {})
 
 
@@ -187,8 +202,12 @@ async def simulador(request: Request):
 # =============================================================================
 @app.get("/hospedes", response_class=HTMLResponse)
 async def hospedes_list(request: Request, q: str = "", filtro: str = "todos"):
-    if not _user(request):
+    u = _user(request)
+    if not u:
         return _redirect_login()
+    if not u.get("can_access_hospedes", 1):
+        _flash(request, "Sem permissão para acessar Hóspedes.", "danger")
+        return RedirectResponse("/", status_code=302)
     hospedes = sistema.buscar_filtrado(q, filtro)
     return templates.TemplateResponse(
         request,
@@ -212,7 +231,7 @@ async def hospedes_create(
     email: str = Form(""),
 ):
     u = _user(request)
-    if not u:
+    if not u or not u.get("can_access_hospedes", 1):
         return _redirect_login()
     try:
         sistema.cadastrar_hospede(nome, documento, telefone=telefone, email=email, usuario_acao=u["username"])
@@ -321,8 +340,12 @@ async def financeiro(
     data_inicio: str = "",
     data_fim: str = "",
 ):
-    if not _user(request):
+    u = _user(request)
+    if not u:
         return _redirect_login()
+    if not u.get("can_access_financeiro", 1):
+        _flash(request, "Sem permissão para acessar o Financeiro.", "danger")
+        return RedirectResponse("/", status_code=302)
     tipos_filter = (tipo,) if tipo else None
     movimentos = sistema.get_historico_global(
         filtro=filtro,
@@ -351,8 +374,12 @@ async def financeiro(
 # =============================================================================
 @app.get("/compras", response_class=HTMLResponse)
 async def compras_list(request: Request):
-    if not _user(request):
+    u = _user(request)
+    if not u:
         return _redirect_login()
+    if not u.get("can_access_compras", 1):
+        _flash(request, "Sem permissão para acessar Compras.", "danger")
+        return RedirectResponse("/", status_code=302)
     listas = sistema.get_listas_resumo()
     return templates.TemplateResponse(
         request,
@@ -368,7 +395,7 @@ async def compras_list(request: Request):
 @app.post("/compras")
 async def compras_create(request: Request):
     u = _user(request)
-    if not u:
+    if not u or not u.get("can_access_compras", 1):
         return _redirect_login()
     lista_id = sistema.criar_lista_compras(u["username"])
     return RedirectResponse(f"/compras/{lista_id}", status_code=302)
@@ -376,7 +403,8 @@ async def compras_create(request: Request):
 
 @app.get("/compras/{lista_id}", response_class=HTMLResponse)
 async def compras_detalhe(request: Request, lista_id: int):
-    if not _user(request):
+    u = _user(request)
+    if not u or not u.get("can_access_compras", 1):
         return _redirect_login()
     listas = sistema.get_listas_resumo()
     lista = next((item for item in listas if item["id"] == lista_id), None)
@@ -434,8 +462,12 @@ async def compras_fechar(request: Request, lista_id: int):
 # =============================================================================
 @app.get("/relatorios", response_class=HTMLResponse)
 async def relatorios(request: Request, doc: str = "", mes: str = ""):
-    if not _user(request):
+    u = _user(request)
+    if not u:
         return _redirect_login()
+    if not u.get("can_access_relatorios", 1):
+        _flash(request, "Sem permissão para acessar Relatórios.", "danger")
+        return RedirectResponse("/", status_code=302)
     inadimplentes = sistema.buscar_filtrado("", "vencidos")
     extrato: list = []
     hospede_extrato = None
@@ -501,11 +533,12 @@ async def ajustes_usuario_salvar(
     is_admin: str = Form("0"),
     can_change_dates: str = Form("0"),
     can_manage_products: str = Form("0"),
-    can_access_hospedes: str = Form("1"),
-    can_access_financeiro: str = Form("1"),
-    can_access_compras: str = Form("1"),
-    can_access_dash: str = Form("1"),
-    can_access_relatorios: str = Form("1"),
+    can_access_hospedes: str = Form("0"),
+    can_access_financeiro: str = Form("0"),
+    can_access_compras: str = Form("0"),
+    can_access_dash: str = Form("0"),
+    can_access_relatorios: str = Form("0"),
+    can_access_treinamento: str = Form("0"),
 ):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -522,6 +555,7 @@ async def ajustes_usuario_salvar(
             can_access_compras=bool(int(can_access_compras)),
             can_access_dash=bool(int(can_access_dash)),
             can_access_relatorios=bool(int(can_access_relatorios)),
+            can_access_treinamento=bool(int(can_access_treinamento)),
             usuario_acao=u["username"],
         )
         _flash(request, f"Usuário '{username}' salvo com sucesso.", "success")
@@ -538,11 +572,12 @@ async def ajustes_usuario_editar(
     is_admin: str = Form("0"),
     can_change_dates: str = Form("0"),
     can_manage_products: str = Form("0"),
-    can_access_hospedes: str = Form("1"),
-    can_access_financeiro: str = Form("1"),
-    can_access_compras: str = Form("1"),
-    can_access_dash: str = Form("1"),
-    can_access_relatorios: str = Form("1"),
+    can_access_hospedes: str = Form("0"),
+    can_access_financeiro: str = Form("0"),
+    can_access_compras: str = Form("0"),
+    can_access_dash: str = Form("0"),
+    can_access_relatorios: str = Form("0"),
+    can_access_treinamento: str = Form("0"),
 ):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -561,6 +596,7 @@ async def ajustes_usuario_editar(
                 can_access_compras=bool(int(can_access_compras)),
                 can_access_dash=bool(int(can_access_dash)),
                 can_access_relatorios=bool(int(can_access_relatorios)),
+                can_access_treinamento=bool(int(can_access_treinamento)),
                 usuario_acao=u["username"],
             )
         else:
@@ -575,6 +611,7 @@ async def ajustes_usuario_editar(
                 can_access_compras=int(can_access_compras),
                 can_access_dash=int(can_access_dash),
                 can_access_relatorios=int(can_access_relatorios),
+                can_access_treinamento=int(can_access_treinamento),
                 usuario_acao=u["username"],
             )
         _flash(request, f"Usuário '{username}' atualizado.", "success")

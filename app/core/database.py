@@ -175,6 +175,13 @@ MIGRATIONS = [
         "ALTER TABLE usuarios ADD COLUMN can_access_dash INTEGER DEFAULT 1",
         "ALTER TABLE usuarios ADD COLUMN can_access_relatorios INTEGER DEFAULT 1",
     ],
+    # -------------------------------------------------------------------------
+    # Versão 9: Acesso ao módulo de treinamento
+    # DEFAULT 1 = acesso liberado, para não quebrar usuários existentes.
+    # -------------------------------------------------------------------------
+    [
+        "ALTER TABLE usuarios ADD COLUMN can_access_treinamento INTEGER DEFAULT 1",
+    ],
 ]
 
 

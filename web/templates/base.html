@@ -105,7 +105,7 @@
         {% endif %}
         #}
 
-        {% if user %}
+        {% if user and user.get('can_access_treinamento', 1) %}
         <li class="nav-item">
           <a href="/treinamento" class="nav-link {% if active == 'treinamento' %}active{% endif %}">
             <span class="nav-icon" style="background:rgba(246,201,14,.18);color:#b8860b"><i class="bi bi-joystick"></i></span>

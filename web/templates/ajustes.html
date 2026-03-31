@@ -253,6 +253,7 @@
                     {% if u.get('can_access_compras', 1) %}{% set _ = mods.append('Comp') %}{% endif %}
                     {% if u.get('can_access_dash', 1) %}{% set _ = mods.append('Dash') %}{% endif %}
                     {% if u.get('can_access_relatorios', 1) %}{% set _ = mods.append('Rel') %}{% endif %}
+                    {% if u.get('can_access_treinamento', 1) %}{% set _ = mods.append('Trei') %}{% endif %}
                     {{ mods|join(', ') or '—' }}
                   </td>
                   <td>
@@ -318,7 +319,8 @@
                               ('can_access_hospedes','Hóspedes'),
                               ('can_access_financeiro','Financeiro'),
                               ('can_access_compras','Compras'),
-                              ('can_access_relatorios','Relatórios')
+                              ('can_access_relatorios','Relatórios'),
+                              ('can_access_treinamento','Treinamento')
                             ] %}
                             <div class="col-6">
                               <div class="form-check">
@@ -389,7 +391,8 @@
                 ('can_access_hospedes','Hóspedes'),
                 ('can_access_financeiro','Financeiro'),
                 ('can_access_compras','Compras'),
-                ('can_access_relatorios','Relatórios')
+                ('can_access_relatorios','Relatórios'),
+                ('can_access_treinamento','Treinamento')
               ] %}
               <div class="col-6">
                 <div class="form-check">

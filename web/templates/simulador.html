@@ -12,7 +12,7 @@
   --sidebar-bg:#2d3748;--sidebar-text:#a0aec0;--sidebar-active:#00b4b4;--sidebar-hover:#3d4f66;
   --pink:#e91e8c;--border:#e0e0e0;--text:#333;--muted:#777;--bg:#f4f6f8;--surface:#fff;
   --card-ocupado:#e57373;--card-disponivel:#81c784;--card-reservado:#9575cd;
-  --card-limpeza:#78909c;--card-bloqueado:#90a4ae;
+  --card-limpeza:#78909c;--card-bloqueado:#1a1a1a;
 }
 html,body{height:100%}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;display:flex;flex-direction:column;height:100%}
@@ -60,7 +60,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .sb-disp    {background:#dcfce7;color:#15803d}
 .sb-ocup    {background:#fee2e2;color:#b91c1c}
 .sb-limp    {background:#78909c;color:#fff}
-.sb-bloq    {background:#475569;color:#f1f5f9}
+.sb-bloq    {background:#1a1a1a;color:#f1f5f9}
 .sb-sep     {color:#d1d5db;margin:0 4px;font-size:16px}
 .sb-entra   {background:#00b4b4;color:white}
 .sb-sai     {background:#fbbf24;color:#78350f}
@@ -314,6 +314,9 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
     <button title="Mais opções"><i class="bi bi-three-dots-vertical"></i></button>
   </div>
   <div class="topbar-right">
+    <a href="/" title="Sair do simulador" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);text-decoration:none;font-size:12px;font-weight:600;transition:background .15s" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+      <i class="bi bi-box-arrow-left" style="font-size:14px"></i> Sair do Simulador
+    </a>
     <div class="topbar-avatar">H</div>
     Hotel Santos <i class="bi bi-caret-down-fill" style="font-size:10px;color:#aaa"></i>
     <span class="badge-mode"><i class="bi bi-joystick"></i> SIMULADOR DE TREINO</span>

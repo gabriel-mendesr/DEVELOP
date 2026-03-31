@@ -144,6 +144,11 @@ class SistemaCreditos:
         self.cursor.execute("SELECT * FROM usuarios")
         return [dict(r) for r in self.cursor.fetchall()]
 
+    def get_usuario(self, username: str) -> dict | None:
+        self.cursor.execute("SELECT * FROM usuarios WHERE username = ?", (username,))
+        row = self.cursor.fetchone()
+        return dict(row) if row else None
+
     def salvar_usuario(
         self,
         username: str,
@@ -156,6 +161,7 @@ class SistemaCreditos:
         can_access_compras: bool = True,
         can_access_dash: bool = True,
         can_access_relatorios: bool = True,
+        can_access_treinamento: bool = True,
         usuario_acao: str = "Sistema",
     ) -> None:
         salt = secrets.token_hex(16)
@@ -165,8 +171,8 @@ class SistemaCreditos:
                 "INSERT OR REPLACE INTO usuarios "
                 "(username, password, is_admin, can_change_dates, can_manage_products, "
                 "can_access_hospedes, can_access_financeiro, can_access_compras, "
-                "can_access_dash, can_access_relatorios, salt) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "can_access_dash, can_access_relatorios, can_access_treinamento, salt) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     username,
                     password_hash,
@@ -178,6 +184,7 @@ class SistemaCreditos:
                     int(can_access_compras),
                     int(can_access_dash),
                     int(can_access_relatorios),
+                    int(can_access_treinamento),
                     salt,
                 ),
             )
@@ -194,6 +201,7 @@ class SistemaCreditos:
         can_access_compras: int,
         can_access_dash: int,
         can_access_relatorios: int,
+        can_access_treinamento: int,
         usuario_acao: str = "Sistema",
     ) -> None:
         with self.conn:
@@ -201,7 +209,8 @@ class SistemaCreditos:
                 """UPDATE usuarios SET
                     is_admin=?, can_change_dates=?, can_manage_products=?,
                     can_access_hospedes=?, can_access_financeiro=?,
-                    can_access_compras=?, can_access_dash=?, can_access_relatorios=?
+                    can_access_compras=?, can_access_dash=?, can_access_relatorios=?,
+                    can_access_treinamento=?
                    WHERE username=?""",
                 (
                     is_admin,
@@ -212,6 +221,7 @@ class SistemaCreditos:
                     can_access_compras,
                     can_access_dash,
                     can_access_relatorios,
+                    can_access_treinamento,
                     username,
                 ),
             )
