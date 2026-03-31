@@ -239,9 +239,55 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
 .dicas-card{padding:14px 16px}
 .dicas-title{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
 .dicas-text{font-size:13px;color:var(--muted);line-height:1.6}
-.top-btns{display:flex;gap:8px;padding:14px 20px 0;flex-shrink:0}
+.top-btns{display:flex;gap:8px;padding:14px 20px 0;flex-shrink:0;align-items:flex-start}
 .btn-emitir,.btn-adicionar{background:var(--teal);color:white;padding:7px 14px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit}
 .btn-emitir:hover,.btn-adicionar:hover{background:var(--teal-dark)}
+.add-menu-wrap{position:relative}
+.add-menu{position:absolute;top:calc(100% + 4px);left:0;background:white;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:300;min-width:180px;overflow:hidden;display:none}
+.add-menu.open{display:block}
+.add-menu-section{padding:8px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.add-menu-item{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:9px;color:var(--text);transition:background .1s}
+.add-menu-item:hover{background:#f0fafa;color:var(--teal)}
+.add-menu-item i{color:var(--teal);font-size:14px}
+/* ── PAYMENT MODAL ── */
+.pag-modal-box{width:680px;max-width:95vw}
+.pag-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.pag-desc-row{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.pag-desc-row input{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none}
+.pag-desc-row input:focus{border-color:var(--teal)}
+.pag-conc-wrap{display:flex;align-items:center;gap:8px;white-space:nowrap;font-size:13px;color:var(--text);flex-shrink:0}
+.pag-row{display:grid;gap:16px;margin-bottom:14px}
+.pag-row-2{grid-template-columns:1fr 1fr}
+.pag-row-3{grid-template-columns:1fr 1fr 1fr}
+.pag-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.pag-label .req{color:var(--pink)}
+.pag-select,.pag-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none;background:var(--surface)}
+.pag-select:focus,.pag-input:focus{border-color:var(--teal)}
+.pag-select.err-field{border-color:#f44336}
+.err-msg{font-size:11px;color:#f44336;margin-top:3px}
+.pag-valor-row{display:flex;align-items:center;gap:16px;margin-bottom:6px}
+.pag-valor-wrap{display:flex;align-items:center;border:1px solid var(--border);border-radius:6px;overflow:hidden;width:160px}
+.pag-valor-prefix{padding:8px 10px;background:#f5f5f5;font-size:13px;color:var(--muted);border-right:1px solid var(--border);font-weight:600}
+.pag-valor-inp{border:none;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;width:100px}
+.pag-falta{font-size:13px;color:var(--muted);margin-bottom:14px}
+.pag-falta span{font-weight:600;color:var(--text)}
+.pag-expand-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid #f0f0f0;font-size:13px;color:var(--teal);cursor:pointer}
+.pag-expand-row i{font-size:14px}
+.pag-footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:14px;margin-top:6px}
+.pag-link{background:none;border:none;color:var(--teal);font-size:13px;cursor:pointer;font-family:inherit;padding:0}
+.pag-link:hover{text-decoration:underline}
+/* ── MINI HOSPEDE MODAL ── */
+.mini-hosp-box{width:480px;max-width:95vw}
+.mh-field{margin-bottom:12px}
+.mh-label{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.mh-label .req{color:var(--pink)}
+.mh-input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;outline:none}
+.mh-input:focus{border-color:var(--teal)}
+.mh-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.mh-phone-wrap{display:flex;gap:6px}
+.mh-phone-cc{display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;white-space:nowrap;background:var(--surface);font-family:inherit;color:var(--text);cursor:default}
+.mh-footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;border-top:1px solid var(--border);padding-top:14px;margin-top:6px}
+.btn-finalizar{background:var(--pink);color:white}.btn-finalizar:hover{background:#c41677}
 
 /* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center}
@@ -610,8 +656,18 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
         <span style="color:var(--text);font-weight:600">ATUALIZAR RESERVA</span>
       </div>
       <div class="top-btns">
-        <button class="btn-emitir"><i class="bi bi-printer"></i> Emitir <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
-        <button class="btn-adicionar"><i class="bi bi-plus-lg"></i> Adicionar <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
+        <button class="btn-emitir" onclick="showToast('Emitir — em simulação','info')"><i class="bi bi-printer"></i> Emitir <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
+        <div class="add-menu-wrap">
+          <button class="btn-adicionar" onclick="toggleAddMenu()"><i class="bi bi-plus-lg"></i> Adicionar <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
+          <div class="add-menu" id="add-menu">
+            <div class="add-menu-section">Transações</div>
+            <div class="add-menu-item" onclick="closeAddMenu();openPagamento()"><i class="bi bi-plus-circle"></i> Pagamento</div>
+            <div class="add-menu-item" onclick="closeAddMenu();showToast('Desconto — em simulação','info')"><i class="bi bi-dash-circle"></i> Desconto</div>
+            <div class="add-menu-section">Outros</div>
+            <div class="add-menu-item" onclick="closeAddMenu();showToast('Produtos e serviços — em simulação','info')"><i class="bi bi-cart3"></i> Produtos e serviços</div>
+            <div class="add-menu-item" onclick="closeAddMenu();openMiniHospede()"><i class="bi bi-people"></i> Hóspedes</div>
+          </div>
+        </div>
       </div>
       <div class="form-page-body" style="padding-top:14px">
         <div class="form-main">
@@ -691,6 +747,9 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
               <button class="btn btn-hospedar" id="btn-hospedar-at" onclick="fazerCheckin()" style="display:none">
                 <i class="bi bi-box-arrow-in-right"></i> Hospedar
               </button>
+              <button class="btn btn-finalizar" id="btn-finalizar-at" onclick="finalizarHospedagem()" style="display:none">
+                <i class="bi bi-box-arrow-right"></i> Finalizar
+              </button>
               <button class="btn btn-atualizar" onclick="atualizarReserva()">
                 <i class="bi bi-arrow-repeat"></i> Atualizar Reserva
               </button>
@@ -749,6 +808,129 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
       <button class="btn btn-secondary" onclick="closeDatePicker()">Cancelar</button>
       <button class="btn btn-atualizar" onclick="confirmDate()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOVO PAGAMENTO -->
+<div class="modal-overlay" id="pag-modal">
+  <div class="modal-box pag-modal-box">
+    <div class="pag-title-row">
+      <span style="font-weight:700;font-size:15px">Novo pagamento</span>
+      <button class="modal-close" onclick="closePagamento()">×</button>
+    </div>
+    <div class="pag-desc-row">
+      <input type="text" id="pag-desc" placeholder="Descrição" autocomplete="off">
+      <div class="pag-conc-wrap">
+        <label class="nh-toggle" style="vertical-align:middle">
+          <input type="checkbox" id="pag-conc" checked>
+          <span class="nh-toggle-slider"></span>
+        </label>
+        Concluído?
+      </div>
+    </div>
+    <div class="pag-row pag-row-2">
+      <div>
+        <div class="pag-label"><span class="req">* </span>Forma</div>
+        <select class="pag-select" id="pag-forma" onchange="this.classList.remove('err-field');document.getElementById('pag-forma-err').textContent=''">
+          <option value="">» selecione uma forma «</option>
+          <option>Dinheiro</option>
+          <option>Cartão de Crédito</option>
+          <option>Cartão de Débito</option>
+          <option>Boleto Bancário</option>
+          <option>Depósito Bancário</option>
+          <option>Cheque</option>
+          <option>Bitcoin</option>
+          <option>Transferência Bancária</option>
+        </select>
+        <div class="err-msg" id="pag-forma-err"></div>
+      </div>
+      <div>
+        <div class="pag-label"><span class="req">* </span>Conta</div>
+        <select class="pag-select" id="pag-conta">
+          <option>Caixa Diário</option>
+          <option>Conta Bancária</option>
+        </select>
+      </div>
+    </div>
+    <div class="pag-row pag-row-3">
+      <div>
+        <div class="pag-label"><span class="req">* </span>Categoria</div>
+        <select class="pag-select" id="pag-cat">
+          <option>Hospedagem</option>
+          <option>Bebidas</option>
+          <option>Reserva</option>
+          <option>Outros</option>
+        </select>
+      </div>
+      <div>
+        <div class="pag-label"><span class="req">* </span>Emissão</div>
+        <input type="date" class="pag-input" id="pag-emissao">
+      </div>
+      <div>
+        <div class="pag-label"><span class="req">* </span>Vencimento</div>
+        <input type="date" class="pag-input" id="pag-vencto">
+      </div>
+    </div>
+    <div class="pag-label"><span class="req">* </span>Valor</div>
+    <div class="pag-valor-row">
+      <div class="pag-valor-wrap">
+        <span class="pag-valor-prefix">R$</span>
+        <input type="number" class="pag-valor-inp" id="pag-valor" value="0.00" min="0" step="0.01">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <label class="nh-toggle">
+          <input type="checkbox" id="pag-parcelar">
+          <span class="nh-toggle-slider"></span>
+        </label>
+        Parcelar
+      </label>
+    </div>
+    <div class="pag-falta" id="pag-falta-txt">Falta lançar: <span>R$ 0,00</span></div>
+    <div class="pag-expand-row"><i class="bi bi-plus-circle"></i> Anexos (0) <i class="bi bi-info-circle" style="font-size:13px;color:var(--muted)"></i></div>
+    <div class="pag-expand-row"><i class="bi bi-plus-circle"></i> Outras informações</div>
+    <div class="pag-footer">
+      <button class="pag-link" onclick="showToast('Ver pagamentos — em simulação','info')">ver pagamentos e descontos</button>
+      <button class="btn btn-atualizar" onclick="adicionarPagamento()"><i class="bi bi-check-lg"></i> Adicionar pagamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MINI HÓSPEDE -->
+<div class="modal-overlay" id="mini-hosp-modal">
+  <div class="modal-box mini-hosp-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <span style="font-weight:700;font-size:15px">Novo hóspede</span>
+      <button class="modal-close" onclick="closeMiniHospede()">×</button>
+    </div>
+    <div class="mh-field">
+      <div class="mh-label"><span class="req">* </span>Nome completo</div>
+      <input type="text" class="mh-input" id="mh-nome" autocomplete="off">
+    </div>
+    <div class="mh-field">
+      <div class="mh-label">E-mail</div>
+      <input type="email" class="mh-input" id="mh-email" autocomplete="off">
+    </div>
+    <div class="mh-row-2">
+      <div>
+        <div class="mh-label">Fone</div>
+        <div class="mh-phone-wrap">
+          <span class="mh-phone-cc">🇧🇷 +55</span>
+          <input type="tel" class="mh-input" id="mh-fone" placeholder="(__) _____-____" oninput="maskFone(this)" style="flex:1" autocomplete="off">
+        </div>
+      </div>
+      <div>
+        <div class="mh-label">CPF</div>
+        <input type="text" class="mh-input" id="mh-cpf" placeholder="___.___.___-__" maxlength="14" oninput="maskCPF(this)" autocomplete="off">
+      </div>
+    </div>
+    <div class="mh-field">
+      <div class="mh-label">Passaporte</div>
+      <input type="text" class="mh-input" id="mh-passaporte" autocomplete="off">
+    </div>
+    <div class="mh-footer">
+      <button class="pag-link" onclick="closeMiniHospede();openNovoHospede(nhMiniTarget)">Cadastro completo</button>
+      <button class="btn btn-atualizar" onclick="salvarMiniHospede()"><i class="bi bi-check-lg"></i> Adicionar Hóspede</button>
     </div>
   </div>
 </div>
@@ -1112,6 +1294,7 @@ function openAtualizar(roomId){
   document.getElementById('res-recebido').textContent=fmtMoney(room.recebido||0);
   document.getElementById('at-falta-val').textContent=fmtMoney(total-(room.recebido||0));
   document.getElementById('btn-hospedar-at').style.display=isReservado?'inline-flex':'none';
+  document.getElementById('btn-finalizar-at').style.display=isHospedado?'inline-flex':'none';
   setNavActive('nav-reservas');
   showPage('page-atualizar');
 }
@@ -1173,6 +1356,102 @@ function confirmDate(){
   const fmt=d=>{const[y,m,day]=d.split('-');return`${day}/${m}/${y}`};
   document.getElementById(dpTarget+'-periodo').value=`${fmt(ci)} - ${fmt(co)}`;
   closeDatePicker();
+}
+
+// ─── FINALIZAR HOSPEDAGEM ────────────────────────────────────────────────────
+function finalizarHospedagem(){
+  const room = rooms.find(r=>r.id===activeRoomId);
+  room.status='limpeza';
+  room.guestId=null; room.guestNome=null;
+  room.checkin=null; room.checkout=null;
+  room.reservaNum=null; room.recebido=0; room.pago=false;
+  room.criado=null; room.alterado=null;
+  showToast(`✓ Check-out realizado — ${room.nome} em limpeza`,'ok');
+  goHome();
+}
+
+// ─── ADD MENU ────────────────────────────────────────────────────────────────
+function toggleAddMenu(){
+  const m=document.getElementById('add-menu');
+  m.classList.toggle('open');
+}
+function closeAddMenu(){ document.getElementById('add-menu').classList.remove('open') }
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.add-menu-wrap')) closeAddMenu();
+});
+
+// ─── NOVO PAGAMENTO ───────────────────────────────────────────────────────────
+function openPagamento(){
+  const room = rooms.find(r=>r.id===activeRoomId);
+  const gNome = roomGuestNome(room)||'';
+  const desc = `${room.reservaNum||'HO:------'} - ${room.nome} - ${gNome}`;
+  document.getElementById('pag-desc').value = desc;
+  document.getElementById('pag-forma').value = '';
+  document.getElementById('pag-forma').classList.remove('err-field');
+  document.getElementById('pag-forma-err').textContent = '';
+  document.getElementById('pag-conta').value = 'Caixa Diário';
+  document.getElementById('pag-cat').value = 'Hospedagem';
+  document.getElementById('pag-emissao').value = TODAY;
+  document.getElementById('pag-vencto').value = TODAY;
+  document.getElementById('pag-valor').value = '0.00';
+  document.getElementById('pag-conc').checked = true;
+  document.getElementById('pag-parcelar').checked = false;
+  const dias = calcDias(room.checkin, room.checkout);
+  const total = dias * room.diaria;
+  const falta = total - (room.recebido||0);
+  document.getElementById('pag-falta-txt').innerHTML = `Falta lançar: <span>${fmtMoney(falta)}</span>`;
+  document.getElementById('pag-modal').classList.add('open');
+}
+function closePagamento(){ document.getElementById('pag-modal').classList.remove('open') }
+function adicionarPagamento(){
+  const forma = document.getElementById('pag-forma').value;
+  if(!forma){
+    document.getElementById('pag-forma').classList.add('err-field');
+    document.getElementById('pag-forma-err').textContent='Este campo é obrigatório';
+    return;
+  }
+  const valor = parseFloat(document.getElementById('pag-valor').value||0);
+  const room = rooms.find(r=>r.id===activeRoomId);
+  room.recebido = (room.recebido||0) + valor;
+  if(room.recebido >= calcDias(room.checkin,room.checkout)*room.diaria) room.pago=true;
+  closePagamento();
+  showToast(`✓ Pagamento de ${fmtMoney(valor)} via ${forma} registrado`,'ok');
+  openAtualizar(activeRoomId);
+}
+
+// ─── MINI HÓSPEDE ─────────────────────────────────────────────────────────────
+let nhMiniTarget = null;
+function openMiniHospede(){
+  nhMiniTarget = activeRoomId ? 'at' : null;
+  ['mh-nome','mh-email','mh-fone','mh-cpf','mh-passaporte'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('mini-hosp-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('mh-nome').focus(),80);
+}
+function closeMiniHospede(){ document.getElementById('mini-hosp-modal').classList.remove('open') }
+function salvarMiniHospede(){
+  const nome = document.getElementById('mh-nome').value.trim();
+  if(!nome){ showToast('Informe o nome completo','err'); document.getElementById('mh-nome').focus(); return; }
+  const g = {
+    id: guests.length ? Math.max(...guests.map(x=>x.id))+1 : 1,
+    nome: nome.toUpperCase(),
+    email: document.getElementById('mh-email').value.trim(),
+    cpf:   document.getElementById('mh-cpf').value.trim(),
+    tel:   document.getElementById('mh-fone').value.trim(),
+    passaporte: document.getElementById('mh-passaporte').value.trim(),
+    ativo: true, pais:'Brasil',
+    rg:'',empresa:'',nascimento:'',sexo:'',profissao:'',obs:'',
+    telExtra:'',cep:'',endereco:'',numero:'',complemento:'',bairro:'',cidade:'',estado:'',
+  };
+  guests.push(g);
+  closeMiniHospede();
+  showToast(`✓ Hóspede "${g.nome}" adicionado`,'ok');
+  // se veio da reserva, seleciona o hóspede
+  if(nhMiniTarget==='at' && activeRoomId){
+    document.getElementById('at-hospede-search').value = g.nome;
+    document.getElementById('at-hospede-id').value = g.id;
+  }
 }
 
 // ─── MISC ─────────────────────────────────────────────────────────────────────
