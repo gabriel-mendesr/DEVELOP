@@ -1304,7 +1304,7 @@ class AppHotelLTS(ctk.CTk):
         if not item:
             return
         self.tree_z.selection_set(item)
-        id_mov, tp, val, dt_mov, *_ = self.tree_z.item(item)["values"]  # type: ignore[misc]
+        id_mov, tp, val, dt_mov, *_ = self.tree_z.item(item)["values"]  # type: ignore[str-unpack]
         if tp != "ENTRADA":
             return
         jan = ctk.CTkToplevel(self)
