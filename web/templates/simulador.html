@@ -12,7 +12,7 @@
   --sidebar-bg:#2d3748;--sidebar-text:#a0aec0;--sidebar-active:#00b4b4;--sidebar-hover:#3d4f66;
   --pink:#e91e8c;--border:#e0e0e0;--text:#333;--muted:#777;--bg:#f4f6f8;--surface:#fff;
   --card-ocupado:#e57373;--card-disponivel:#81c784;--card-reservado:#9575cd;
-  --card-limpeza:#ffb74d;--card-bloqueado:#90a4ae;
+  --card-limpeza:#78909c;--card-bloqueado:#90a4ae;
 }
 html,body{height:100%}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;display:flex;flex-direction:column;height:100%}
@@ -59,7 +59,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .sb-todos   {background:#e2e8f0;color:#475569}
 .sb-disp    {background:#dcfce7;color:#15803d}
 .sb-ocup    {background:#fee2e2;color:#b91c1c}
-.sb-limp    {background:#1e293b;color:#e2e8f0}
+.sb-limp    {background:#78909c;color:#fff}
 .sb-bloq    {background:#475569;color:#f1f5f9}
 .sb-sep     {color:#d1d5db;margin:0 4px;font-size:16px}
 .sb-entra   {background:#00b4b4;color:white}
@@ -661,11 +661,11 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
           <button class="btn-adicionar" onclick="toggleAddMenu()"><i class="bi bi-plus-lg"></i> Adicionar <i class="bi bi-caret-down-fill" style="font-size:9px"></i></button>
           <div class="add-menu" id="add-menu">
             <div class="add-menu-section">Transações</div>
-            <div class="add-menu-item" onclick="closeAddMenu();openPagamento()"><i class="bi bi-plus-circle"></i> Pagamento</div>
-            <div class="add-menu-item" onclick="closeAddMenu();showToast('Desconto — em simulação','info')"><i class="bi bi-dash-circle"></i> Desconto</div>
+            <div class="add-menu-item" onclick="event.stopPropagation();closeAddMenu();openPagamento()"><i class="bi bi-plus-circle"></i> Pagamento</div>
+            <div class="add-menu-item" onclick="event.stopPropagation();closeAddMenu();showToast('Desconto — em simulação','info')"><i class="bi bi-dash-circle"></i> Desconto</div>
             <div class="add-menu-section">Outros</div>
-            <div class="add-menu-item" onclick="closeAddMenu();showToast('Produtos e serviços — em simulação','info')"><i class="bi bi-cart3"></i> Produtos e serviços</div>
-            <div class="add-menu-item" onclick="closeAddMenu();openMiniHospede()"><i class="bi bi-people"></i> Hóspedes</div>
+            <div class="add-menu-item" onclick="event.stopPropagation();closeAddMenu();openProdModal()"><i class="bi bi-cart3"></i> Produtos e serviços</div>
+            <div class="add-menu-item" onclick="event.stopPropagation();closeAddMenu();openMiniHospede()"><i class="bi bi-people"></i> Hóspedes</div>
           </div>
         </div>
       </div>
@@ -780,6 +780,50 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
               <span class="ativ-title">Atividades na Reserva</span>
               <i class="bi bi-plus-lg" style="color:var(--muted);cursor:pointer"></i>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: EM LIMPEZA ═══ -->
+    <div class="page-view" id="page-limpeza">
+      <div class="breadcrumb">
+        <a onclick="goHome()">HOME</a>
+        <i class="bi bi-chevron-right" style="font-size:10px;color:#ccc"></i>
+        <span style="color:var(--text);font-weight:600" id="limp-breadcrumb">EM LIMPEZA</span>
+      </div>
+      <div class="form-page-body">
+        <div class="form-main">
+          <div class="card">
+            <div class="card-header" style="background:#78909c">
+              <span class="card-title" id="limp-nome" style="color:white;font-size:14px"></span>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col" style="color:var(--muted)">Status</div>
+              <div class="form-control-col">
+                <span class="sit-badge" style="background:#78909c">em limpeza</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col" style="color:var(--muted)">Tipo</div>
+              <div class="form-control-col" id="limp-tipo" style="font-size:13px;color:var(--text)"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-label-col" style="color:var(--muted)">Observação</div>
+              <div class="form-control-col"><textarea class="form-textarea" id="limp-obs" style="width:100%"></textarea></div>
+            </div>
+            <div class="action-bar">
+              <button class="btn btn-secondary" onclick="goHome()"><i class="bi bi-arrow-left"></i> Voltar</button>
+              <button class="btn btn-atualizar" onclick="concluirLimpeza()">
+                <i class="bi bi-check2-circle"></i> Concluir limpeza
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="form-side">
+          <div class="dicas-card">
+            <div class="dicas-title">Dicas</div>
+            <div class="dicas-text">Após concluir a limpeza, o quarto voltará ao status <strong>Disponível</strong> e poderá receber novas hospedagens.</div>
           </div>
         </div>
       </div>
@@ -935,6 +979,45 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
   </div>
 </div>
 
+<!-- MODAL: PRODUTOS E SERVIÇOS -->
+<div class="modal-overlay" id="prod-modal">
+  <div class="modal-box" style="width:420px;max-width:95vw">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <span style="font-weight:700;font-size:15px">Novo produto ou serviço</span>
+      <button class="modal-close" onclick="closeProdModal()">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:16px">
+      <div>
+        <div class="pag-label"><span class="req">* </span>Item</div>
+        <div style="position:relative">
+          <div class="pag-select" id="prod-item-display" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none" onclick="toggleProdDropdown()">
+            <span id="prod-item-text" style="color:var(--muted)">Por favor selecione</span>
+            <i class="bi bi-chevron-up" id="prod-chevron" style="font-size:11px;color:var(--muted)"></i>
+          </div>
+          <div id="prod-dropdown" style="position:absolute;left:0;right:0;top:100%;background:white;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;box-shadow:0 4px 12px rgba(0,0,0,.1);z-index:10;display:block">
+            <input type="text" id="prod-search" placeholder="" autocomplete="off"
+              style="width:100%;padding:7px 10px;border:none;border-bottom:1px solid var(--border);outline:none;font-size:13px;font-family:inherit"
+              oninput="filterProdItems()">
+            <div id="prod-list" style="max-height:180px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="pag-label"><span class="req">* </span>Quantidade</div>
+        <div class="num-wrap" style="width:90px">
+          <button class="num-btn" onclick="changeNum('prod-qty',-1)">−</button>
+          <input class="num-inp" id="prod-qty" value="1" type="number" min="1">
+          <button class="num-btn" onclick="changeNum('prod-qty',1)">+</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border);padding-top:14px">
+      <button class="btn btn-secondary" onclick="adicionarProduto(true)">Salvar e criar outro</button>
+      <button class="btn btn-atualizar" onclick="adicionarProduto(false)"><i class="bi bi-check-lg"></i> Adicionar Item</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast-wrap" id="toasts"></div>
 
@@ -1038,7 +1121,7 @@ function cardTopClick(roomId){
   if(!r) return;
   if(r.status==='disponivel') openNovaReserva(roomId);
   else if(r.status==='ocupado'||r.status==='reservado') openAtualizar(roomId);
-  else if(r.status==='limpeza') showToast(`${r.nome} — em limpeza`,'info');
+  else if(r.status==='limpeza') openLimpeza(roomId);
   else showToast(`${r.nome} — bloqueado`,'info');
 }
 
@@ -1378,6 +1461,11 @@ function toggleAddMenu(){
 function closeAddMenu(){ document.getElementById('add-menu').classList.remove('open') }
 document.addEventListener('click', e=>{
   if(!e.target.closest('.add-menu-wrap')) closeAddMenu();
+  if(!e.target.closest('#prod-item-display') && !e.target.closest('#prod-dropdown') && prodDropOpen){
+    prodDropOpen=false;
+    const dd=document.getElementById('prod-dropdown');
+    if(dd) { dd.style.display='none'; document.getElementById('prod-chevron').className='bi bi-chevron-down'; }
+  }
 });
 
 // ─── NOVO PAGAMENTO ───────────────────────────────────────────────────────────
@@ -1451,6 +1539,97 @@ function salvarMiniHospede(){
   if(nhMiniTarget==='at' && activeRoomId){
     document.getElementById('at-hospede-search').value = g.nome;
     document.getElementById('at-hospede-id').value = g.id;
+  }
+}
+
+// ─── EM LIMPEZA PAGE ─────────────────────────────────────────────────────────
+let limpezaRoomId = null;
+function openLimpeza(roomId){
+  limpezaRoomId = roomId;
+  const r = rooms.find(x=>x.id===roomId);
+  document.getElementById('limp-nome').textContent = r.nome.toUpperCase();
+  document.getElementById('limp-breadcrumb').textContent = r.nome.toUpperCase();
+  document.getElementById('limp-tipo').textContent = r.tipo;
+  document.getElementById('limp-obs').value = '';
+  setNavActive('nav-home');
+  showPage('page-limpeza');
+}
+function concluirLimpeza(){
+  const r = rooms.find(x=>x.id===limpezaRoomId);
+  r.status = 'disponivel';
+  showToast(`✓ Limpeza concluída — ${r.nome} disponível`,'ok');
+  goHome();
+}
+
+// ─── PRODUTOS E SERVIÇOS ──────────────────────────────────────────────────────
+const prodItems = [
+  {nome:'Água COM gás',  estoque:17},
+  {nome:'Água SEM gás',  estoque:19},
+  {nome:'Amendoim',       estoque:5},
+  {nome:'Café',           estoque:30},
+  {nome:'Coca-Cola',      estoque:12},
+  {nome:'Suco de laranja',estoque:8},
+  {nome:'Cerveja',        estoque:24},
+  {nome:'Chocolate',      estoque:15},
+  {nome:'Toalha extra',   estoque:10},
+  {nome:'Amenidades',     estoque:20},
+];
+let selectedProdItem = null;
+let prodDropOpen = false;
+function openProdModal(){
+  selectedProdItem = null;
+  document.getElementById('prod-item-text').textContent = 'Por favor selecione';
+  document.getElementById('prod-item-text').style.color = 'var(--muted)';
+  document.getElementById('prod-qty').value = 1;
+  document.getElementById('prod-search').value = '';
+  prodDropOpen = true;
+  document.getElementById('prod-dropdown').style.display = 'block';
+  document.getElementById('prod-chevron').className = 'bi bi-chevron-up';
+  renderProdItems('');
+  document.getElementById('prod-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('prod-search').focus(),80);
+}
+function closeProdModal(){ document.getElementById('prod-modal').classList.remove('open'); prodDropOpen=false; document.getElementById('prod-dropdown').style.display='none'; }
+function toggleProdDropdown(){
+  prodDropOpen = !prodDropOpen;
+  document.getElementById('prod-dropdown').style.display = prodDropOpen?'block':'none';
+  document.getElementById('prod-chevron').className = prodDropOpen ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+  if(prodDropOpen) setTimeout(()=>document.getElementById('prod-search').focus(),40);
+}
+function filterProdItems(){ renderProdItems(document.getElementById('prod-search').value); }
+function renderProdItems(q){
+  const ql = q.toLowerCase();
+  const list = prodItems.filter(p=>!q||p.nome.toLowerCase().includes(ql));
+  document.getElementById('prod-list').innerHTML = list.map(p=>`
+    <div onclick="selecionarProd('${p.nome}',${p.estoque})"
+         style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5;transition:background .1s;${selectedProdItem===p.nome?'background:#e0f7f7;font-weight:600':''}"
+         onmouseover="this.style.background='#f0fafa'" onmouseout="this.style.background='${selectedProdItem===p.nome?'#e0f7f7':'white'}'">
+      ${p.nome} <span style="color:var(--muted);font-size:11px">(${p.estoque} em estoque)</span>
+    </div>`).join('') || '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Nenhum item encontrado</div>';
+}
+function selecionarProd(nome, estoque){
+  selectedProdItem = nome;
+  document.getElementById('prod-item-text').textContent = `${nome} (${estoque} em estoque)`;
+  document.getElementById('prod-item-text').style.color = 'var(--text)';
+  prodDropOpen = false;
+  document.getElementById('prod-dropdown').style.display = 'none';
+  document.getElementById('prod-chevron').className = 'bi bi-chevron-down';
+}
+function adicionarProduto(criarOutro){
+  if(!selectedProdItem){ showToast('Selecione um item','err'); return; }
+  const qty = parseInt(document.getElementById('prod-qty').value||1);
+  showToast(`✓ ${qty}x ${selectedProdItem} adicionado à reserva`,'ok');
+  if(criarOutro){
+    selectedProdItem = null;
+    document.getElementById('prod-item-text').textContent = 'Por favor selecione';
+    document.getElementById('prod-item-text').style.color = 'var(--muted)';
+    document.getElementById('prod-qty').value = 1;
+    prodDropOpen = true;
+    document.getElementById('prod-dropdown').style.display = 'block';
+    renderProdItems('');
+    setTimeout(()=>document.getElementById('prod-search').focus(),40);
+  } else {
+    closeProdModal();
   }
 }
 
