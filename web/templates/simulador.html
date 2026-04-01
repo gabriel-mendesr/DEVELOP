@@ -335,12 +335,12 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
 .mapa-cat-td{text-align:center;padding:3px 2px;font-size:10px;background:#f8fafc;vertical-align:middle}
 .mapa-cat-td-cnt{font-weight:700;color:#334155;font-size:11px;line-height:1.3}
 .mapa-cat-td-price{color:#94a3b8;font-size:10px}
-.mapa-room-row{height:38px}
-.mapa-cell{padding:0;position:relative;height:38px;cursor:pointer}
+.mapa-room-row{height:40px}
+.mapa-cell{padding:0;position:relative;height:40px;cursor:pointer}
 .mapa-cell-empty:hover{background:#f0fdf4}
 .mapa-cell-plus{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:15px;opacity:0;pointer-events:none;transition:opacity .1s}
 .mapa-cell-empty:hover .mapa-cell-plus{opacity:.6}
-.mapa-bar-td{padding:7px 0;cursor:pointer;vertical-align:middle}
+.mapa-bar-td{padding:8px 0;cursor:pointer;vertical-align:middle;border-left:none;border-right:none}
 .mapa-bar{height:24px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:600;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
 /* context popup */
 .mapa-popup{position:fixed;background:white;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:600;min-width:210px;overflow:hidden;display:none}
@@ -1981,9 +1981,8 @@ function renderMapa(){
           // Is checkout day visible in this month?
           const coVisible = i < dateCols.length && dateCols[i].ds === co;
 
-          // ── start cell: right half, / left edge ──
-          // ── start cell: right half, / left edge (always, even if from prev month) ──
-          tbHtml += `<td class="mapa-bar-td" ${oc}><div class="mapa-bar" style="background:${bg};clip-path:polygon(50% 0%,100% 0%,100% 100%,0% 100%)"></div></td>`;
+          // ── start cell: \ left edge — tip at top-left, widens toward bottom-right ──
+          tbHtml += `<td class="mapa-bar-td" ${oc}><div class="mapa-bar" style="background:${bg};clip-path:polygon(0% 0%,100% 0%,100% 100%,50% 100%)"></div></td>`;
 
           // ── middle cells: full bar with guest name ──
           const midCount = isStart ? bodyCount - 1 : bodyCount - 1;
