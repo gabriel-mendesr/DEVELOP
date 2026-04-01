@@ -302,6 +302,76 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
 .toast.ok{border-left:3px solid #4caf50}.toast.err{border-left:3px solid #f44336}.toast.info{border-left:3px solid var(--teal)}
 @keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+
+/* ── MAPA TIMELINE ────────────────────────────────────────────────────────── */
+.mapa-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.mapa-controls{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.mapa-nav-btn{background:var(--teal);color:white;border:none;width:30px;height:30px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.mapa-nav-btn:hover{background:var(--teal-dark)}
+.mapa-period{font-size:13px;font-weight:600;color:var(--text);min-width:160px;text-align:center}
+.mapa-scroll{flex:1;overflow:auto}
+.mapa-tbl{border-collapse:collapse;min-width:100%}
+.mapa-tbl thead{position:sticky;top:0;z-index:15}
+.mapa-tbl td,.mapa-tbl th{border:1px solid #e8eaed}
+.mapa-th-left{position:sticky;left:0;z-index:25;background:var(--surface);min-width:145px;max-width:145px;width:145px;padding:8px 10px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;vertical-align:bottom}
+.mapa-td-left{position:sticky;left:0;z-index:5;background:var(--surface);min-width:145px;max-width:145px;width:145px;padding:0 10px;font-size:12px;color:var(--text);font-weight:500;border-right:2px solid #d1d5db;white-space:nowrap}
+.mapa-th-date{width:38px;min-width:38px;max-width:38px;padding:0;vertical-align:bottom;text-align:center;background:var(--surface);cursor:default;user-select:none}
+.mapa-th-date.today{background:#fff8f8}
+.mapa-th-date.weekend{background:#fafafa}
+.mapa-date-inner{display:flex;flex-direction:column;align-items:center;padding-bottom:4px}
+.mapa-date-wd{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;padding-top:5px}
+.mapa-date-num{font-size:15px;font-weight:700;color:var(--text);line-height:1.2}
+.mapa-date-mo{font-size:9px;color:var(--muted);text-transform:uppercase}
+.mapa-occ-pct{font-size:10px;font-weight:700;color:white;padding:1px 4px;border-radius:2px;margin:3px 0 0;display:inline-block;background:#94a3b8}
+.mapa-occ-pct.occ-zero{background:#81c784;color:#1b5e20}
+.mapa-occ-pct.occ-high{background:#ef5350;color:white}
+.mapa-hide-events-btn{background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:5px;font-size:10px;padding:3px 7px;cursor:pointer;display:flex;align-items:center;gap:4px;margin-top:5px;font-family:inherit;white-space:nowrap}
+.mapa-hide-events-btn:hover{background:var(--bg)}
+.mapa-cat-row{background:#f1f5f9}
+.mapa-cat-td-left{position:sticky;left:0;z-index:5;background:#f1f5f9;min-width:145px;max-width:145px;padding:5px 10px;border-right:2px solid #d1d5db;cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+.mapa-cat-td-left i{font-size:10px;color:#64748b;transition:transform .2s}
+.mapa-cat-name{font-size:11px;font-weight:700;letter-spacing:.08em;color:#334155;text-transform:uppercase}
+.mapa-cat-badge{font-size:10px;font-weight:700;color:var(--teal);background:#e0f7f7;padding:1px 5px;border-radius:3px;margin-left:auto}
+.mapa-cat-td{text-align:center;padding:3px 2px;font-size:10px;background:#f8fafc;vertical-align:middle}
+.mapa-cat-td-cnt{font-weight:700;color:#334155;font-size:11px;line-height:1.3}
+.mapa-cat-td-price{color:#94a3b8;font-size:10px}
+.mapa-room-row{height:34px}
+.mapa-cell{padding:0;position:relative;height:34px;cursor:pointer}
+.mapa-cell-empty:hover{background:#f0fdf4}
+.mapa-cell-plus{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:15px;opacity:0;pointer-events:none;transition:opacity .1s}
+.mapa-cell-empty:hover .mapa-cell-plus{opacity:.6}
+/* context popup */
+.mapa-popup{position:fixed;background:white;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:600;min-width:210px;overflow:hidden;display:none}
+.mapa-popup.open{display:block}
+.mapa-popup-header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #f0f0f0}
+.mapa-popup-title{font-size:13px;font-weight:600;color:var(--text)}
+.mapa-popup-close{background:none;border:none;color:#aaa;cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
+.mapa-popup-item{padding:10px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:9px;color:var(--text);transition:background .1s}
+.mapa-popup-item:hover{background:#f0fafa;color:var(--teal)}
+.mapa-popup-item i{color:var(--teal);font-size:13px}
+/* mapa nova reserva modal */
+.mnr-box{width:540px;max-width:95vw}
+.mnr-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.mnr-row{display:flex;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f5f5f5}
+.mnr-row:last-of-type{border-bottom:none}
+.mnr-label{width:130px;min-width:130px;font-size:13px;color:var(--muted);padding-top:8px;flex-shrink:0}
+.mnr-label .req{color:var(--pink)}
+.mnr-control{flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mnr-input,.mnr-select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
+.mnr-input:focus,.mnr-select:focus{border-color:var(--teal)}
+.mnr-input.full,.mnr-select.full{width:100%}
+.mnr-dias-badge{background:var(--teal);color:white;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap}
+.mnr-total-badge{background:#1e293b;color:white;font-size:11px;font-weight:700;padding:3px 9px;border-radius:12px;white-space:nowrap}
+.mnr-sit-grid{display:flex;gap:10px;flex-wrap:wrap}
+.mnr-radio-lbl{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:5px 12px;border-radius:6px;border:2px solid var(--border);transition:all .15s;user-select:none}
+.mnr-radio-lbl:has(input:checked){border-color:var(--teal);background:var(--teal-light)}
+.mnr-radio-lbl.sit-pre:has(input:checked){border-color:#ff9800;background:#fff8e1}
+.mnr-radio-lbl input{accent-color:var(--teal);width:14px;height:14px;cursor:pointer}
+.mnr-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+.mnr-btn-add{background:var(--teal);color:white;border:none;padding:9px 22px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px}
+.mnr-btn-add:hover{background:var(--teal-dark)}
+.mnr-btn-cancel{background:#f1f5f9;color:var(--text);border:1px solid var(--border);padding:9px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.mnr-btn-cancel:hover{background:#e2e8f0}
 </style>
 </head>
 <body>
@@ -332,7 +402,7 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
     <div class="nav-item active" id="nav-home" onclick="goHome(this)">
       <i class="bi bi-house-door"></i> Home
     </div>
-    <div class="nav-item" id="nav-mapa" onclick="goHome(this)">
+    <div class="nav-item" id="nav-mapa" onclick="goMapa(this)">
       <i class="bi bi-map"></i> Mapa
     </div>
     <div class="nav-sep"></div>
@@ -832,6 +902,24 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
       </div>
     </div>
 
+    <!-- ═══ PAGE: MAPA DE OCUPAÇÃO ═══ -->
+    <div class="page-view" id="page-mapa">
+      <div class="mapa-wrap">
+        <div class="mapa-controls">
+          <button class="mapa-nav-btn" onclick="mapaGoTo(-1)" title="Mês anterior"><i class="bi bi-chevron-left"></i></button>
+          <span class="mapa-period" id="mapa-period-label"></span>
+          <button class="mapa-nav-btn" onclick="mapaGoTo(1)" title="Próximo mês"><i class="bi bi-chevron-right"></i></button>
+          <button class="mapa-nav-btn" onclick="mapaGoTo(0)" title="Hoje" style="width:auto;padding:0 10px;font-size:12px;font-weight:700">Hoje</button>
+        </div>
+        <div class="mapa-scroll" id="mapa-scroll">
+          <table class="mapa-tbl" id="mapa-tbl">
+            <thead id="mapa-thead"></thead>
+            <tbody id="mapa-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /main-content -->
 </div><!-- /app-body -->
 
@@ -1017,6 +1105,105 @@ table.hosp-table tbody td{padding:9px 14px;font-size:13px}
     <div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--border);padding-top:14px">
       <button class="btn btn-secondary" onclick="adicionarProduto(true)">Salvar e criar outro</button>
       <button class="btn btn-atualizar" onclick="adicionarProduto(false)"><i class="bi bi-check-lg"></i> Adicionar Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONTEXT POPUP: MAPA CELL -->
+<div class="mapa-popup" id="mapa-popup">
+  <div class="mapa-popup-header">
+    <span class="mapa-popup-title" id="mapa-popup-title">Opções</span>
+    <button class="mapa-popup-close" onclick="closeMapaPopup()">×</button>
+  </div>
+  <div class="mapa-popup-item" onclick="mapaAcaoNovaReserva()"><i class="bi bi-plus-circle"></i> Nova reserva</div>
+  <div class="mapa-popup-item" onclick="showToast('Reserva em grupo — em simulação','info');closeMapaPopup()"><i class="bi bi-people"></i> Reserva em grupo</div>
+  <div class="mapa-popup-item" onclick="mapaAcaoBloquear()"><i class="bi bi-lock"></i> Bloquear datas</div>
+</div>
+
+<!-- MODAL: MAPA NOVA RESERVA -->
+<div class="modal-overlay" id="mnr-modal">
+  <div class="modal-box mnr-box">
+    <div class="mnr-title-row">
+      <span style="font-weight:700;font-size:15px">Nova Reserva — Mapa</span>
+      <button class="modal-close" onclick="closeMnrModal()">×</button>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label">Situação</div>
+      <div class="mnr-control">
+        <div class="mnr-sit-grid">
+          <label class="mnr-radio-lbl sit-pre"><input type="radio" name="mnr-sit" value="pre"> pré-reservar</label>
+          <label class="mnr-radio-lbl"><input type="radio" name="mnr-sit" value="hospedar" checked> hospedar</label>
+          <label class="mnr-radio-lbl"><input type="radio" name="mnr-sit" value="reservar"> reservar</label>
+        </div>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label"><span class="req">*</span> Hóspede</div>
+      <div class="mnr-control">
+        <div class="hospede-ac-wrap" style="max-width:100%">
+          <input type="hidden" id="mnr-hospede-id">
+          <input type="text" class="hospede-ac-inp mnr-input full" id="mnr-hospede-search"
+                 placeholder="Pesquise por nome ou CPF..."
+                 oninput="buscarHospede('mnr')"
+                 onblur="setTimeout(()=>fecharAc('mnr'),180)"
+                 autocomplete="off">
+          <div class="hospede-ac-dd" id="mnr-hospede-dd">
+            <div class="ac-hint">Digite 3 ou mais caracteres</div>
+          </div>
+        </div>
+        <button class="icon-btn" title="Novo hóspede" onclick="openNovoHospede('mnr')">
+          <i class="bi bi-person-fill-add" style="font-size:18px"></i>
+        </button>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label"><span class="req">*</span> Período</div>
+      <div class="mnr-control">
+        <input type="date" class="mnr-input" id="mnr-checkin" onchange="mnrCalcDias()">
+        <span style="color:var(--muted);font-size:12px">até</span>
+        <input type="date" class="mnr-input" id="mnr-checkout" onchange="mnrCalcDias()">
+        <span class="mnr-dias-badge" id="mnr-dias-badge">0 dias</span>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label"><span class="req">*</span> UH</div>
+      <div class="mnr-control">
+        <select class="mnr-select full" id="mnr-uh"></select>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label"><span class="req">*</span> Valor diária</div>
+      <div class="mnr-control">
+        <input type="number" class="mnr-input" id="mnr-diaria" placeholder="0,00" min="0" step="0.01" style="max-width:130px" oninput="mnrCalcDias()">
+        <span class="mnr-total-badge" id="mnr-total-badge">R$ 0,00</span>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label">Café da manhã</div>
+      <div class="mnr-control">
+        <label class="toggle"><input type="checkbox" id="mnr-cafe"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label">Nº hóspedes</div>
+      <div class="mnr-control" style="gap:20px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Adultos</div>
+          <div class="num-wrap"><button class="num-btn" onclick="changeNum('mnr-adultos',-1)">−</button><input class="num-inp" id="mnr-adultos" value="1" type="number" min="1"><button class="num-btn" onclick="changeNum('mnr-adultos',1)">+</button></div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Crianças</div>
+          <div class="num-wrap"><button class="num-btn" onclick="changeNum('mnr-criancas',-1)">−</button><input class="num-inp" id="mnr-criancas" value="0" type="number" min="0"><button class="num-btn" onclick="changeNum('mnr-criancas',1)">+</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="mnr-row">
+      <div class="mnr-label">Observação</div>
+      <div class="mnr-control"><textarea class="form-textarea" id="mnr-obs" style="width:100%"></textarea></div>
+    </div>
+    <div class="mnr-footer">
+      <button class="mnr-btn-cancel" onclick="closeMnrModal()">Cancelar</button>
+      <button class="mnr-btn-add" onclick="salvarMapaReserva()"><i class="bi bi-check-lg"></i> Adicionar reserva</button>
     </div>
   </div>
 </div>
@@ -1257,6 +1444,7 @@ function salvarHospede(criarOutro){
     document.getElementById(prefix+'-hospede-id').value = g.id;
     if(prefix==='nr') showPage('page-nova-reserva');
     else if(prefix==='at'){ showPage('page-atualizar'); openAtualizar(activeRoomId); }
+    else if(prefix==='mnr'){ goMapa(document.getElementById('nav-mapa')); openMnrModal(_mapaPopupRoom,_mapaPopupDate); document.getElementById('mnr-hospede-search').value=g.nome; document.getElementById('mnr-hospede-id').value=g.id; }
     nhReturnTarget = null;
   } else {
     goHospedes();
@@ -1636,6 +1824,291 @@ function adicionarProduto(criarOutro){
   } else {
     closeProdModal();
   }
+}
+
+// ─── MAPA DE OCUPAÇÃO ────────────────────────────────────────────────────────
+// Derive category from room name
+function mapaCategoria(nome){
+  if(nome.toLowerCase().startsWith('apartamento')) return 'APARTAMENTOS';
+  return 'QUARTOS';
+}
+
+// Current mapa year/month (0-based month)
+let _mapaYear  = new Date().getFullYear();
+let _mapaMonth = new Date().getMonth();
+
+// Popup state
+let _mapaPopupRoom = null;
+let _mapaPopupDate = null;
+
+function goMapa(el){
+  setNavActive('nav-mapa');
+  showPage('page-mapa');
+  renderMapa();
+}
+
+function mapaGoTo(delta){
+  if(delta === 0){
+    _mapaYear  = new Date().getFullYear();
+    _mapaMonth = new Date().getMonth();
+  } else {
+    _mapaMonth += delta;
+    if(_mapaMonth > 11){ _mapaMonth = 0; _mapaYear++; }
+    if(_mapaMonth < 0) { _mapaMonth = 11; _mapaYear--; }
+  }
+  renderMapa();
+}
+
+function renderMapa(){
+  const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const DAYS_PT   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const year  = _mapaYear;
+  const month = _mapaMonth;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const todayStr = TODAY; // 'YYYY-MM-DD'
+
+  document.getElementById('mapa-period-label').textContent = `${MONTHS_PT[month]} ${year}`;
+
+  // Build date cols array
+  const dateCols = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(year, month, d).getDay();
+    dateCols.push({ ds, d, dow });
+  }
+
+  // Compute occupancy per date
+  function occForDate(ds){
+    const occ = rooms.filter(r=>{
+      if(!r.checkin||!r.checkout) return false;
+      return ds >= r.checkin && ds < r.checkout &&
+             (r.status==='ocupado'||r.status==='reservado'||r.status==='bloqueado');
+    }).length;
+    return occ;
+  }
+
+  // THEAD
+  let thHtml = '<tr>';
+  thHtml += '<th class="mapa-th-left">UH</th>';
+  dateCols.forEach(({ds,d,dow})=>{
+    const isToday   = ds === todayStr;
+    const isWeekend = dow===0||dow===6;
+    const occ = occForDate(ds);
+    const pct = Math.round(occ/rooms.length*100);
+    let pctClass = 'mapa-occ-pct';
+    if(pct===0)       pctClass += ' occ-zero';
+    else if(pct>=80)  pctClass += ' occ-high';
+    thHtml += `<th class="mapa-th-date${isToday?' today':''}${isWeekend?' weekend':''}">
+      <div class="mapa-date-inner">
+        <span class="mapa-date-wd">${DAYS_PT[dow]}</span>
+        <span class="mapa-date-num"${isToday?' style="color:var(--teal)"':''}>${d}</span>
+        <span class="mapa-date-mo">${MONTHS_PT[month].substring(0,3).toUpperCase()}</span>
+        <span class="${pctClass}">${pct}%</span>
+      </div>
+    </th>`;
+  });
+  thHtml += '</tr>';
+  document.getElementById('mapa-thead').innerHTML = thHtml;
+
+  // Group rooms by category
+  const catMap = {};
+  rooms.forEach(r=>{
+    const cat = mapaCategoria(r.nome);
+    if(!catMap[cat]) catMap[cat] = [];
+    catMap[cat].push(r);
+  });
+
+  // TBODY
+  let tbHtml = '';
+  Object.entries(catMap).forEach(([cat, catRooms])=>{
+    // Category header row
+    tbHtml += `<tr class="mapa-cat-row">
+      <td class="mapa-cat-td-left">
+        <span class="mapa-cat-name">${cat}</span>
+        <span class="mapa-cat-badge">${catRooms.length}</span>
+      </td>`;
+    dateCols.forEach(({ds})=>{
+      const cnt = catRooms.filter(r=>{
+        if(!r.checkin||!r.checkout) return false;
+        return ds>=r.checkin && ds<r.checkout &&
+               (r.status==='ocupado'||r.status==='reservado'||r.status==='bloqueado');
+      }).length;
+      const avail = catRooms.length - cnt;
+      tbHtml += `<td class="mapa-cat-td">
+        <div class="mapa-cat-td-cnt">${cnt}/${catRooms.length}</div>
+        <div class="mapa-cat-td-price" style="color:${avail===0?'#ef5350':'#94a3b8'}">${avail} livr.</div>
+      </td>`;
+    });
+    tbHtml += '</tr>';
+
+    // Room rows
+    catRooms.forEach(room=>{
+      tbHtml += `<tr class="mapa-room-row">
+        <td class="mapa-td-left">${room.nome}</td>`;
+
+      dateCols.forEach(({ds})=>{
+        // Determine if this cell is inside a reservation
+        const isOcc = room.checkin && room.checkout &&
+                      ds>=room.checkin && ds<room.checkout &&
+                      (room.status==='ocupado'||room.status==='reservado'||room.status==='bloqueado');
+
+        if(isOcc){
+          let bg, label='';
+          if(room.status==='ocupado')   bg='var(--card-ocupado)';
+          else if(room.status==='reservado') bg='var(--card-reservado)';
+          else bg='var(--card-bloqueado)';
+
+          const gNome = roomGuestNome(room)||'';
+          const isFirstDay = ds===room.checkin;
+
+          tbHtml += `<td class="mapa-cell" style="background:${bg};cursor:pointer"
+            onclick="openAtualizar(${room.id})" title="${gNome}">
+            ${isFirstDay && gNome ? `<span style="font-size:10px;color:white;font-weight:600;padding:0 4px;white-space:nowrap;overflow:hidden;display:block;text-overflow:ellipsis;white-space:nowrap">&nbsp;</span>` : ''}
+          </td>`;
+        } else {
+          tbHtml += `<td class="mapa-cell mapa-cell-empty"
+            onclick="openMapaPopup(event,${room.id},'${ds}')">
+            <span class="mapa-cell-plus"><i class="bi bi-plus"></i></span>
+          </td>`;
+        }
+      });
+      tbHtml += '</tr>';
+    });
+  });
+
+  document.getElementById('mapa-tbody').innerHTML = tbHtml;
+
+  // Scroll to today if in current month
+  const todayYear  = parseInt(todayStr.split('-')[0]);
+  const todayMonth = parseInt(todayStr.split('-')[1])-1;
+  if(year===todayYear && month===todayMonth){
+    setTimeout(()=>{
+      const tbl = document.getElementById('mapa-tbl');
+      const ths = tbl.querySelectorAll('.mapa-th-date');
+      const todayDay = new Date().getDate();
+      const th = ths[todayDay-1];
+      if(th) th.scrollIntoView({block:'nearest',inline:'center'});
+    },50);
+  }
+}
+
+// Context popup
+function openMapaPopup(e, roomId, dateStr){
+  e.stopPropagation();
+  _mapaPopupRoom = roomId;
+  _mapaPopupDate = dateStr;
+  const r = rooms.find(x=>x.id===roomId);
+  document.getElementById('mapa-popup-title').textContent = `${r.nome} — ${dateStr.split('-').reverse().join('/')}`;
+  const popup = document.getElementById('mapa-popup');
+  popup.classList.add('open');
+  const rect = e.currentTarget.getBoundingClientRect();
+  let top  = rect.bottom + 4;
+  let left = rect.left;
+  // keep within viewport
+  if(left + 220 > window.innerWidth) left = window.innerWidth - 226;
+  if(top  + 160 > window.innerHeight) top  = rect.top - 164;
+  popup.style.top  = top  + 'px';
+  popup.style.left = left + 'px';
+}
+function closeMapaPopup(){
+  document.getElementById('mapa-popup').classList.remove('open');
+  _mapaPopupRoom = null;
+  _mapaPopupDate = null;
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('#mapa-popup') && !e.target.closest('.mapa-cell-empty')){
+    document.getElementById('mapa-popup')?.classList.remove('open');
+  }
+}, true);
+
+function mapaAcaoBloquear(){
+  closeMapaPopup();
+  const room = rooms.find(x=>x.id===_mapaPopupRoom);
+  if(!room) return;
+  const ds = _mapaPopupDate;
+  const nextDay = new Date(ds); nextDay.setDate(nextDay.getDate()+1);
+  const co = nextDay.toISOString().split('T')[0];
+  room.status='bloqueado'; room.checkin=ds; room.checkout=co;
+  room.guestId=null; room.guestNome=null; room.obs='Bloqueado via mapa';
+  showToast(`${room.nome} bloqueado em ${ds.split('-').reverse().join('/')} `,'info');
+  renderMapa();
+}
+
+// Mapa Nova Reserva modal
+function mapaAcaoNovaReserva(){
+  closeMapaPopup();
+  openMnrModal(_mapaPopupRoom, _mapaPopupDate);
+}
+
+function openMnrModal(roomId, dateStr){
+  _mapaPopupRoom = roomId;
+  _mapaPopupDate = dateStr;
+  // Fill UH selector — available rooms + always include selected room
+  const uhSel = document.getElementById('mnr-uh');
+  uhSel.innerHTML = rooms
+    .filter(r=>r.status==='disponivel' || r.id===roomId)
+    .map(r=>`<option value="${r.id}" ${r.id===roomId?'selected':''}>${r.nome}</option>`)
+    .join('');
+  // Dates
+  document.getElementById('mnr-checkin').value  = dateStr||TODAY;
+  const nextDay = new Date(dateStr||TODAY);
+  nextDay.setDate(nextDay.getDate()+1);
+  document.getElementById('mnr-checkout').value = nextDay.toISOString().split('T')[0];
+  // Reset other fields
+  document.getElementById('mnr-hospede-search').value='';
+  document.getElementById('mnr-hospede-id').value='';
+  document.getElementById('mnr-hospede-dd').style.display='none';
+  document.getElementById('mnr-diaria').value='';
+  document.getElementById('mnr-adultos').value=1;
+  document.getElementById('mnr-criancas').value=0;
+  document.getElementById('mnr-obs').value='';
+  document.getElementById('mnr-cafe').checked=false;
+  document.querySelector('input[name="mnr-sit"][value="hospedar"]').checked=true;
+  mnrCalcDias();
+  document.getElementById('mnr-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('mnr-hospede-search').focus(),80);
+}
+function closeMnrModal(){ document.getElementById('mnr-modal').classList.remove('open') }
+
+function mnrCalcDias(){
+  const ci = document.getElementById('mnr-checkin').value;
+  const co = document.getElementById('mnr-checkout').value;
+  const diaria = parseFloat(document.getElementById('mnr-diaria').value||0);
+  const dias = calcDias(ci,co);
+  document.getElementById('mnr-dias-badge').textContent = `${dias} dia${dias!==1?'s':''}`;
+  document.getElementById('mnr-total-badge').textContent = fmtMoney(dias*diaria);
+}
+
+function salvarMapaReserva(){
+  const sit      = document.querySelector('input[name="mnr-sit"]:checked').value;
+  const hospedeId= parseInt(document.getElementById('mnr-hospede-id').value);
+  const ci       = document.getElementById('mnr-checkin').value;
+  const co       = document.getElementById('mnr-checkout').value;
+  const uhId     = parseInt(document.getElementById('mnr-uh').value);
+  const diaria   = parseFloat(document.getElementById('mnr-diaria').value||0);
+  const adultos  = parseInt(document.getElementById('mnr-adultos').value||1);
+  const criancas = parseInt(document.getElementById('mnr-criancas').value||0);
+  const obs      = document.getElementById('mnr-obs').value;
+
+  if(!hospedeId){ showToast('Selecione um hóspede','err'); return; }
+  if(!ci||!co){   showToast('Selecione o período','err');  return; }
+  if(new Date(co)<=new Date(ci)){ showToast('Check-out deve ser após check-in','err'); return; }
+
+  const room = rooms.find(r=>r.id===uhId);
+  if(!room) return;
+  reservaCounter++;
+  const g = guests.find(x=>x.id===hospedeId);
+  room.guestId=hospedeId; room.guestNome=g?g.nome:null;
+  room.checkin=ci; room.checkout=co; room.diaria=diaria;
+  room.adultos=adultos; room.criancas=criancas; room.obs=obs;
+  room.reservaNum=`HO:0${reservaCounter}`;
+  room.criado=nowStr(); room.alterado=nowStr(); room.recebido=0; room.pago=false;
+  if(sit==='hospedar')            room.status='ocupado';
+  else if(sit==='reservar'||sit==='pre') room.status='reservado';
+
+  showToast(`✓ Reserva ${room.reservaNum} criada!`,'ok');
+  closeMnrModal();
+  renderMapa();
 }
 
 // ─── MISC ─────────────────────────────────────────────────────────────────────
