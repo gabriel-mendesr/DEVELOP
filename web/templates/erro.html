@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Erro {{ code }} — Hotel Santos{% endblock %}
+{% block content %}
+<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center">
+  <div style="font-size:64px;color:#e57373;margin-bottom:16px"><i class="bi bi-exclamation-triangle-fill"></i></div>
+  <h2 style="font-size:1.4rem;margin-bottom:8px;color:#333">Algo deu errado</h2>
+  <p style="color:#777;max-width:400px;margin-bottom:24px">{{ msg }}</p>
+  <a href="/" style="padding:8px 20px;background:var(--teal,#00b4b4);color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+    Voltar ao início
+  </a>
+</div>
+{% endblock %}

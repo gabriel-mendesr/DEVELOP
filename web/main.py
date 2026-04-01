@@ -47,13 +47,45 @@ else:
     sistema = _SC(_db)
 
 app = FastAPI(title="Hotel Santos")
+
+_IS_PROD = bool(DATABASE_URL)  # produção = usa PostgreSQL
+_SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not _SECRET_KEY:
+    if _IS_PROD:
+        raise RuntimeError("SECRET_KEY não definida. Configure a variável de ambiente antes de subir em produção.")
+    _SECRET_KEY = "hotel-santos-dev-apenas-local"
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", "hotel-santos-dev-mude-em-producao"),
+    secret_key=_SECRET_KEY,
     max_age=86400,
+    https_only=_IS_PROD,  # cookie Secure apenas em produção (HTTPS)
+    same_site="lax",
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+
+def _safe_filename(name: str) -> str:
+    """Remove caracteres perigosos de nomes de arquivo para Content-Disposition."""
+    import re
+
+    return re.sub(r"[^A-Za-z0-9_\-]", "_", name)
+
+
+@app.exception_handler(Exception)
+async def global_error_handler(request: Request, exc: Exception):
+    """Captura erros não tratados e retorna página genérica sem expor detalhes internos."""
+    import logging
+    import traceback
+
+    logging.error("Erro não tratado em %s: %s\n%s", request.url, exc, traceback.format_exc())
+    return templates.TemplateResponse(
+        request,
+        "erro.html",
+        {"code": 500, "msg": "Ocorreu um erro interno. Tente novamente ou contate o suporte."},
+        status_code=500,
+    )
 
 
 # =============================================================================
@@ -775,8 +807,8 @@ async def ajustes_minha_senha(
     if nova_senha != confirmar_senha:
         _flash(request, "As senhas não coincidem.", "danger")
         return RedirectResponse("/ajustes?tab=senha", status_code=302)
-    if len(nova_senha) < 4:
-        _flash(request, "A senha deve ter pelo menos 4 caracteres.", "danger")
+    if len(nova_senha) < 8:
+        _flash(request, "A senha deve ter pelo menos 8 caracteres.", "danger")
         return RedirectResponse("/ajustes?tab=senha", status_code=302)
     if not sistema.verificar_login(u["username"], senha_atual):
         _flash(request, "Senha atual incorreta.", "danger")
@@ -929,6 +961,8 @@ async def agenda_mes(request: Request, ano: int, mes: int):
 @app.get("/agenda/{data}", response_class=HTMLResponse)
 async def agenda_dia_redirect(request: Request, data: str):
     """Compatibilidade: /agenda/YYYY-MM-DD redireciona para o mês correto."""
+    if not _user(request):
+        return _redirect_login()
     from datetime import datetime as _dt
 
     try:
@@ -999,7 +1033,7 @@ async def hospede_extrato_pdf(request: Request, doc: str):
     movimentos = sistema.get_historico_detalhado(doc)
     saldo, venc, bloqueado = sistema.get_saldo_info(doc)
     data = pdf_extrato(hospede, movimentos, saldo, venc, bloqueado, sistema.empresa)
-    nome = hospede.get("nome", doc).replace(" ", "_")
+    nome = _safe_filename(hospede.get("nome", doc))
     return Response(
         content=data,
         media_type="application/pdf",
@@ -1127,7 +1161,7 @@ async def relatorio_csv(request: Request, mes: str = ""):
                 m.get("usuario", "") or "",
             ]
         )
-    fname = f"financeiro_{mes.replace('/', '-')}.csv" if mes else "financeiro.csv"
+    fname = f"financeiro_{_safe_filename(mes)}.csv" if mes else "financeiro.csv"
     return Response(
         content=output.getvalue().encode("utf-8-sig"),
         media_type="text/csv",

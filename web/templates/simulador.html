@@ -1566,16 +1566,16 @@ function concluirLimpeza(){
 
 // ─── PRODUTOS E SERVIÇOS ──────────────────────────────────────────────────────
 const prodItems = [
-  {nome:'Água COM gás',  estoque:17},
-  {nome:'Água SEM gás',  estoque:19},
-  {nome:'Amendoim',       estoque:5},
-  {nome:'Café',           estoque:30},
-  {nome:'Coca-Cola',      estoque:12},
-  {nome:'Suco de laranja',estoque:8},
-  {nome:'Cerveja',        estoque:24},
-  {nome:'Chocolate',      estoque:15},
-  {nome:'Toalha extra',   estoque:10},
-  {nome:'Amenidades',     estoque:20},
+  {nome:'Água COM gás',  estoque:17, valor:5},
+  {nome:'Água SEM gás',  estoque:19, valor:5},
+  {nome:'Amendoim',       estoque:5,  valor:5},
+  {nome:'Café',           estoque:30, valor:5},
+  {nome:'Coca-Cola',      estoque:12, valor:5},
+  {nome:'Suco de laranja',estoque:8,  valor:5},
+  {nome:'Cerveja',        estoque:24, valor:5},
+  {nome:'Chocolate',      estoque:15, valor:5},
+  {nome:'Toalha extra',   estoque:10, valor:5},
+  {nome:'Amenidades',     estoque:20, valor:5},
 ];
 let selectedProdItem = null;
 let prodDropOpen = false;
@@ -1604,15 +1604,17 @@ function renderProdItems(q){
   const ql = q.toLowerCase();
   const list = prodItems.filter(p=>!q||p.nome.toLowerCase().includes(ql));
   document.getElementById('prod-list').innerHTML = list.map(p=>`
-    <div onclick="selecionarProd('${p.nome}',${p.estoque})"
+    <div onclick="selecionarProd('${p.nome}',${p.estoque},${p.valor})"
          style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f5f5f5;transition:background .1s;${selectedProdItem===p.nome?'background:#e0f7f7;font-weight:600':''}"
          onmouseover="this.style.background='#f0fafa'" onmouseout="this.style.background='${selectedProdItem===p.nome?'#e0f7f7':'white'}'">
-      ${p.nome} <span style="color:var(--muted);font-size:11px">(${p.estoque} em estoque)</span>
+      <span>${p.nome}</span>
+      <span style="color:var(--muted);font-size:11px;margin-left:6px">(${p.estoque} em estoque)</span>
+      <span style="float:right;color:var(--teal);font-weight:600;font-size:12px">R$ ${p.valor.toFixed(2).replace('.',',')}</span>
     </div>`).join('') || '<div style="padding:10px 14px;color:var(--muted);font-size:13px">Nenhum item encontrado</div>';
 }
-function selecionarProd(nome, estoque){
+function selecionarProd(nome, estoque, valor){
   selectedProdItem = nome;
-  document.getElementById('prod-item-text').textContent = `${nome} (${estoque} em estoque)`;
+  document.getElementById('prod-item-text').textContent = `${nome} (${estoque} em estoque) — R$ ${valor.toFixed(2).replace('.',',')}`;
   document.getElementById('prod-item-text').style.color = 'var(--text)';
   prodDropOpen = false;
   document.getElementById('prod-dropdown').style.display = 'none';
