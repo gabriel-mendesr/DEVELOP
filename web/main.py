@@ -800,8 +800,13 @@ async def banco_otimizar(request: Request):
     if not u or not u.get("is_admin"):
         return _redirect_login()
     try:
-        sistema.db.otimizar()
-        _flash(request, "Banco otimizado com sucesso.", "success")
+        sistema.otimizar_banco()
+        msg = (
+            "Banco otimizado com sucesso."
+            if not _IS_PROD
+            else "Otimização solicitada (Neon executa VACUUM automaticamente)."
+        )
+        _flash(request, msg, "success")
     except Exception as e:
         _flash(request, f"Erro ao otimizar: {e}", "danger")
     return RedirectResponse("/ajustes?tab=banco", status_code=302)
