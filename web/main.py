@@ -282,7 +282,7 @@ async def simulador(request: Request):
     if not u.get("can_access_treinamento", 1):
         _flash(request, "Sem permissão para acessar o Treinamento.", "danger")
         return RedirectResponse("/", status_code=302)
-    return templates.TemplateResponse(request, "simulador.html", {})
+    return templates.TemplateResponse(request, "simulador.html", _ctx(request, active="treinamento"))
 
 
 # =============================================================================
