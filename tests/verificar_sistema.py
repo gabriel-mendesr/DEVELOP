@@ -320,7 +320,7 @@ def _busca_parcial():
     s.cadastrar_hospede("Pedro Costa", CPF_VALIDO2)
     r = s.buscar_filtrado("Ana")
     assert len(r) == 1, f"Esperava 1, veio {len(r)}"
-    assert r[0][0] == "ANA PAULA"
+    assert r[0]["nome"] == "ANA PAULA"
 
 
 checar("Busca parcial por nome retorna só o correto", _busca_parcial)
