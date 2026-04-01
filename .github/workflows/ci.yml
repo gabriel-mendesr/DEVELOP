@@ -131,6 +131,8 @@ jobs:
           pip install --upgrade pip
           # Instala as dependências do projeto sem as de GUI (não disponíveis no CI)
           pip install pytest pytest-cov setuptools-scm
+          # Dependências de runtime usadas pelo core (GUI excluída)
+          pip install bcrypt requests fpdf2 babel Pillow matplotlib
           # Gera app/__version__.py que está no .gitignore mas é necessário
           # para os imports em models.py funcionarem
           python -c "
