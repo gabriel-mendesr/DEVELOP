@@ -16,14 +16,17 @@ import calendar as _cal
 import csv as _csv
 import io
 import os
+import secrets
 import sys
+import time as _time
 from pathlib import Path
 
 from exporters import pdf_extrato, pdf_inadimplentes, pdf_mensal
-from fastapi import FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from starlette.middleware.sessions import SessionMiddleware
 
 # =============================================================================
@@ -64,6 +67,24 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+
+# Rate limiting para login: máximo 10 tentativas por IP em 60 segundos
+_login_attempts: dict[str, list[float]] = {}
+_LOGIN_MAX = 10
+_LOGIN_WINDOW = 60  # segundos
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Retorna True se o IP está bloqueado por excesso de tentativas."""
+    now = _time.monotonic()
+    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW]
+    _login_attempts[ip] = attempts
+    return len(attempts) >= _LOGIN_MAX
+
+
+def _register_login_attempt(ip: str) -> None:
+    now = _time.monotonic()
+    _login_attempts.setdefault(ip, []).append(now)
 
 
 def _safe_filename(name: str) -> str:
@@ -110,13 +131,41 @@ def _user(request: Request) -> dict | None:
     return fresh
 
 
+def _csrf_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(_SECRET_KEY, salt="csrf")
+
+
+def _csrf_token(request: Request) -> str:
+    """Gera (ou reutiliza) o token CSRF da sessão atual."""
+    if "csrf_token" not in request.session:
+        request.session["csrf_token"] = secrets.token_hex(32)
+    token = request.session["csrf_token"]
+    return _csrf_serializer().dumps(token)
+
+
+def _csrf_validate(request: Request, token: str) -> bool:
+    """Valida o token CSRF vindo do formulário (expira em 1h)."""
+    try:
+        expected = request.session.get("csrf_token")
+        value = _csrf_serializer().loads(token, max_age=3600)
+        return value == expected
+    except (BadSignature, SignatureExpired):
+        return False
+
+
 def _ctx(request: Request, **kwargs) -> dict:
     """Contexto base injetado em todos os templates (sem 'request' — Starlette injeta automaticamente)."""
-    return {"user": _user(request), "flashes": _pop_flashes(request), **kwargs}
+    return {"user": _user(request), "flashes": _pop_flashes(request), "csrf_token": _csrf_token(request), **kwargs}
 
 
 def _redirect_login() -> RedirectResponse:
     return RedirectResponse("/login", status_code=302)
+
+
+async def _csrf_dep(request: Request, csrf_token: str = Form("")) -> None:
+    """Dependência FastAPI: valida token CSRF em rotas POST."""
+    if not _csrf_validate(request, csrf_token):
+        raise HTTPException(status_code=403, detail="Token CSRF inválido. Recarregue a página e tente novamente.")
 
 
 # =============================================================================
@@ -140,17 +189,24 @@ async def login_get(request: Request):
     return templates.TemplateResponse(request, "login.html", _ctx(request))
 
 
-@app.post("/login")
+@app.post("/login", dependencies=[Depends(_csrf_dep)])
 async def login_post(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
 ):
+    ip = request.client.host if request.client else "unknown"
+    if _check_rate_limit(ip):
+        _flash(request, "Muitas tentativas. Aguarde 1 minuto e tente novamente.", "danger")
+        return RedirectResponse("/login", status_code=302)
+
     user = sistema.verificar_login(username, password)
     if user:
         request.session["user"] = dict(user)
         sistema.registrar_log(username, "LOGIN_WEB", "Acesso via portal web")
         return RedirectResponse("/", status_code=302)
+
+    _register_login_attempt(ip)
     _flash(request, "Usuário ou senha incorretos.", "danger")
     return RedirectResponse("/login", status_code=302)
 
@@ -254,7 +310,7 @@ async def hospedes_list(request: Request, q: str = "", filtro: str = "todos"):
     )
 
 
-@app.post("/hospedes")
+@app.post("/hospedes", dependencies=[Depends(_csrf_dep)])
 async def hospedes_create(
     request: Request,
     nome: str = Form(...),
@@ -273,7 +329,7 @@ async def hospedes_create(
     return RedirectResponse("/hospedes", status_code=302)
 
 
-@app.post("/hospedes/{doc:path}/movimentacao")
+@app.post("/hospedes/{doc:path}/movimentacao", dependencies=[Depends(_csrf_dep)])
 async def hospede_mov(
     request: Request,
     doc: str,
@@ -298,7 +354,7 @@ async def hospede_mov(
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc:path}/movimentacao/{id_mov}/vencimento")
+@app.post("/hospedes/{doc:path}/movimentacao/{id_mov}/vencimento", dependencies=[Depends(_csrf_dep)])
 async def hospede_alterar_vencimento(
     request: Request,
     doc: str,
@@ -319,7 +375,7 @@ async def hospede_alterar_vencimento(
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc:path}/anotacao")
+@app.post("/hospedes/{doc:path}/anotacao", dependencies=[Depends(_csrf_dep)])
 async def hospede_anotacao(request: Request, doc: str, texto: str = Form("")):
     if not _user(request):
         return _redirect_login()
@@ -328,7 +384,7 @@ async def hospede_anotacao(request: Request, doc: str, texto: str = Form("")):
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc:path}/inativar")
+@app.post("/hospedes/{doc:path}/inativar", dependencies=[Depends(_csrf_dep)])
 async def hospede_inativar(request: Request, doc: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -339,7 +395,7 @@ async def hospede_inativar(request: Request, doc: str):
     return RedirectResponse("/hospedes", status_code=302)
 
 
-@app.post("/hospedes/{doc:path}/reativar")
+@app.post("/hospedes/{doc:path}/reativar", dependencies=[Depends(_csrf_dep)])
 async def hospede_reativar(request: Request, doc: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -350,7 +406,7 @@ async def hospede_reativar(request: Request, doc: str):
     return RedirectResponse(f"/hospedes/{doc}", status_code=302)
 
 
-@app.post("/hospedes/{doc:path}/excluir")
+@app.post("/hospedes/{doc:path}/excluir", dependencies=[Depends(_csrf_dep)])
 async def hospede_excluir(request: Request, doc: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -424,7 +480,7 @@ async def compras_list(request: Request):
     )
 
 
-@app.post("/compras")
+@app.post("/compras", dependencies=[Depends(_csrf_dep)])
 async def compras_create(request: Request):
     u = _user(request)
     if not u or not u.get("can_access_compras", 1):
@@ -461,7 +517,7 @@ async def compras_detalhe(request: Request, lista_id: int):
     )
 
 
-@app.post("/compras/{lista_id}/item")
+@app.post("/compras/{lista_id}/item", dependencies=[Depends(_csrf_dep)])
 async def compras_add_item(
     request: Request,
     lista_id: int,
@@ -480,7 +536,7 @@ async def compras_add_item(
     return RedirectResponse(f"/compras/{lista_id}", status_code=302)
 
 
-@app.post("/compras/{lista_id}/fechar")
+@app.post("/compras/{lista_id}/fechar", dependencies=[Depends(_csrf_dep)])
 async def compras_fechar(request: Request, lista_id: int):
     if not _user(request):
         return _redirect_login()
@@ -557,7 +613,7 @@ async def ajustes(request: Request, tab: str = ""):
     return templates.TemplateResponse(request, "ajustes.html", _ctx(request, **ctx))
 
 
-@app.post("/ajustes/usuario")
+@app.post("/ajustes/usuario", dependencies=[Depends(_csrf_dep)])
 async def ajustes_usuario_salvar(
     request: Request,
     username: str = Form(...),
@@ -596,7 +652,7 @@ async def ajustes_usuario_salvar(
     return RedirectResponse("/ajustes", status_code=302)
 
 
-@app.post("/ajustes/usuario/{username}/editar")
+@app.post("/ajustes/usuario/{username}/editar", dependencies=[Depends(_csrf_dep)])
 async def ajustes_usuario_editar(
     request: Request,
     username: str,
@@ -649,18 +705,16 @@ async def ajustes_usuario_editar(
         _flash(request, f"Usuário '{username}' atualizado.", "success")
         # Se editou a si mesmo, atualiza a sessão
         if username == u["username"]:
-            updated = sistema.get_usuarios()
-            for usr in updated:
-                if usr["username"] == username:
-                    request.session["user"] = usr
-                    break
+            fresh = sistema.get_usuario(username)
+            if fresh:
+                request.session["user"] = fresh
     except Exception as e:
         _flash(request, str(e), "danger")
     return RedirectResponse("/ajustes", status_code=302)
 
 
 # ── Config geral ─────────────────────────────────────────────────────────────
-@app.post("/ajustes/config")
+@app.post("/ajustes/config", dependencies=[Depends(_csrf_dep)])
 async def ajustes_config(
     request: Request,
     validade_meses: int = Form(...),
@@ -683,7 +737,7 @@ async def ajustes_config(
 
 
 # ── Categorias ────────────────────────────────────────────────────────────────
-@app.post("/ajustes/categoria")
+@app.post("/ajustes/categoria", dependencies=[Depends(_csrf_dep)])
 async def categoria_add(request: Request, nome: str = Form(...)):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -693,7 +747,7 @@ async def categoria_add(request: Request, nome: str = Form(...)):
     return RedirectResponse("/ajustes?tab=categorias", status_code=302)
 
 
-@app.post("/ajustes/categoria/{nome}/excluir")
+@app.post("/ajustes/categoria/{nome}/excluir", dependencies=[Depends(_csrf_dep)])
 async def categoria_del(request: Request, nome: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -704,7 +758,7 @@ async def categoria_del(request: Request, nome: str):
 
 
 # ── Produtos ──────────────────────────────────────────────────────────────────
-@app.post("/ajustes/produto")
+@app.post("/ajustes/produto", dependencies=[Depends(_csrf_dep)])
 async def produto_add(request: Request, nome: str = Form(...)):
     u = _user(request)
     if not u or not (u.get("is_admin") or u.get("can_manage_products")):
@@ -715,7 +769,7 @@ async def produto_add(request: Request, nome: str = Form(...)):
     return RedirectResponse("/ajustes?tab=produtos", status_code=302)
 
 
-@app.post("/ajustes/produto/{nome}/excluir")
+@app.post("/ajustes/produto/{nome}/excluir", dependencies=[Depends(_csrf_dep)])
 async def produto_del(request: Request, nome: str):
     u = _user(request)
     if not u or not (u.get("is_admin") or u.get("can_manage_products")):
@@ -727,7 +781,7 @@ async def produto_del(request: Request, nome: str):
 
 
 # ── Banco de dados ────────────────────────────────────────────────────────────
-@app.post("/ajustes/banco/backup")
+@app.post("/ajustes/banco/backup", dependencies=[Depends(_csrf_dep)])
 async def banco_backup(request: Request):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -740,7 +794,7 @@ async def banco_backup(request: Request):
     return RedirectResponse("/ajustes?tab=banco", status_code=302)
 
 
-@app.post("/ajustes/banco/otimizar")
+@app.post("/ajustes/banco/otimizar", dependencies=[Depends(_csrf_dep)])
 async def banco_otimizar(request: Request):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -754,7 +808,7 @@ async def banco_otimizar(request: Request):
 
 
 # ── Limpeza de hóspede por documento (bypassa problemas de URL) ───────────────
-@app.post("/ajustes/hospede-excluir")
+@app.post("/ajustes/hospede-excluir", dependencies=[Depends(_csrf_dep)])
 async def ajustes_hospede_excluir(request: Request, documento: str = Form(...)):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -771,7 +825,7 @@ async def ajustes_hospede_excluir(request: Request, documento: str = Form(...)):
 
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
-@app.post("/ajustes/logs/limpar")
+@app.post("/ajustes/logs/limpar", dependencies=[Depends(_csrf_dep)])
 async def logs_limpar(request: Request):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -781,7 +835,7 @@ async def logs_limpar(request: Request):
     return RedirectResponse("/ajustes?tab=logs", status_code=302)
 
 
-@app.post("/ajustes/usuario/{username}/excluir")
+@app.post("/ajustes/usuario/{username}/excluir", dependencies=[Depends(_csrf_dep)])
 async def ajustes_usuario_excluir(request: Request, username: str):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -794,7 +848,7 @@ async def ajustes_usuario_excluir(request: Request, username: str):
     return RedirectResponse("/ajustes", status_code=302)
 
 
-@app.post("/ajustes/minha-senha")
+@app.post("/ajustes/minha-senha", dependencies=[Depends(_csrf_dep)])
 async def ajustes_minha_senha(
     request: Request,
     senha_atual: str = Form(...),
@@ -818,7 +872,7 @@ async def ajustes_minha_senha(
     return RedirectResponse("/ajustes?tab=senha", status_code=302)
 
 
-@app.post("/ajustes/funcionario")
+@app.post("/ajustes/funcionario", dependencies=[Depends(_csrf_dep)])
 async def ajustes_funcionario_add(request: Request, nome: str = Form(...)):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -828,7 +882,7 @@ async def ajustes_funcionario_add(request: Request, nome: str = Form(...)):
     return RedirectResponse("/ajustes?tab=funcionarios", status_code=302)
 
 
-@app.post("/ajustes/funcionario/{func_id}/excluir")
+@app.post("/ajustes/funcionario/{func_id}/excluir", dependencies=[Depends(_csrf_dep)])
 async def ajustes_funcionario_excluir(request: Request, func_id: int):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -838,7 +892,7 @@ async def ajustes_funcionario_excluir(request: Request, func_id: int):
     return RedirectResponse("/ajustes?tab=funcionarios", status_code=302)
 
 
-@app.post("/ajustes/funcionario/{func_id}/escala-padrao")
+@app.post("/ajustes/funcionario/{func_id}/escala-padrao", dependencies=[Depends(_csrf_dep)])
 async def ajustes_funcionario_escala(request: Request, func_id: int):
     u = _user(request)
     if not u or not u.get("is_admin"):
@@ -972,7 +1026,7 @@ async def agenda_dia_redirect(request: Request, data: str):
         return RedirectResponse("/agenda", status_code=302)
 
 
-@app.post("/agenda/{data}/{turno}/escalar")
+@app.post("/agenda/{data}/{turno}/escalar", dependencies=[Depends(_csrf_dep)])
 async def agenda_escalar(request: Request, data: str, turno: str, funcionario_id: int = Form(...)):
     u = _user(request)
     if not u:
@@ -982,7 +1036,7 @@ async def agenda_escalar(request: Request, data: str, turno: str, funcionario_id
     return RedirectResponse(f"/agenda/{data}", status_code=302)
 
 
-@app.post("/agenda/escala/{escala_id}/excluir")
+@app.post("/agenda/escala/{escala_id}/excluir", dependencies=[Depends(_csrf_dep)])
 async def agenda_escala_excluir(request: Request, escala_id: int, data: str = Form(...)):
     u = _user(request)
     if not u:
@@ -991,7 +1045,7 @@ async def agenda_escala_excluir(request: Request, escala_id: int, data: str = Fo
     return RedirectResponse(f"/agenda/{data}", status_code=302)
 
 
-@app.post("/agenda/escala/{escala_id}/tarefa")
+@app.post("/agenda/escala/{escala_id}/tarefa", dependencies=[Depends(_csrf_dep)])
 async def agenda_tarefa_add(request: Request, escala_id: int, descricao: str = Form(...), data: str = Form(...)):
     u = _user(request)
     if not u:
@@ -1000,7 +1054,7 @@ async def agenda_tarefa_add(request: Request, escala_id: int, descricao: str = F
     return RedirectResponse(f"/agenda/{data}", status_code=302)
 
 
-@app.post("/agenda/tarefa/{tarefa_id}/excluir")
+@app.post("/agenda/tarefa/{tarefa_id}/excluir", dependencies=[Depends(_csrf_dep)])
 async def agenda_tarefa_excluir(request: Request, tarefa_id: int, data: str = Form(...)):
     u = _user(request)
     if not u:
@@ -1009,7 +1063,7 @@ async def agenda_tarefa_excluir(request: Request, tarefa_id: int, data: str = Fo
     return RedirectResponse(f"/agenda/{data}", status_code=302)
 
 
-@app.post("/agenda/tarefa/{tarefa_id}/concluir")
+@app.post("/agenda/tarefa/{tarefa_id}/concluir", dependencies=[Depends(_csrf_dep)])
 async def agenda_tarefa_concluir(request: Request, tarefa_id: int, data: str = Form(...)):
     u = _user(request)
     if not u:

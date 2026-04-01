@@ -30,10 +30,11 @@ COMO USAR:
 """
 
 import hashlib
-import secrets
 import socket
 from datetime import datetime, timedelta
 from typing import Any
+
+import bcrypt
 
 # Importação relativa: o "." significa "desta mesma pasta (core/)"
 from .database import Database
@@ -91,18 +92,20 @@ class SistemaCreditos:
 
     def _hash_password(self, password: str, salt: str = "") -> str:
         """
-        Cria um hash seguro da senha.
-
-        O QUE É HASH?
-        Um hash transforma "132032" em algo como "a8f5f167f44f4964e6c998dee827110c".
-        É irreversível: não dá pra voltar do hash para a senha original.
-
-        O QUE É SALT?
-        É um texto aleatório adicionado à senha antes do hash.
-        Isso garante que duas pessoas com a mesma senha tenham hashes diferentes.
-        Exemplo: hash("132032" + "abc123") ≠ hash("132032" + "xyz789")
+        Cria um hash bcrypt da senha. O parâmetro salt é ignorado —
+        bcrypt gera e embute seu próprio salt no hash resultante.
+        Mantido por compatibilidade com código que chama (password, salt).
         """
-        return hashlib.sha256((str(password) + str(salt)).encode()).hexdigest()
+        return bcrypt.hashpw(str(password).encode(), bcrypt.gensalt()).decode()
+
+    def _verify_password(self, password: str, stored_hash: str, legacy_salt: str | None = None) -> bool:
+        """Verifica senha contra hash bcrypt ou SHA-256 legado."""
+        if stored_hash.startswith("$2b$") or stored_hash.startswith("$2a$"):
+            return bcrypt.checkpw(str(password).encode(), stored_hash.encode())
+        # Hash SHA-256 legado: com salt ou sem
+        if legacy_salt:
+            return hashlib.sha256((str(password) + str(legacy_salt)).encode()).hexdigest() == stored_hash
+        return hashlib.sha256(str(password).encode()).hexdigest() == stored_hash
 
     def verificar_login(self, username: str, password: str) -> dict | None:
         """
@@ -116,29 +119,23 @@ class SistemaCreditos:
         if not user_data:
             return None
 
-        # Migração automática: se o usuário não tem salt (versão antiga),
-        # valida com hash antigo e atualiza para o formato novo.
-        if user_data["salt"] is None:
-            legacy_hash = hashlib.sha256(str(password).encode()).hexdigest()
-            if legacy_hash == user_data["password"]:
-                # Login válido — atualiza para formato com salt
-                new_salt = secrets.token_hex(16)
-                new_hash = self._hash_password(password, new_salt)
-                with self.conn:
-                    self.cursor.execute(
-                        "UPDATE usuarios SET password = ?, salt = ? WHERE username = ?", (new_hash, new_salt, username)
-                    )
-                self.cursor.execute("SELECT * FROM usuarios WHERE username = ?", (username,))
-                return dict(self.cursor.fetchone())
+        stored_hash = user_data["password"]
+        salt = user_data["salt"]
+
+        if not self._verify_password(password, stored_hash, legacy_salt=salt):
             return None
 
-        # Login normal com salt
-        pass_hash = self._hash_password(password, user_data["salt"])
-        if pass_hash == user_data["password"]:
-            self.cursor.execute("SELECT * FROM usuarios WHERE username = ?", (username,))
-            return dict(self.cursor.fetchone())
+        # Migração automática: se ainda está em SHA-256, re-hashar com bcrypt
+        if not (stored_hash.startswith("$2b$") or stored_hash.startswith("$2a$")):
+            new_hash = self._hash_password(password)
+            with self.conn:
+                self.cursor.execute(
+                    "UPDATE usuarios SET password = ?, salt = NULL WHERE username = ?",
+                    (new_hash, username),
+                )
 
-        return None
+        self.cursor.execute("SELECT * FROM usuarios WHERE username = ?", (username,))
+        return dict(self.cursor.fetchone())
 
     def get_usuarios(self) -> list[dict]:
         self.cursor.execute("SELECT * FROM usuarios")
@@ -164,15 +161,14 @@ class SistemaCreditos:
         can_access_treinamento: bool = True,
         usuario_acao: str = "Sistema",
     ) -> None:
-        salt = secrets.token_hex(16)
-        password_hash = self._hash_password(password, salt)
+        password_hash = self._hash_password(password)
         with self.conn:
             self.cursor.execute(
                 "INSERT OR REPLACE INTO usuarios "
                 "(username, password, is_admin, can_change_dates, can_manage_products, "
                 "can_access_hospedes, can_access_financeiro, can_access_compras, "
                 "can_access_dash, can_access_relatorios, can_access_treinamento, salt) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
                 (
                     username,
                     password_hash,
@@ -185,7 +181,6 @@ class SistemaCreditos:
                     int(can_access_dash),
                     int(can_access_relatorios),
                     int(can_access_treinamento),
-                    salt,
                 ),
             )
         self.registrar_log(usuario_acao, "SALVAR_USUARIO", f"Usuario alvo: {username} | Admin: {is_admin}")
@@ -267,13 +262,15 @@ class SistemaCreditos:
                 )
                 self.registrar_log(usuario_acao, "CADASTRAR_HOSPEDE", f"Doc: {doc_limpo}")
 
-    def buscar_filtrado(self, termo: str = "", filtro: str = "todos") -> list[tuple[str, str, float]]:
+    def buscar_filtrado(self, termo: str = "", filtro: str = "todos") -> list[dict]:
         """
         Busca hóspedes com filtro por nome/documento e status de saldo.
 
         Args:
             termo: Texto para buscar no nome ou documento
             filtro: "todos", "vencidos", "vencendo", "com_multa"
+
+        Retorna lista de dicts com: nome, documento, saldo, vencimento, bloqueado
         """
         termo_limpo = str(termo).strip()
         self.cursor.execute(
@@ -300,7 +297,15 @@ class SistemaCreditos:
                 continue
             if saldo <= 0 and filtro not in ("todos", "com_multa"):
                 continue
-            resultado.append((h["nome"], h["documento"], saldo))
+            resultado.append(
+                {
+                    "nome": h["nome"],
+                    "documento": h["documento"],
+                    "saldo": saldo,
+                    "vencimento": venc,
+                    "bloqueado": bloqueado,
+                }
+            )
 
         return resultado
 

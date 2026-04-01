@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import Any
 
+import bcrypt
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
@@ -306,27 +307,39 @@ class SistemaCreditos:
     # ------------------------------------------------------------------
 
     def _hash_password(self, password: str, salt: str = "") -> str:
-        return hashlib.sha256((str(password) + str(salt)).encode()).hexdigest()
+        """Gera hash bcrypt. Parâmetro salt ignorado — bcrypt embute o próprio salt."""
+        return bcrypt.hashpw(str(password).encode(), bcrypt.gensalt()).decode()
+
+    def _verify_password(self, password: str, stored_hash: str, legacy_salt: str | None = None) -> bool:
+        """Verifica senha contra hash bcrypt ou SHA-256 legado."""
+        if stored_hash.startswith("$2b$") or stored_hash.startswith("$2a$"):
+            return bcrypt.checkpw(str(password).encode(), stored_hash.encode())
+        if legacy_salt:
+            return hashlib.sha256((str(password) + str(legacy_salt)).encode()).hexdigest() == stored_hash
+        return hashlib.sha256(str(password).encode()).hexdigest() == stored_hash
 
     def verificar_login(self, username: str, password: str) -> dict | None:
-        row = self._fetchone("SELECT password, salt FROM usuarios WHERE username = ?", (username,))
+        row = self._fetchone("SELECT password, salt FROM usuarios WHERE username = %s", (username,))
         if not row:
             return None
-        if row["salt"] is None:
-            if hashlib.sha256(str(password).encode()).hexdigest() == row["password"]:
-                new_salt = secrets.token_hex(16)
-                new_hash = self._hash_password(password, new_salt)
-                with self._tx() as conn:
-                    self._execute(
-                        "UPDATE usuarios SET password = ?, salt = ? WHERE username = ?",
-                        (new_hash, new_salt, username),
-                        conn=conn,
-                    )
-                return self._fetchone("SELECT * FROM usuarios WHERE username = ?", (username,))
+
+        stored_hash = row["password"]
+        salt = row["salt"]
+
+        if not self._verify_password(password, stored_hash, legacy_salt=salt):
             return None
-        if self._hash_password(password, row["salt"]) == row["password"]:
-            return self._fetchone("SELECT * FROM usuarios WHERE username = ?", (username,))
-        return None
+
+        # Migração automática: re-hashar SHA-256 legado para bcrypt
+        if not (stored_hash.startswith("$2b$") or stored_hash.startswith("$2a$")):
+            new_hash = self._hash_password(password)
+            with self._tx() as conn:
+                self._execute(
+                    "UPDATE usuarios SET password = %s, salt = NULL WHERE username = %s",
+                    (new_hash, username),
+                    conn=conn,
+                )
+
+        return self._fetchone("SELECT * FROM usuarios WHERE username = %s", (username,))
 
     def get_usuarios(self) -> list[dict]:
         return self._fetch("SELECT * FROM usuarios")
@@ -350,15 +363,14 @@ class SistemaCreditos:
         can_access_treinamento: bool = True,
         usuario_acao: str = "Sistema",
     ) -> None:
-        salt = secrets.token_hex(16)
-        phash = self._hash_password(password, salt)
+        phash = self._hash_password(password)
         with self._tx() as conn:
             self._execute(
                 """INSERT INTO usuarios
                    (username, password, is_admin, can_change_dates, can_manage_products,
                     can_access_hospedes, can_access_financeiro, can_access_compras,
                     can_access_dash, can_access_relatorios, can_access_treinamento, salt)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL)
                    ON CONFLICT (username) DO UPDATE SET
                      password=EXCLUDED.password, is_admin=EXCLUDED.is_admin,
                      can_change_dates=EXCLUDED.can_change_dates,
@@ -369,7 +381,7 @@ class SistemaCreditos:
                      can_access_dash=EXCLUDED.can_access_dash,
                      can_access_relatorios=EXCLUDED.can_access_relatorios,
                      can_access_treinamento=EXCLUDED.can_access_treinamento,
-                     salt=EXCLUDED.salt""",
+                     salt=NULL""",
                 (
                     username,
                     phash,
@@ -382,7 +394,6 @@ class SistemaCreditos:
                     int(can_access_dash),
                     int(can_access_relatorios),
                     int(can_access_treinamento),
-                    salt,
                 ),
                 conn=conn,
             )
@@ -432,12 +443,11 @@ class SistemaCreditos:
         self.registrar_log(usuario_acao, "EXCLUIR_USUARIO", f"Usuario alvo: {username}")
 
     def alterar_senha(self, username: str, nova_senha: str, usuario_acao: str = "Sistema") -> None:
-        salt = secrets.token_hex(16)
-        phash = self._hash_password(nova_senha, salt)
+        phash = self._hash_password(nova_senha)
         with self._tx() as conn:
             self._execute(
-                "UPDATE usuarios SET password = ?, salt = ? WHERE username = ?",
-                (phash, salt, username),
+                "UPDATE usuarios SET password = %s, salt = NULL WHERE username = %s",
+                (phash, username),
                 conn=conn,
             )
         self.registrar_log(usuario_acao, "ALTERAR_SENHA", f"Usuario alvo: {username}")
@@ -447,8 +457,28 @@ class SistemaCreditos:
     # ------------------------------------------------------------------
 
     def _validar_cpf_cnpj(self, doc: str) -> bool:
-        d = "".join(filter(str.isdigit, doc))
-        return len(d) in (11, 14)
+        """Valida CPF (11 dígitos) ou CNPJ (14 dígitos). Outros formatos aceitos como RG/Passaporte."""
+        numeros = "".join(filter(str.isdigit, str(doc)))
+        if len(numeros) not in (11, 14):
+            return len(str(doc).strip()) >= 3
+        if len(numeros) == 11:
+            if numeros == numeros[0] * 11:
+                return False
+            for i in range(9, 11):
+                val = sum(int(numeros[n]) * ((i + 1) - n) for n in range(0, i))
+                if ((val * 10) % 11) % 10 != int(numeros[i]):
+                    return False
+            return True
+        # CNPJ
+        if numeros == numeros[0] * 14:
+            return False
+        pesos = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        for i in range(12, 14):
+            soma = sum(int(numeros[n]) * pesos[n + (1 if i == 12 else 0)] for n in range(0, i))
+            digit = 0 if (soma % 11) < 2 else (11 - (soma % 11))
+            if digit != int(numeros[i]):
+                return False
+        return True
 
     def get_hospede(self, doc: str) -> dict | None:
         return self._fetchone("SELECT * FROM hospedes WHERE documento = ?", (doc,))
@@ -494,17 +524,18 @@ class SistemaCreditos:
             self._execute("DELETE FROM hospedes WHERE documento = ?", (doc,), conn=conn)
         self.registrar_log(usuario_acao, "EXCLUIR_HOSPEDE", f"Doc: {doc}")
 
-    def buscar_filtrado(self, termo: str = "", filtro: str = "todos") -> list[tuple[str, str, float]]:
+    def buscar_filtrado(self, termo: str = "", filtro: str = "todos") -> list[dict]:
         termo_limpo = str(termo).strip()
         hospedes = self._fetch(
-            "SELECT nome, documento FROM hospedes WHERE (nome ILIKE ? OR documento LIKE ?) AND ativo = 1",
+            "SELECT nome, documento FROM hospedes WHERE (nome ILIKE %s OR documento LIKE %s) AND ativo = 1",
             (f"%{termo_limpo}%", f"%{termo_limpo}%"),
         )
         hoje = datetime.now().strftime("%Y-%m-%d")
         alerta = (datetime.now() + timedelta(days=self.get_config("alerta_dias"))).strftime("%Y-%m-%d")
+        saldos = self._processar_saldos_bulk()
         resultado = []
         for h in hospedes:
-            saldo, venc, bloqueado = self._processar_saldo(h["documento"])
+            saldo, venc, bloqueado = saldos.get(h["documento"], (0.0, "N/A", False))
             if filtro == "vencidos" and not bloqueado:
                 continue
             if filtro == "vencendo":
@@ -532,10 +563,9 @@ class SistemaCreditos:
     # Financeiro
     # ------------------------------------------------------------------
 
-    def _processar_saldo(self, doc: str) -> tuple[float, str, bool]:
-        movs = self._fetch(
-            "SELECT tipo, valor, data_vencimento FROM historico_zebra WHERE documento = ? ORDER BY id ASC", (doc,)
-        )
+    @staticmethod
+    def _calcular_saldo_de_movs(movs: list[dict]) -> tuple[float, str, bool]:
+        """Calcula (saldo, vencimento_br, bloqueado) a partir de uma lista de movimentações já ordenadas por id."""
         entradas = [{"valor": float(m["valor"]), "venc": m["data_vencimento"]} for m in movs if m["tipo"] == "ENTRADA"]
         saidas_total = sum(float(m["valor"]) for m in movs if m["tipo"] == "SAIDA")
         hoje = datetime.now().strftime("%Y-%m-%d")
@@ -556,6 +586,26 @@ class SistemaCreditos:
         if prox_venc != "N/A" and prox_venc:
             prox_venc = datetime.strptime(prox_venc, "%Y-%m-%d").strftime("%d/%m/%Y")
         return round(max(0, saldo), 2), prox_venc, bloqueado
+
+    def _processar_saldo(self, doc: str) -> tuple[float, str, bool]:
+        movs = self._fetch(
+            "SELECT tipo, valor, data_vencimento FROM historico_zebra WHERE documento = ? ORDER BY id ASC", (doc,)
+        )
+        return self._calcular_saldo_de_movs(movs)
+
+    def _processar_saldos_bulk(self) -> dict[str, tuple[float, str, bool]]:
+        """Carrega todo o historico_zebra em 1 query e calcula saldo para cada hóspede.
+        Use no lugar de N chamadas a _processar_saldo() quando precisar de todos os saldos.
+        """
+        movs = self._fetch(
+            "SELECT documento, tipo, valor, data_vencimento FROM historico_zebra ORDER BY documento, id ASC"
+        )
+        from collections import defaultdict
+
+        por_doc: dict[str, list[dict]] = defaultdict(list)
+        for m in movs:
+            por_doc[m["documento"]].append(m)
+        return {doc: self._calcular_saldo_de_movs(lista) for doc, lista in por_doc.items()}
 
     def get_saldo_info(self, doc: str) -> tuple[float, str, bool]:
         return self._processar_saldo(doc)
@@ -636,6 +686,16 @@ class SistemaCreditos:
             (doc,),
         )
         return float(r1["t"]) - float(r2["t"])
+
+    def excluir_movimentacao(self, id_mov: int, usuario_acao: str = "Sistema") -> None:
+        mov = self._fetchone("SELECT * FROM historico_zebra WHERE id = %s", (id_mov,))
+        if not mov:
+            raise ValueError("Movimentação não encontrada.")
+        with self._tx() as conn:
+            self._execute("DELETE FROM historico_zebra WHERE id = %s", (id_mov,), conn=conn)
+        self.registrar_log(
+            usuario_acao, "EXCLUIR_MOVIMENTACAO", f"ID: {id_mov} | Doc: {mov['documento']} | Valor: {mov['valor']}"
+        )
 
     def get_historico_detalhado(self, doc: str) -> list[dict]:
         return self._fetch(
@@ -848,8 +908,9 @@ class SistemaCreditos:
         alerta = (datetime.now() + timedelta(days=self.get_config("alerta_dias"))).strftime("%Y-%m-%d")
         r = self._fetchone("SELECT COALESCE(SUM(valor), 0) AS t FROM historico_zebra WHERE tipo='MULTA'")
         total_multas = float(r["t"]) if r else 0.0
+        saldos = self._processar_saldos_bulk()
         for d in docs:
-            s, v, b = self._processar_saldo(d)
+            s, v, b = saldos.get(d, (0.0, "N/A", False))
             if s > 0:
                 total_saldo += s
                 if v != "N/A":
@@ -862,9 +923,10 @@ class SistemaCreditos:
 
     def get_devedores_multas(self) -> list[tuple[str, str, str, float]]:
         hospedes = self._fetch("SELECT nome, documento, telefone FROM hospedes")
+        saldos = self._processar_saldos_bulk()
         resultado = []
         for h in hospedes:
-            saldo, _, bloqueado = self._processar_saldo(h["documento"])
+            saldo, _, bloqueado = saldos.get(h["documento"], (0.0, "N/A", False))
             if bloqueado and saldo > 0:
                 resultado.append((h["nome"], h["documento"], h["telefone"] or "", saldo))
         return sorted(resultado, key=lambda x: x[0])
@@ -873,9 +935,10 @@ class SistemaCreditos:
         hoje = datetime.now().strftime("%Y-%m-%d")
         alerta = (datetime.now() + timedelta(days=self.get_config("alerta_dias"))).strftime("%Y-%m-%d")
         hospedes = self._fetch("SELECT nome, documento FROM hospedes")
+        saldos = self._processar_saldos_bulk()
         resultado = []
         for h in hospedes:
-            s, v, b = self._processar_saldo(h["documento"])
+            s, v, b = saldos.get(h["documento"], (0.0, "N/A", False))
             if v != "N/A":
                 v_iso = datetime.strptime(v, "%d/%m/%Y").strftime("%Y-%m-%d")
                 if not b and hoje <= v_iso <= alerta:

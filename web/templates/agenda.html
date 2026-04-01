@@ -108,6 +108,7 @@ async function selecionarDia(el) {
   const resp = await fetch(`/agenda/painel/${data}`);
   if (resp.ok) {
     painel.innerHTML = await resp.text();
+    injectCsrf(painel);
   } else {
     painel.innerHTML = '<p class="text-danger p-3">Erro ao carregar o dia.</p>';
   }

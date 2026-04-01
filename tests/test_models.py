@@ -177,7 +177,7 @@ class TestHospedes:
         # Buscar "Ana" deve retornar só a Ana
         resultados = sistema.buscar_filtrado("Ana")
         assert len(resultados) == 1
-        assert resultados[0][0] == "ANA PAULA SANTOS"
+        assert resultados[0]["nome"] == "ANA PAULA SANTOS"
 
     def test_atualizar_hospede_existente(self, sistema):
         """Testa que cadastrar com mesmo documento ATUALIZA em vez de duplicar."""
@@ -530,7 +530,7 @@ class TestBuscaFiltrada:
                 (self.DOC, ontem, ontem),
             )
         resultado = sistema.buscar_filtrado("", "vencidos")
-        docs = [r[1] for r in resultado]
+        docs = [r["documento"] for r in resultado]
         assert self.DOC in docs
 
     def test_buscar_filtro_com_multa(self, sistema):
@@ -538,7 +538,7 @@ class TestBuscaFiltrada:
         self._hospede(sistema)
         sistema.adicionar_multa(self.DOC, 80, "Teste")
         resultado = sistema.buscar_filtrado("", "com_multa")
-        docs = [r[1] for r in resultado]
+        docs = [r["documento"] for r in resultado]
         assert self.DOC in docs
 
     def test_buscar_filtro_vencendo(self, sistema):
@@ -548,7 +548,7 @@ class TestBuscaFiltrada:
         sistema.set_config("alerta_dias", 60)
         sistema.adicionar_movimentacao(self.DOC, 150, "Cat", "ENTRADA")
         resultado = sistema.buscar_filtrado("", "vencendo")
-        docs = [r[1] for r in resultado]
+        docs = [r["documento"] for r in resultado]
         assert self.DOC in docs
 
 

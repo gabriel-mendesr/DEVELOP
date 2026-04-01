@@ -24,6 +24,7 @@
     {% endfor %}
 
     <form method="post" action="/login">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <div class="mb-3">
         <label class="form-label">Usuário</label>
         <div class="input-group">
