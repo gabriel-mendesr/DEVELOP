@@ -39,5 +39,19 @@
 <script>
   const raw = {{ conteudo | tojson }};
   document.getElementById('ajuda-content').innerHTML = marked.parse(raw);
+
+  // Gera IDs nos headings no mesmo formato do sumário (ex: "7. Relatórios" → "7-relatórios")
+  document.querySelectorAll('#ajuda-content h1,#ajuda-content h2,#ajuda-content h3,#ajuda-content h4').forEach(h => {
+    h.id = h.textContent.toLowerCase()
+      .replace(/[^\w\u00C0-\u024F\s-]/g, '')  // mantém letras, acentos, espaços e hífens
+      .trim()
+      .replace(/\s+/g, '-');
+  });
+
+  // Rola suavemente ao carregar se há âncora na URL
+  if (location.hash) {
+    const el = document.querySelector(location.hash);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 </script>
 {% endblock %}
