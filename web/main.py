@@ -274,6 +274,16 @@ async def dashboard(request: Request):
 # =============================================================================
 # Simulador de Treinamento
 # =============================================================================
+@app.get("/ajuda", response_class=HTMLResponse)
+async def ajuda(request: Request):
+    u = _user(request)
+    if not u:
+        return _redirect_login()
+    manual_path = BASE_DIR.parent / "docs" / "manual_usuario.md"
+    conteudo = manual_path.read_text(encoding="utf-8") if manual_path.exists() else "# Manual não encontrado"
+    return templates.TemplateResponse(request, "ajuda.html", _ctx(request, active="ajuda", conteudo=conteudo))
+
+
 @app.get("/treinamento", response_class=HTMLResponse)
 async def simulador(request: Request):
     u = _user(request)

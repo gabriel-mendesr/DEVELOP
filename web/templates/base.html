@@ -128,6 +128,14 @@
     </div>
 
     {% if user %}
+    <div class="sidebar-help">
+      <a href="/ajuda" class="btn-ajuda {% if active == 'ajuda' %}active{% endif %}">
+        <i class="bi bi-question-circle"></i> Precisa de ajuda?
+      </a>
+    </div>
+    {% endif %}
+
+    {% if user %}
     <div class="sidebar-user">
       <div class="avatar">{{ user.username[0].upper() }}</div>
       <div class="user-info">

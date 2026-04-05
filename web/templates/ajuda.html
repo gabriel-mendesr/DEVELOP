@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+.ajuda-wrap{max-width:860px;margin:0 auto;padding:24px 16px 48px}
+.ajuda-header{margin-bottom:28px}
+.ajuda-header h1{font-size:22px;font-weight:700;color:var(--text);margin-bottom:4px}
+.ajuda-header p{font-size:13px;color:var(--muted)}
+.ajuda-body{background:#fff;border:1px solid var(--border);border-radius:10px;padding:32px 36px;font-size:14px;line-height:1.75;color:var(--text)}
+.ajuda-body h1{font-size:22px;font-weight:700;border-bottom:2px solid var(--teal);padding-bottom:8px;margin:0 0 20px}
+.ajuda-body h2{font-size:17px;font-weight:700;margin:32px 0 10px;padding-bottom:4px;border-bottom:1px solid var(--border);color:var(--text)}
+.ajuda-body h3{font-size:14px;font-weight:700;margin:20px 0 8px;color:var(--text)}
+.ajuda-body h4{font-size:13px;font-weight:600;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.ajuda-body p{margin:0 0 10px}
+.ajuda-body ul,.ajuda-body ol{padding-left:20px;margin:0 0 12px}
+.ajuda-body li{margin-bottom:4px}
+.ajuda-body table{border-collapse:collapse;width:100%;margin:12px 0 20px;font-size:13px}
+.ajuda-body th{background:#f4f6f8;text-align:left;padding:8px 12px;font-weight:600;border:1px solid var(--border)}
+.ajuda-body td{padding:7px 12px;border:1px solid var(--border);vertical-align:top}
+.ajuda-body tr:nth-child(even) td{background:#fafafa}
+.ajuda-body code{background:#f1f5f9;border-radius:4px;padding:1px 5px;font-size:12px;font-family:monospace}
+.ajuda-body blockquote{border-left:3px solid var(--teal);margin:0 0 12px;padding:8px 14px;background:#f0fdf4;border-radius:0 6px 6px 0;color:#555;font-size:13px}
+.ajuda-body blockquote p{margin:0}
+.ajuda-body hr{border:none;border-top:1px solid var(--border);margin:28px 0}
+.ajuda-body a{color:var(--teal)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ajuda-wrap">
+  <div class="ajuda-header">
+    <h1><i class="bi bi-question-circle-fill" style="color:var(--teal);margin-right:8px"></i>Manual de uso</h1>
+    <p>Documentação completa do sistema Hotel Santos.</p>
+  </div>
+  <div class="ajuda-body" id="ajuda-content"></div>
+</div>
+
+<script>
+  const raw = {{ conteudo | tojson }};
+  document.getElementById('ajuda-content').innerHTML = marked.parse(raw);
+</script>
+{% endblock %}

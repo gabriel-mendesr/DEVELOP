@@ -110,6 +110,29 @@ body {
 .icon-ajustes    { background: rgba(3, 105, 161, 0.25);  color: #38bdf8; }
 .icon-agenda     { background: rgba(67,  56, 202, 0.25); color: #818cf8; }
 
+.sidebar-help {
+  padding: 0.5rem 1rem;
+}
+
+.btn-ajuda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-ajuda:hover,
+.btn-ajuda.active {
+  background: rgba(0, 180, 180, 0.15);
+  color: var(--teal);
+}
+
 .sidebar-user {
   padding: 1rem 1.25rem;
   border-top: 1px solid rgba(255,255,255,0.08);
