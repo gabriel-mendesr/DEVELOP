@@ -279,7 +279,7 @@ async def ajuda(request: Request):
     u = _user(request)
     if not u:
         return _redirect_login()
-    manual_path = BASE_DIR.parent / "docs" / "manual_usuario.md"
+    manual_path = BASE_DIR / "static" / "docs" / "manual_usuario.md"
     conteudo = manual_path.read_text(encoding="utf-8") if manual_path.exists() else "# Manual não encontrado"
     return templates.TemplateResponse(request, "ajuda.html", _ctx(request, active="ajuda", conteudo=conteudo))
 
