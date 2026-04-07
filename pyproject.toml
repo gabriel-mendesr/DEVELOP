@@ -42,13 +42,14 @@ requires-python = ">=3.10"
 dynamic = ["version"]
 
 dependencies = [
-    "requests>=2.31.0",
-    "customtkinter",
-    "tkcalendar",
-    "fpdf2",
-    "matplotlib",
-    "Pillow",
-    "babel",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.9",
+    "itsdangerous>=2.2.0",
+    "psycopg2-binary>=2.9.9",
+    "fpdf2>=2.7.9",
+    "bcrypt>=4.0.0",
 ]
 
 [project.optional-dependencies]
@@ -58,7 +59,6 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.8",
     "pre-commit>=3.0",
-    "pyinstaller>=6.0",
     "setuptools-scm>=8.0",
 ]
 
@@ -88,7 +88,7 @@ dev = [
 # Arquivo onde a versão calculada será gravada.
 # IMPORTANTE: este arquivo é GERADO automaticamente.
 # Não edite à mão. Adicione ao .gitignore (veja abaixo).
-version_file = "app/__version__.py"
+version_file = "web/__version__.py"
 
 # Versão usada quando não há nenhuma tag git (ex: clone raso, CI sem histórico)
 fallback_version = "0.1.0"
@@ -98,7 +98,7 @@ fallback_version = "0.1.0"
 # -----------------------------------------------------------------------------
 [tool.setuptools.packages.find]
 where   = ["."]
-include = ["app*"]
+include = ["web*"]
 
 # -----------------------------------------------------------------------------
 # [tool.pytest]
@@ -115,7 +115,7 @@ python_files = ["test_*.py", "verificar_sistema.py"]
 line-length    = 120
 target-version = "py310"
 # Exclui o __version__.py porque ele é gerado — não faz sentido lintear
-exclude = [".git", "__pycache__", "dist", "build", "app/__version__.py", "fix_noqa.py", "fix_por_linha.py", "fix_final.py", "resolver_tudo.py", "corrigir_tipos2.py", "corrigir_lambda_except.py", "corrigir_version.py", "reparar_banco.py", "fix_final.py", "corrigir_lambda_except.py", "corrigir_tipos2.py", "corrigir_version.py", "resolver_tudo.py", "reparar_banco.py"]
+exclude = [".git", "__pycache__", "dist", "build", "app", "web/__version__.py"]
 
 [tool.ruff.lint]
 select  = ["E", "F", "W", "I", "UP"]
@@ -132,9 +132,9 @@ warn_unused_configs    = true
 warn_unused_ignores    = true
 no_implicit_optional   = true
 disallow_untyped_defs  = false
-files                  = ["app/core", "app/app_gui.py"]
-exclude                = ["app/__version__.py"]
+files                  = ["web/main.py", "web/db_pg.py", "web/exporters.py"]
+exclude                = ["web/__version__.py"]
 
 [[tool.mypy.overrides]]
-module = ["customtkinter.*", "tkcalendar.*", "fpdf.*", "matplotlib.*", "PIL.*", "babel.*"]
+module = ["psycopg2.*", "fpdf.*", "bcrypt.*", "jinja2.*", "fastapi.*", "uvicorn.*"]
 ignore_missing_imports = true

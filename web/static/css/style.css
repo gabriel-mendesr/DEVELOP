@@ -21,11 +21,12 @@ body {
   --sidebar-hover: rgba(255,255,255,0.07);
   --sidebar-active: rgba(31, 106, 165, 0.25);
   --primary: #1f6aa5;
+  --teal: #2dd4bf;
 
   --color-hospedes: #16a34a;
   --color-financeiro: #7c3aed;
   --color-compras: #ea580c;
-  --color-relatorios: #7b1fa2;
+  --color-relatorios: #0891b2;
   --color-ajustes: #0369a1;
   --color-dashboard: #1f6aa5;
 }
@@ -89,6 +90,7 @@ body {
 .sidebar-nav .nav-link.active {
   background: var(--sidebar-active);
   color: var(--sidebar-text-active);
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 
 .sidebar-nav .nav-link .nav-icon {
@@ -106,7 +108,7 @@ body {
 .icon-hospedes   { background: rgba(22, 163, 74, 0.25);  color: #4ade80; }
 .icon-financeiro { background: rgba(124, 58, 237, 0.25); color: #a78bfa; }
 .icon-compras    { background: rgba(234, 88, 12, 0.25);  color: #fb923c; }
-.icon-relatorios { background: rgba(123, 31, 162, 0.25); color: #e879f9; }
+.icon-relatorios { background: rgba(8, 145, 178, 0.25);  color: #22d3ee; }
 .icon-ajustes    { background: rgba(3, 105, 161, 0.25);  color: #38bdf8; }
 .icon-agenda     { background: rgba(67,  56, 202, 0.25); color: #818cf8; }
 
@@ -271,6 +273,18 @@ body {
   color: #0f172a;
   margin-bottom: 0;
 }
+
+/* ── Ícones coloridos dos stat-cards (dashboard) ────────────────────────── */
+
+.si-dashboard  { background: rgba(31, 106, 165, 0.12); color: #1f6aa5; }
+.si-hospedes   { background: rgba(22, 163, 74, 0.12);  color: #16a34a; }
+.si-vencido    { background: rgba(220, 38, 38, 0.12);  color: #dc2626; }
+.si-a-vencer   { background: rgba(234, 179, 8, 0.12);  color: #ca8a04; }
+.si-multas     { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+.si-compras    { background: rgba(234, 88, 12, 0.12);  color: #ea580c; }
+.si-relatorios { background: rgba(8, 145, 178, 0.12);  color: #0891b2; }
+.si-ajustes    { background: rgba(3, 105, 161, 0.12);  color: #0369a1; }
+.si-treinamento { background: rgba(246, 201, 14, 0.18); color: #b8860b; }
 
 /* ── Cards de estatística ────────────────────────────────────────────────── */
 

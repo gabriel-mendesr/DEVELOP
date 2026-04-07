@@ -13,8 +13,8 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg">
     <div class="stat-card">
-      <div class="stat-icon" style="background:rgba(31,106,165,0.12)">
-        <i class="bi bi-people-fill" style="color:#1f6aa5"></i>
+      <div class="stat-icon si-dashboard">
+        <i class="bi bi-people-fill"></i>
       </div>
       <div>
         <div class="stat-label">Hóspedes</div>
@@ -24,8 +24,8 @@
   </div>
   <div class="col-6 col-lg">
     <div class="stat-card">
-      <div class="stat-icon" style="background:rgba(22,163,74,0.12)">
-        <i class="bi bi-cash-stack" style="color:#16a34a"></i>
+      <div class="stat-icon si-hospedes">
+        <i class="bi bi-cash-stack"></i>
       </div>
       <div>
         <div class="stat-label">Saldo Total</div>
@@ -35,19 +35,19 @@
   </div>
   <div class="col-6 col-lg">
     <div class="stat-card">
-      <div class="stat-icon" style="background:rgba(220,38,38,0.12)">
-        <i class="bi bi-exclamation-triangle-fill" style="color:#dc2626"></i>
+      <div class="stat-icon si-vencido">
+        <i class="bi bi-exclamation-triangle-fill"></i>
       </div>
       <div>
         <div class="stat-label">Vencido</div>
-        <div class="stat-value" style="color:#dc2626">R$ {{ "%.2f"|format(total_vencido) }}</div>
+        <div class="stat-value saldo-negativo">R$ {{ "%.2f"|format(total_vencido) }}</div>
       </div>
     </div>
   </div>
   <div class="col-6 col-lg">
     <div class="stat-card">
-      <div class="stat-icon" style="background:rgba(234,179,8,0.12)">
-        <i class="bi bi-clock-history" style="color:#ca8a04"></i>
+      <div class="stat-icon si-a-vencer">
+        <i class="bi bi-clock-history"></i>
       </div>
       <div>
         <div class="stat-label">A Vencer</div>
@@ -57,8 +57,8 @@
   </div>
   <div class="col-6 col-lg">
     <div class="stat-card">
-      <div class="stat-icon" style="background:rgba(124,58,237,0.12)">
-        <i class="bi bi-shield-exclamation" style="color:#7c3aed"></i>
+      <div class="stat-icon si-multas">
+        <i class="bi bi-shield-exclamation"></i>
       </div>
       <div>
         <div class="stat-label">Multas</div>

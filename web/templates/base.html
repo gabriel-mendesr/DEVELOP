@@ -16,7 +16,7 @@
 
 <!-- ── Mobile: navbar topo ──────────────────────────────────────────────── -->
 <div class="navbar-mobile d-lg-none">
-  <span class="brand">🏨 Hotel Santos</span>
+  <span class="brand"><i class="bi bi-building me-1"></i>Hotel Santos</span>
   <button class="btn-toggle" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
     <i class="bi bi-list"></i>
   </button>
@@ -30,7 +30,7 @@
 
     <div class="sidebar-brand d-flex align-items-center justify-content-between">
       <div>
-        <h5>🏨 Hotel Santos</h5>
+        <h5><i class="bi bi-building me-1"></i>Hotel Santos</h5>
         <small>Portal de Gestão</small>
       </div>
       <button type="button" class="d-lg-none btn p-0" data-bs-dismiss="offcanvas"
@@ -109,7 +109,7 @@
         {% if user and user.get('can_access_treinamento', 1) %}
         <li class="nav-item">
           <a href="/treinamento" class="nav-link {% if active == 'treinamento' %}active{% endif %}">
-            <span class="nav-icon" style="background:rgba(246,201,14,.18);color:#b8860b"><i class="bi bi-joystick"></i></span>
+            <span class="nav-icon si-treinamento"><i class="bi bi-joystick"></i></span>
             Treinamento
           </a>
         </li>

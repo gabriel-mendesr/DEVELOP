@@ -15,7 +15,7 @@
 # =============================================================================
 
 PYTHON   := python3
-APP_DIR  := app
+WEB_DIR  := web
 TEST_DIR := tests
 
 VERDE   := \033[0;32m
@@ -23,7 +23,7 @@ AMARELO := \033[0;33m
 VERMELHO:= \033[0;31m
 RESET   := \033[0m
 
-.PHONY: help install test test-fast lint format typecheck check clean build version
+.PHONY: help install test test-fast lint format typecheck check clean version
 
 # =============================================================================
 help:
@@ -39,7 +39,6 @@ help:
 	@echo "  $(VERDE)make check$(RESET)       Lint + tipos + testes (simula o CI)"
 	@echo "  $(VERDE)make version$(RESET)     Mostra a versão atual calculada pelo git"
 	@echo "  $(VERDE)make clean$(RESET)       Remove cache e arquivos temporários"
-	@echo "  $(VERDE)make build$(RESET)       Gera o executável com PyInstaller"
 	@echo ""
 
 # =============================================================================
@@ -78,34 +77,34 @@ install:
 # =============================================================================
 test:
 	@echo "$(AMARELO)▶ Rodando testes com cobertura...$(RESET)"
-	cd $(APP_DIR) && $(PYTHON) -m pytest ../$(TEST_DIR)/ \
-		--cov=core \
+	$(PYTHON) -m pytest $(TEST_DIR)/ \
+		--cov=$(WEB_DIR) \
 		--cov-report=term-missing \
 		--cov-report=html \
 		--cov-fail-under=70
-	@echo "$(VERDE)✅ Relatório HTML: app/htmlcov/index.html$(RESET)"
+	@echo "$(VERDE)✅ Relatório HTML: htmlcov/index.html$(RESET)"
 
 test-fast:
 	@echo "$(AMARELO)▶ Rodando testes (sem cobertura)...$(RESET)"
-	cd $(APP_DIR) && $(PYTHON) -m pytest ../$(TEST_DIR)/ -v
+	$(PYTHON) -m pytest $(TEST_DIR)/ -v
 
 # =============================================================================
 # lint / format / typecheck
 # =============================================================================
 lint:
 	@echo "$(AMARELO)▶ Verificando com ruff...$(RESET)"
-	ruff check $(APP_DIR)/
+	ruff check $(WEB_DIR)/
 	@echo "$(VERDE)✅ Sem problemas$(RESET)"
 
 format:
 	@echo "$(AMARELO)▶ Formatando com ruff...$(RESET)"
-	ruff format $(APP_DIR)/
-	ruff check $(APP_DIR)/ --fix
+	ruff format $(WEB_DIR)/
+	ruff check $(WEB_DIR)/ --fix
 	@echo "$(VERDE)✅ Código formatado$(RESET)"
 
 typecheck:
 	@echo "$(AMARELO)▶ Verificando tipos com mypy...$(RESET)"
-	mypy $(APP_DIR)/core/
+	mypy $(WEB_DIR)/
 	@echo "$(VERDE)✅ Tipos OK$(RESET)"
 
 # =============================================================================
@@ -141,18 +140,5 @@ clean:
 	@echo "$(AMARELO)▶ Limpando...$(RESET)"
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -name "*.pyc" -delete 2>/dev/null || true
-	rm -rf $(APP_DIR)/htmlcov/ $(APP_DIR)/.coverage .mypy_cache/ .ruff_cache/ dist/ build/
+	rm -rf htmlcov/ .coverage .mypy_cache/ .ruff_cache/ dist/ build/
 	@echo "$(VERDE)✅ Limpo$(RESET)"
-
-# =============================================================================
-# build
-# =============================================================================
-build:
-	@echo "$(AMARELO)▶ Gerando executável...$(RESET)"
-	cd $(APP_DIR) && pyinstaller \
-		--onefile \
-		--windowed \
-		--name "HotelSantos" \
-		--icon="app.ico" \
-		app_gui.py
-	@echo "$(VERDE)✅ Executável em: app/dist/HotelSantos$(RESET)"
