@@ -685,7 +685,9 @@ class SistemaCreditos:
             "SELECT COALESCE(SUM(valor), 0) AS t FROM historico_zebra WHERE documento = ? AND tipo = 'PAGAMENTO_MULTA'",
             (doc,),
         )
-        return float(r1["t"]) - float(r2["t"])
+        t1 = float(r1["t"]) if r1 else 0.0
+        t2 = float(r2["t"]) if r2 else 0.0
+        return t1 - t2
 
     def excluir_movimentacao(self, id_mov: int, usuario_acao: str = "Sistema") -> None:
         mov = self._fetchone("SELECT * FROM historico_zebra WHERE id = %s", (id_mov,))
@@ -874,7 +876,7 @@ class SistemaCreditos:
             (inicio,),
         )
         # Garante todos os meses no intervalo, mesmo sem movimentos
-        meses_labels = []
+        meses_labels: list[str] = []
         cur = datetime.now().replace(day=1)
         for _ in range(meses):
             meses_labels.insert(0, cur.strftime("%Y-%m"))

@@ -797,7 +797,7 @@ async def banco_backup(request: Request):
     if not u or not u.get("is_admin"):
         return _redirect_login()
     try:
-        caminho = sistema.db.fazer_backup()
+        caminho = sistema.fazer_backup()
         _flash(request, f"Backup salvo em: {caminho}", "success")
     except Exception as e:
         _flash(request, f"Erro ao fazer backup: {e}", "danger")
@@ -946,7 +946,7 @@ _DIAS_PT = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Doming
 def _cal_grid(ano: int, mes: int) -> list:
     semanas = []
     for semana in _cal.Calendar(firstweekday=6).monthdayscalendar(ano, mes):
-        row = []
+        row: list[dict[str, object] | None] = []
         for dia in semana:
             if dia == 0:
                 row.append(None)

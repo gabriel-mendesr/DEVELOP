@@ -26,14 +26,15 @@ def _cabecalho(pdf: FPDF, empresa: dict) -> None:
     pdf.set_fill_color(*AZUL)
     pdf.set_text_color(*BRANCO)
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 9, empresa.get("nome", "HOTEL"), ln=True, fill=True, align="C")
+    pdf.cell(0, 9, empresa.get("nome", "HOTEL"), new_x="LMARGIN", new_y="NEXT", fill=True, align="C")
     pdf.set_font("Helvetica", size=8)
-    pdf.cell(0, 5, empresa.get("razao", ""), ln=True, fill=True, align="C")
+    pdf.cell(0, 5, empresa.get("razao", ""), new_x="LMARGIN", new_y="NEXT", fill=True, align="C")
     pdf.cell(
         0,
         5,
         f"CNPJ: {empresa.get('cnpj', '')}   {empresa.get('endereco', '')}",
-        ln=True,
+        new_x="LMARGIN",
+        new_y="NEXT",
         fill=True,
         align="C",
     )
@@ -41,7 +42,8 @@ def _cabecalho(pdf: FPDF, empresa: dict) -> None:
         0,
         5,
         f"{empresa.get('contato', '')}   {empresa.get('email', '')}",
-        ln=True,
+        new_x="LMARGIN",
+        new_y="NEXT",
         fill=True,
         align="C",
     )
@@ -67,14 +69,21 @@ def pdf_extrato(
     _cabecalho(pdf, empresa)
 
     pdf.set_font("Helvetica", "B", 13)
-    pdf.cell(0, 8, f"EXTRATO DO HOSPEDE: {hospede.get('nome', '')}", ln=True)
+    pdf.cell(0, 8, f"EXTRATO DO HOSPEDE: {hospede.get('nome', '')}", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 6, f"Documento: {hospede.get('documento', '')}   Telefone: {hospede.get('telefone') or 'N/I'}", ln=True)
+    pdf.cell(
+        0,
+        6,
+        f"Documento: {hospede.get('documento', '')}   Telefone: {hospede.get('telefone') or 'N/I'}",
+        new_x="LMARGIN",
+        new_y="NEXT",
+    )
     pdf.cell(
         0,
         6,
         f"Saldo atual: {_moeda(saldo)}   Vencimento: {venc}   Status: {'VENCIDO' if bloqueado else 'OK'}",
-        ln=True,
+        new_x="LMARGIN",
+        new_y="NEXT",
     )
     pdf.ln(4)
 
@@ -96,13 +105,13 @@ def pdf_extrato(
         pdf.cell(28, 6, _moeda(float(m.get("valor", 0))), border=1, fill=True)
         pdf.cell(38, 6, str(m.get("categoria") or "")[:18], border=1, fill=True)
         pdf.cell(50, 6, str(m.get("obs") or "")[:24], border=1, fill=True)
-        pdf.cell(26, 6, str(m.get("usuario") or "")[:12], border=1, fill=True, ln=True)
+        pdf.cell(26, 6, str(m.get("usuario") or "")[:12], border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
         fill = not fill
 
     pdf.ln(4)
     pdf.set_font("Helvetica", size=8)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 5, f"Emitido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
+    pdf.cell(0, 5, f"Emitido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", new_x="LMARGIN", new_y="NEXT")
 
     return bytes(pdf.output())
 
@@ -121,14 +130,17 @@ def pdf_mensal(mes: str, movimentos: list[dict], empresa: dict) -> bytes:
     _cabecalho(pdf, empresa)
 
     pdf.set_font("Helvetica", "B", 13)
-    pdf.cell(0, 8, f"RESUMO FINANCEIRO - {mes}", ln=True)
+    pdf.cell(0, 8, f"RESUMO FINANCEIRO - {mes}", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 6, f"Total entradas: {_moeda(total_e)}   Total saidas: {_moeda(total_s)}", ln=True)
+    pdf.cell(
+        0, 6, f"Total entradas: {_moeda(total_e)}   Total saidas: {_moeda(total_s)}", new_x="LMARGIN", new_y="NEXT"
+    )
     pdf.cell(
         0,
         6,
         f"Saldo do periodo: {_moeda(total_e - total_s)}   Registros: {len(movimentos)}",
-        ln=True,
+        new_x="LMARGIN",
+        new_y="NEXT",
     )
     pdf.ln(4)
 
@@ -149,13 +161,13 @@ def pdf_mensal(mes: str, movimentos: list[dict], empresa: dict) -> bytes:
         pdf.cell(22, 6, str(m.get("tipo", ""))[:8], border=1, fill=True)
         pdf.cell(30, 6, _moeda(float(m.get("valor", 0))), border=1, fill=True)
         pdf.cell(40, 6, str(m.get("categoria") or "")[:18], border=1, fill=True)
-        pdf.cell(20, 6, str(m.get("usuario") or "")[:10], border=1, fill=True, ln=True)
+        pdf.cell(20, 6, str(m.get("usuario") or "")[:10], border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
         fill = not fill
 
     pdf.ln(4)
     pdf.set_font("Helvetica", size=8)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(0, 5, f"Emitido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
+    pdf.cell(0, 5, f"Emitido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", new_x="LMARGIN", new_y="NEXT")
 
     return bytes(pdf.output())
 
@@ -173,10 +185,12 @@ def pdf_inadimplentes(devedores: list, empresa: dict) -> bytes:
     _cabecalho(pdf, empresa)
 
     pdf.set_font("Helvetica", "B", 13)
-    pdf.cell(0, 8, "LISTA DE INADIMPLENTES", ln=True)
+    pdf.cell(0, 8, "LISTA DE INADIMPLENTES", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", size=10)
-    pdf.cell(0, 6, f"Total de devedores: {len(devedores)}   Divida total: {_moeda(total)}", ln=True)
-    pdf.cell(0, 6, f"Emitido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
+    pdf.cell(
+        0, 6, f"Total de devedores: {len(devedores)}   Divida total: {_moeda(total)}", new_x="LMARGIN", new_y="NEXT"
+    )
+    pdf.cell(0, 6, f"Emitido em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
     pdf.set_fill_color(*VERMELHO)
@@ -194,7 +208,7 @@ def pdf_inadimplentes(devedores: list, empresa: dict) -> bytes:
         pdf.cell(80, 6, str(nome)[:38], border=1, fill=True)
         pdf.cell(50, 6, str(doc), border=1, fill=True)
         pdf.cell(45, 6, str(tel or "N/I")[:20], border=1, fill=True)
-        pdf.cell(35, 6, _moeda(float(divida)), border=1, fill=True, ln=True)
+        pdf.cell(35, 6, _moeda(float(divida)), border=1, fill=True, new_x="LMARGIN", new_y="NEXT")
         fill = not fill
 
     return bytes(pdf.output())
